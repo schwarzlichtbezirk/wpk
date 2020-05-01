@@ -31,7 +31,7 @@ func pathexists(path string) (bool, error) {
 }
 
 func parseargs() {
-	flag.StringVar(&srcpath, "src", "", "folder with source files to be packaged, or list of folders divided by ';'")
+	flag.StringVar(&srcpath, "src", "", "full path to folder with source files to be packaged, or list of folders divided by ';'")
 	flag.StringVar(&DstFile, "dst", "", "full path to output package file")
 	flag.BoolVar(&PutMIME, "mime", false, "put content MIME type defined by file extension")
 	flag.Parse()

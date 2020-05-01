@@ -1,144 +1,60 @@
 package main
 
 import (
-	"encoding/binary"
-	"flag"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/schwarzlichtbezirk/wpk"
+	"github.com/yuin/gopher-lua"
 )
 
-// command line settings
-var (
-	srcpath string
-	SrcList []string
-	DstFile string
-)
+func lualog(ls *lua.LState) int {
+	var s = ls.CheckString(1)
 
-func pathexists(path string) (bool, error) {
+	log.Println(s)
+	return 0
+}
+
+func luaexist(ls *lua.LState) int {
+	var path = ls.CheckString(1)
+
 	var err error
 	if _, err = os.Stat(path); err == nil {
-		return true, nil
+		ls.Push(lua.LBool(true))
+		return 1
 	}
 	if os.IsNotExist(err) {
-		return false, nil
+		ls.Push(lua.LBool(false))
+		return 1
 	}
-	return true, err
+	ls.Push(lua.LBool(false))
+	ls.Push(lua.LString(err.Error()))
+	return 2
 }
 
-func parseargs() {
-	flag.StringVar(&srcpath, "src", "", "folder with source files to be packaged, or list of folders divided by ';'")
-	flag.StringVar(&DstFile, "dst", "", "full path to output package file")
-	flag.Parse()
-}
+func mainluavm(path string) (err error) {
+	var ls = lua.NewState()
+	defer ls.Close()
 
-func checkargs() int {
-	var ec = 0 // error counter
+	OpenPath(ls)
+	RegPack(ls)
 
-	srcpath = filepath.ToSlash(strings.Trim(srcpath, ";"))
-	if srcpath == "" {
-		log.Println("source path does not specified")
-		ec++
-	}
-	for i, path := range strings.Split(srcpath, ";") {
-		if path == "" {
-			continue
-		}
-		if !strings.HasSuffix(path, "/") {
-			path += "/"
-		}
-		if ok, _ := pathexists(path); !ok {
-			log.Printf("source path #%d '%s' does not exist", i+1, path)
-			ec++
-			continue
-		}
-		SrcList = append(SrcList, path)
-	}
+	ls.SetGlobal("log", ls.NewFunction(lualog))
+	ls.SetGlobal("exist", ls.NewFunction(luaexist))
 
-	DstFile = filepath.ToSlash(DstFile)
-	if DstFile == "" {
-		log.Println("destination file does not specified")
-		ec++
-	} else if ok, _ := pathexists(filepath.Dir(DstFile)); !ok {
-		log.Println("destination path does not exist")
-		ec++
-	}
-
-	return ec
-}
-
-func writepackage() (err error) {
-	var dst *os.File
-	if dst, err = os.OpenFile(DstFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+	if err = ls.DoFile(path); err != nil {
 		return
 	}
-	defer dst.Close()
-
-	log.Printf("destination file: %s", DstFile)
-
-	var pack wpk.Package
-	pack.Init()
-
-	// write prebuild header
-	if err = binary.Write(dst, binary.LittleEndian, &pack.PackHdr); err != nil {
-		return
-	}
-
-	// write all source folders
-	for i, path := range SrcList {
-		log.Printf("source folder #%d: %s", i+1, path)
-		if err = pack.PackDir(dst, path, "", func(fi os.FileInfo, fname, fpath string) {
-			log.Printf("#%-4d %7d bytes   %s", len(pack.FAT), fi.Size(), fname)
-		}); err != nil {
-			return
-		}
-	}
-
-	// write records table
-	if pack.RecOffset, err = dst.Seek(0, os.SEEK_CUR); err != nil {
-		return
-	}
-	pack.RecNumber = int64(len(pack.FAT))
-	if err = binary.Write(dst, binary.LittleEndian, &pack.FAT); err != nil {
-		return
-	}
-
-	// write file attributes table
-	if pack.TagOffset, err = dst.Seek(0, os.SEEK_CUR); err != nil {
-		return
-	}
-	pack.TagNumber = int64(len(pack.Tags))
-	for _, tags := range pack.Tags {
-		if err = tags.Write(dst); err != nil {
-			return
-		}
-	}
-
-	// rewrite true header
-	if _, err = dst.Seek(0, os.SEEK_SET); err != nil {
-		return
-	}
-	copy(pack.Signature[:], wpk.Signature)
-	if err = binary.Write(dst, binary.LittleEndian, &pack.PackHdr); err != nil {
-		return
-	}
-
 	return
 }
 
 func main() {
-	parseargs()
-	if checkargs() > 0 {
-		return
-	}
-
 	log.Println("starts")
-	if err := writepackage(); err != nil {
-		log.Println(err.Error())
-		return
+	for _, path := range os.Args[1:] {
+		log.Printf("executes: %s", path)
+		if err := mainluavm(path); err != nil {
+			log.Println(err.Error())
+			return
+		}
 	}
 	log.Println("done.")
 }

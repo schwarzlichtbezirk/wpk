@@ -30,13 +30,13 @@ const (
 	AID_change     = 5 // uint64
 	AID_fileattr   = 6 // uint64
 
-	AID_CRC32IEEE = 16 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
-	AID_CRC32C    = 17 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1
-	AID_CRC32K    = 18 // uint32, (Koopman), poly = 0x741B8CD7, init = -1
-	AID_CRC64ISO  = 19 // uint64, poly = 0xD800000000000000, init = -1
-	AID_MD5       = 20 // [16]byte
-	AID_SHA1      = 21 // [20]byte
-	AID_SHA256    = 22 // [32]byte
+	AID_CRC32IEEE = 10 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
+	AID_CRC32C    = 11 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1
+	AID_CRC32K    = 12 // uint32, (Koopman), poly = 0x741B8CD7, init = -1
+	AID_CRC64ISO  = 13 // uint64, poly = 0xD800000000000000, init = -1
+	AID_MD5       = 14 // [16]byte
+	AID_SHA1      = 15 // [20]byte
+	AID_SHA256    = 16 // [32]byte
 
 	AID_mime     = 100 // string
 	AID_keywords = 101 // string
@@ -58,16 +58,16 @@ var (
 // Package header.
 type PackHdr struct {
 	Signature [0x18]byte
-	RecOffset int64
-	RecNumber int64
-	TagOffset int64
-	TagNumber int64
+	RecOffset int64 // file allocation table offset
+	RecNumber int64 // number of records
+	TagOffset int64 // tags table offset
+	TagNumber int64 // number of tagset entries
 }
 
 // Package record item.
 type PackRec struct {
-	Offset int64
-	Size   int64
+	Offset int64 // datablock offset
+	Size   int64 // datablock size
 }
 
 // Tags set for each file in package.
@@ -221,6 +221,7 @@ func (pack *Package) GetRecord(fid int64) (rec PackRec, err error) {
 	}
 }
 
+// Returns copy of specified data block.
 func (pack *Package) ExtractFID(r io.ReaderAt, fid int64) (buf []byte, err error) {
 	var rec PackRec
 	if rec, err = pack.GetRecord(fid); err != nil {
@@ -231,6 +232,7 @@ func (pack *Package) ExtractFID(r io.ReaderAt, fid int64) (buf []byte, err error
 	return
 }
 
+// Returns copy of data block tagged by given file name.
 func (pack *Package) Extract(r io.ReaderAt, fname string) ([]byte, error) {
 	var tags, is = pack.Tags[strings.ToLower(fname)]
 	if !is {
@@ -308,8 +310,10 @@ func (pack *Package) Open(r io.ReadSeeker, filename string) (err error) {
 	return
 }
 
+// Function to report about each file start processing by PackDir function.
 type FileReport = func(fi os.FileInfo, fname, fpath string)
 
+// Puts all files of given folder and it's subfolders into package.
 func (pack *Package) PackDir(w io.WriteSeeker, dirname, prefix string, report FileReport) (err error) {
 	var fis []os.FileInfo
 	if func() {
