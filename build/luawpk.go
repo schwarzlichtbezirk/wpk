@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -17,6 +19,8 @@ type LuaPackage struct {
 	crc32    bool
 	md5      bool
 	sha256   bool
+
+	w *os.File
 }
 
 func RegPack(ls *lua.LState) {
@@ -135,6 +139,10 @@ var properties_pack = []struct {
 }
 
 var methods_pack = map[string]lua.LGFunction{
+	"begin":     begin,
+	"complete":  complete,
+	"putfile":   putfile,
+	"filesize":  filesize,
 	"rename":    rename,
 	"putalias":  putalias,
 	"deltagset": deltagset,
@@ -212,6 +220,131 @@ func setsha256(ls *lua.LState) int {
 
 // methods section
 
+func begin(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var pkgname = ls.CheckString(2)
+
+	if pack.w != nil {
+		ls.RaiseError("package write stream already opened")
+		return 0
+	}
+
+	var err error
+
+	// create package file
+	var dst *os.File
+	if dst, err = os.OpenFile(pkgname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	pack.Init()
+	pack.w = dst
+
+	// write prebuild header
+	if err = binary.Write(pack.w, binary.LittleEndian, &pack.PackHdr); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	return 0
+}
+
+func complete(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+
+	if pack.w == nil {
+		ls.RaiseError("package write stream does not opened")
+		return 0
+	}
+
+	var err error
+
+	// write records table
+	if pack.RecOffset, err = pack.w.Seek(0, os.SEEK_END); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+	pack.RecNumber = int64(len(pack.FAT))
+	if err = binary.Write(pack.w, binary.LittleEndian, &pack.FAT); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	// write files tags table
+	if pack.TagOffset, err = pack.w.Seek(0, os.SEEK_CUR); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+	pack.TagNumber = int64(len(pack.Tags))
+	for _, tags := range pack.Tags {
+		if err = tags.Write(pack.w); err != nil {
+			ls.RaiseError(err.Error())
+			return 0
+		}
+	}
+
+	// rewrite true header
+	if _, err = pack.w.Seek(0, os.SEEK_SET); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+	copy(pack.Signature[:], wpk.Signature)
+	if err = binary.Write(pack.w, binary.LittleEndian, &pack.PackHdr); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	// close package file
+	if err = pack.w.Close(); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+	pack.w = nil
+
+	return 0
+}
+
+func putfile(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var fname = ls.CheckString(2)
+	var fpath = ls.CheckString(3)
+
+	if _, is := pack.Tags[strings.ToLower(filepath.ToSlash(fname))]; is {
+		ls.RaiseError("file with name '%s' already present", fname)
+		return 0
+	}
+
+	var err error
+	var tags wpk.TagSet
+	if tags, err = pack.PackFile(pack.w, fname, fpath); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	if pack.automime {
+		if ct, ok := mimeext[filepath.Ext(fpath)]; ok {
+			tags.SetString(wpk.AID_mime, ct)
+		}
+	}
+
+	return 0
+}
+
+func filesize(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var fname = ls.CheckString(2)
+
+	var rec, err = pack.NamedRecord(fname)
+	if err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	ls.Push(lua.LNumber(rec.Size))
+	return 1
+}
+
 // Renames tag set with file name fname1 to fname2.
 // rename(fname1, fname2)
 //   fname1 - old file name
@@ -225,11 +358,11 @@ func rename(ls *lua.LState) int {
 	var key2 = strings.ToLower(filepath.ToSlash(fname2))
 	var tags, ok = pack.Tags[key1]
 	if !ok {
-		ls.ArgError(2, fmt.Sprintf("file with name '%s' does not present", fname1))
+		ls.RaiseError("file with name '%s' does not present", fname1)
 		return 0
 	}
 	if _, ok = pack.Tags[key2]; ok {
-		ls.ArgError(3, fmt.Sprintf("can not create alias with name '%s' because file with this name already present", fname2))
+		ls.RaiseError("file with name '%s' already present", fname2)
 		return 0
 	}
 
@@ -252,11 +385,11 @@ func putalias(ls *lua.LState) int {
 	var key2 = strings.ToLower(filepath.ToSlash(fname2))
 	var tags1, ok = pack.Tags[key1]
 	if !ok {
-		ls.ArgError(2, fmt.Sprintf("file with name '%s' does not present", fname1))
+		ls.RaiseError("file with name '%s' does not present", fname1)
 		return 0
 	}
 	if _, ok = pack.Tags[key2]; ok {
-		ls.ArgError(3, fmt.Sprintf("can not create alias with name '%s' because file with this name already present", fname2))
+		ls.RaiseError("file with name '%s' already present", fname2)
 		return 0
 	}
 

@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -203,13 +204,13 @@ func (pack *Package) Init() {
 }
 
 // Walks through all records links to get real data block.
-func (pack *Package) GetRecord(fid int64) (rec PackRec, err error) {
+func (pack *Package) Record(fid int64) (rec *PackRec, err error) {
 	for {
 		if fid < DATAREF || fid >= int64(len(pack.FAT)) {
 			err = ErrBadFID
 			return
 		}
-		rec = pack.FAT[fid]
+		rec = &pack.FAT[fid]
 		if rec.Size == DATAREF {
 			fid = rec.Offset
 		} else if rec.Size == NODATA {
@@ -221,25 +222,30 @@ func (pack *Package) GetRecord(fid int64) (rec PackRec, err error) {
 	}
 }
 
-// Returns copy of specified data block.
-func (pack *Package) ExtractFID(r io.ReaderAt, fid int64) (buf []byte, err error) {
-	var rec PackRec
-	if rec, err = pack.GetRecord(fid); err != nil {
-		return
+func (pack *Package) NamedRecord(fname string) (*PackRec, error) {
+	var tags, is = pack.Tags[strings.ToLower(filepath.ToSlash(fname))]
+	if !is {
+		return nil, ErrNotFound
 	}
-	buf = make([]byte, rec.Size)
-	_, err = r.ReadAt(buf, rec.Offset)
-	return
+	var fid, _ = tags.Uint64(AID_FID)
+	return pack.Record(int64(fid))
 }
 
 // Returns copy of data block tagged by given file name.
-func (pack *Package) Extract(r io.ReaderAt, fname string) ([]byte, error) {
+func (pack *Package) Extract(r io.ReaderAt, fname string) (buf []byte, err error) {
 	var tags, is = pack.Tags[strings.ToLower(fname)]
 	if !is {
 		return nil, ErrNotFound
 	}
 	var fid, _ = tags.Uint64(AID_FID)
-	return pack.ExtractFID(r, int64(fid))
+
+	var rec *PackRec
+	if rec, err = pack.Record(int64(fid)); err != nil {
+		return
+	}
+	buf = make([]byte, rec.Size)
+	_, err = r.ReadAt(buf, rec.Offset)
+	return
 }
 
 // Error in tag set. Shows errors associated with any tags.
@@ -310,6 +316,50 @@ func (pack *Package) Open(r io.ReadSeeker, filename string) (err error) {
 	return
 }
 
+func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags TagSet, err error) {
+	var key = strings.ToLower(filepath.ToSlash(fname))
+	if _, ok := pack.Tags[key]; ok {
+		err = ErrAlready
+		return
+	}
+
+	var rec PackRec
+	if rec.Offset, err = w.Seek(0, os.SEEK_CUR); err != nil {
+		return
+	}
+	var crt uint64
+	if func() {
+		var file *os.File
+		if file, err = os.Open(fpath); err != nil {
+			return
+		}
+		defer func() {
+			err = file.Close()
+		}()
+
+		var fi os.FileInfo
+		if fi, err = file.Stat(); err != nil {
+			return
+		}
+		crt = uint64(fi.ModTime().Unix())
+
+		if rec.Size, err = io.Copy(w, file); err != nil {
+			return
+		}
+	}(); err != nil {
+		return
+	}
+
+	var fid = uint64(len(pack.FAT))
+	pack.FAT = append(pack.FAT, rec)
+	tags = TagSet{}
+	tags.SetUint64(AID_FID, fid)
+	tags.SetString(AID_name, fname)
+	tags.SetUint64(AID_created, crt)
+	pack.Tags[strings.ToLower(fname)] = tags
+	return
+}
+
 // Function to report about each file start processing by PackDir function.
 type FileReport = func(fi os.FileInfo, fname, fpath string)
 
@@ -340,34 +390,9 @@ func (pack *Package) PackDir(w io.WriteSeeker, dirname, prefix string, report Fi
 			if report != nil {
 				report(fi, fname, fpath)
 			}
-			if _, ok := pack.Tags[strings.ToLower(fname)]; ok {
-				return ErrAlready
-			}
-
-			var rec PackRec
-			if rec.Offset, err = w.Seek(0, os.SEEK_CUR); err != nil {
+			if _, err = pack.PackFile(w, fname, fpath); err != nil {
 				return
 			}
-			if func() {
-				var file *os.File
-				if file, err = os.Open(fpath); err != nil {
-					return
-				}
-				defer file.Close()
-				if rec.Size, err = io.Copy(w, file); err != nil {
-					return
-				}
-			}(); err != nil {
-				return
-			}
-
-			pack.FAT = append(pack.FAT, rec)
-			var fid = int64(len(pack.FAT)) - 1
-			var tags = TagSet{}
-			tags.SetUint64(AID_FID, uint64(fid))
-			tags.SetString(AID_name, fname)
-			tags.SetUint64(AID_created, uint64(fi.ModTime().Unix()))
-			pack.Tags[strings.ToLower(fname)] = tags
 		}
 	}
 	return

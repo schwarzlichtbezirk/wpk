@@ -111,7 +111,7 @@ func writepackage() (err error) {
 
 	// write records table
 	log.Printf("write file allocation table")
-	if pack.RecOffset, err = dst.Seek(0, os.SEEK_CUR); err != nil {
+	if pack.RecOffset, err = dst.Seek(0, os.SEEK_END); err != nil {
 		return
 	}
 	pack.RecNumber = int64(len(pack.FAT))
