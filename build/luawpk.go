@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/schwarzlichtbezirk/wpk"
 	"github.com/yuin/gopher-lua"
@@ -15,9 +17,12 @@ const PackMT = "wpk"
 
 type LuaPackage struct {
 	wpk.Package
+	secret   string
 	automime bool
 	crc32    bool
 	md5      bool
+	sha1     bool
+	sha224   bool
 	sha256   bool
 
 	w *os.File
@@ -112,15 +117,12 @@ func tostring_pack(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
 	var size int64 = 0
-	var refs int64 = 0
 	for _, rec := range pack.FAT {
 		if rec.Size > 0 {
 			size += rec.Size
-		} else if rec.Size == wpk.DATAREF {
-			refs++
 		}
 	}
-	var s = fmt.Sprintf("records: %d, total size: %d, references: %d", len(pack.FAT), size, refs)
+	var s = fmt.Sprintf("records: %d, tags: %d, total size: %d", len(pack.FAT), len(pack.Tags), size)
 	ls.Push(lua.LString(s))
 	return 1
 }
@@ -133,8 +135,11 @@ var properties_pack = []struct {
 	{"recnum", getrecnum, nil},
 	{"tagnum", gettagnum, nil},
 	{"automime", getautomime, setautomime},
+	{"secret", getsecret, setsecret},
 	{"crc32", getcrc32, setcrc32},
 	{"md5", getmd5, setmd5},
+	{"sha1", getsha1, setsha1},
+	{"sha224", getsha224, setsha224},
 	{"sha256", getsha256, setsha256},
 }
 
@@ -142,7 +147,8 @@ var methods_pack = map[string]lua.LGFunction{
 	"begin":     begin,
 	"complete":  complete,
 	"putfile":   putfile,
-	"filesize":  filesize,
+	"putstring": putstring,
+	"datasize":  datasize,
 	"rename":    rename,
 	"putalias":  putalias,
 	"deltagset": deltagset,
@@ -176,6 +182,20 @@ func setautomime(ls *lua.LState) int {
 	return 0
 }
 
+func getsecret(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	ls.Push(lua.LString(pack.secret))
+	return 1
+}
+
+func setsecret(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var val = ls.CheckString(2)
+
+	pack.secret = val
+	return 0
+}
+
 func getcrc32(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	ls.Push(lua.LBool(pack.crc32))
@@ -201,6 +221,34 @@ func setmd5(ls *lua.LState) int {
 	var val = ls.CheckBool(2)
 
 	pack.md5 = val
+	return 0
+}
+
+func getsha1(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pack.sha1))
+	return 1
+}
+
+func setsha1(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var val = ls.CheckBool(2)
+
+	pack.sha1 = val
+	return 0
+}
+
+func getsha224(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pack.sha224))
+	return 1
+}
+
+func setsha224(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var val = ls.CheckBool(2)
+
+	pack.sha224 = val
 	return 0
 }
 
@@ -261,7 +309,7 @@ func complete(ls *lua.LState) int {
 	var err error
 
 	// write records table
-	if pack.RecOffset, err = pack.w.Seek(0, os.SEEK_END); err != nil {
+	if pack.RecOffset, err = pack.w.Seek(0, io.SeekEnd); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
@@ -272,7 +320,7 @@ func complete(ls *lua.LState) int {
 	}
 
 	// write files tags table
-	if pack.TagOffset, err = pack.w.Seek(0, os.SEEK_CUR); err != nil {
+	if pack.TagOffset, err = pack.w.Seek(0, io.SeekCurrent); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
@@ -285,7 +333,7 @@ func complete(ls *lua.LState) int {
 	}
 
 	// rewrite true header
-	if _, err = pack.w.Seek(0, os.SEEK_SET); err != nil {
+	if _, err = pack.w.Seek(0, io.SeekStart); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
@@ -310,28 +358,70 @@ func putfile(ls *lua.LState) int {
 	var fname = ls.CheckString(2)
 	var fpath = ls.CheckString(3)
 
-	if _, is := pack.Tags[strings.ToLower(filepath.ToSlash(fname))]; is {
+	var key = strings.ToLower(filepath.ToSlash(fname))
+	if _, is := pack.Tags[key]; is {
 		ls.RaiseError("file with name '%s' already present", fname)
 		return 0
 	}
 
 	var err error
-	var tags wpk.TagSet
-	if tags, err = pack.PackFile(pack.w, fname, fpath); err != nil {
+	if func() {
+		var file *os.File
+		if file, err = os.Open(fpath); err != nil {
+			return
+		}
+		defer func() {
+			err = file.Close()
+		}()
+
+		var fi os.FileInfo
+		if fi, err = file.Stat(); err != nil {
+			return
+		}
+		var tags wpk.TagSet
+		if tags, err = pack.PackData(pack.w, file, fname, fi.ModTime().Unix()); err != nil {
+			return
+		}
+		if err = pack.adjusttagset(file, tags); err != nil {
+			return
+		}
+	}(); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
-	}
-
-	if pack.automime {
-		if ct, ok := mimeext[filepath.Ext(fpath)]; ok {
-			tags.SetString(wpk.AID_mime, ct)
-		}
 	}
 
 	return 0
 }
 
-func filesize(ls *lua.LState) int {
+func putstring(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var fname = ls.CheckString(2)
+	var data = ls.CheckString(3)
+
+	var key = strings.ToLower(filepath.ToSlash(fname))
+	if _, is := pack.Tags[key]; is {
+		ls.RaiseError("file with name '%s' already present", fname)
+		return 0
+	}
+
+	var err error
+	var r = strings.NewReader(data)
+
+	var tags wpk.TagSet
+	if tags, err = pack.PackData(pack.w, r, fname, time.Now().Unix()); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	if err = pack.adjusttagset(r, tags); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	return 0
+}
+
+func datasize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fname = ls.CheckString(2)
 

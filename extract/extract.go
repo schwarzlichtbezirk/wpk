@@ -91,10 +91,7 @@ func readpackage() (err error) {
 
 			for fname, tags := range pack.Tags {
 				var fid, _ = tags.Uint64(wpk.AID_FID)
-				var rec *wpk.PackRec
-				if rec, err = pack.Record(int64(fid)); err != nil {
-					return
-				}
+				var rec = &pack.FAT[fid]
 				log.Printf("#%-4d %7d bytes   %s", fid, rec.Size, fname)
 
 				if func() {

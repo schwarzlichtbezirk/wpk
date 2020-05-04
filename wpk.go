@@ -16,11 +16,6 @@ const (
 	Prebuild  = "Whirlwind 3.1 Prebuild  " // package is in building progress
 )
 
-const (
-	NODATA  int64 = -1 // record has no any associated data block
-	DATAREF int64 = -2 // record is link to another record
-)
-
 // List of predefined attributes IDs.
 const (
 	AID_FID        = 0 // required, uint64
@@ -34,10 +29,14 @@ const (
 	AID_CRC32IEEE = 10 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
 	AID_CRC32C    = 11 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1
 	AID_CRC32K    = 12 // uint32, (Koopman), poly = 0x741B8CD7, init = -1
-	AID_CRC64ISO  = 13 // uint64, poly = 0xD800000000000000, init = -1
-	AID_MD5       = 14 // [16]byte
-	AID_SHA1      = 15 // [20]byte
-	AID_SHA256    = 16 // [32]byte
+	AID_CRC64ISO  = 14 // uint64, poly = 0xD800000000000000, init = -1
+
+	AID_MD5    = 20 // [16]byte
+	AID_SHA1   = 21 // [20]byte
+	AID_SHA224 = 22 // [28]byte
+	AID_SHA256 = 23 // [32]byte
+	AID_SHA384 = 24 // [48]byte
+	AID_SHA512 = 25 // [64]byte
 
 	AID_mime     = 100 // string
 	AID_keywords = 101 // string
@@ -49,8 +48,6 @@ const (
 
 var (
 	ErrNotFound = errors.New("file not found")
-	ErrNoData   = errors.New("file has no data")
-	ErrBadFID   = errors.New("file identifier is out of range")
 	ErrAlready  = errors.New("file with this name already packed")
 	ErrSignPre  = errors.New("package is not ready yet")
 	ErrSignBad  = errors.New("signature does not pass")
@@ -85,6 +82,23 @@ func (t TagSet) String(id uint16) (string, bool) {
 // String tag setter.
 func (t TagSet) SetString(id uint16, val string) {
 	t[id] = []byte(val)
+}
+
+// Boolean tag getter.
+func (t TagSet) Bool(id uint16) (bool, bool) {
+	if data, ok := t[id]; ok && len(data) == 1 {
+		return data[0] > 0, ok
+	}
+	return false, false
+}
+
+// Boolean tag setter.
+func (t TagSet) SetBool(id uint16, val bool) {
+	var buf [1]byte
+	if val {
+		buf[0] = 1
+	}
+	t[id] = buf[:]
 }
 
 // 16-bit unsigned int tag getter. Conversion can be used to get signed 16-bit integers.
@@ -203,44 +217,21 @@ func (pack *Package) Init() {
 	pack.Tags = map[string]TagSet{}
 }
 
-// Walks through all records links to get real data block.
-func (pack *Package) Record(fid int64) (rec *PackRec, err error) {
-	for {
-		if fid < DATAREF || fid >= int64(len(pack.FAT)) {
-			err = ErrBadFID
-			return
-		}
-		rec = &pack.FAT[fid]
-		if rec.Size == DATAREF {
-			fid = rec.Offset
-		} else if rec.Size == NODATA {
-			err = ErrNoData
-			return
-		} else {
-			return
-		}
-	}
-}
-
+// Returns record associated with given filename.
 func (pack *Package) NamedRecord(fname string) (*PackRec, error) {
-	var tags, is = pack.Tags[strings.ToLower(filepath.ToSlash(fname))]
+	var key = strings.ToLower(filepath.ToSlash(fname))
+	var tags, is = pack.Tags[key]
 	if !is {
 		return nil, ErrNotFound
 	}
 	var fid, _ = tags.Uint64(AID_FID)
-	return pack.Record(int64(fid))
+	return &pack.FAT[fid], nil
 }
 
 // Returns copy of data block tagged by given file name.
 func (pack *Package) Extract(r io.ReaderAt, fname string) (buf []byte, err error) {
-	var tags, is = pack.Tags[strings.ToLower(fname)]
-	if !is {
-		return nil, ErrNotFound
-	}
-	var fid, _ = tags.Uint64(AID_FID)
-
 	var rec *PackRec
-	if rec, err = pack.Record(int64(fid)); err != nil {
+	if rec, err = pack.NamedRecord(fname); err != nil {
 		return
 	}
 	buf = make([]byte, rec.Size)
@@ -278,7 +269,7 @@ func (pack *Package) Open(r io.ReadSeeker, filename string) (err error) {
 	pack.Tags = make(map[string]TagSet, pack.TagNumber)
 
 	// read records table
-	if _, err = r.Seek(pack.RecOffset, os.SEEK_SET); err != nil {
+	if _, err = r.Seek(pack.RecOffset, io.SeekStart); err != nil {
 		return
 	}
 	if err = binary.Read(r, binary.LittleEndian, &pack.FAT); err != nil {
@@ -286,7 +277,7 @@ func (pack *Package) Open(r io.ReadSeeker, filename string) (err error) {
 	}
 
 	// read file attributes table
-	if _, err = r.Seek(pack.TagOffset, os.SEEK_SET); err != nil {
+	if _, err = r.Seek(pack.TagOffset, io.SeekStart); err != nil {
 		return
 	}
 	for i := int64(0); i < pack.TagNumber; i++ {
@@ -296,27 +287,32 @@ func (pack *Package) Open(r io.ReadSeeker, filename string) (err error) {
 		}
 		// check tags fields
 		var ok bool
+		var fid uint64
 		var fname string
-		if _, ok = tags.Uint64(AID_FID); !ok {
+		if fid, ok = tags.Uint64(AID_FID); !ok {
 			return &TagError{i, AID_FID, "file ID is absent"}
+		}
+		if fid >= uint64(len(pack.FAT)) {
+			return &TagError{i, AID_FID, "file ID is out of range"}
 		}
 		if fname, ok = tags.String(AID_name); !ok {
 			return &TagError{i, AID_name, "file name is absent"}
 		}
-		if _, ok = pack.Tags[strings.ToLower(fname)]; ok {
+		var key = strings.ToLower(filepath.ToSlash(fname))
+		if _, ok = pack.Tags[key]; ok {
 			return &TagError{i, AID_name, fmt.Sprintf("file name '%s' is not unique", fname)}
 		}
 		if _, ok = tags.Uint64(AID_created); !ok {
 			return &TagError{i, AID_created, "created time is absent"}
 		}
 		// insert file tags
-		pack.Tags[strings.ToLower(fname)] = tags
+		pack.Tags[key] = tags
 	}
 
 	return
 }
 
-func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags TagSet, err error) {
+func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, fname string, crt int64) (tags TagSet, err error) {
 	var key = strings.ToLower(filepath.ToSlash(fname))
 	if _, ok := pack.Tags[key]; ok {
 		err = ErrAlready
@@ -324,29 +320,10 @@ func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags TagSe
 	}
 
 	var rec PackRec
-	if rec.Offset, err = w.Seek(0, os.SEEK_CUR); err != nil {
+	if rec.Offset, err = w.Seek(0, io.SeekCurrent); err != nil {
 		return
 	}
-	var crt uint64
-	if func() {
-		var file *os.File
-		if file, err = os.Open(fpath); err != nil {
-			return
-		}
-		defer func() {
-			err = file.Close()
-		}()
-
-		var fi os.FileInfo
-		if fi, err = file.Stat(); err != nil {
-			return
-		}
-		crt = uint64(fi.ModTime().Unix())
-
-		if rec.Size, err = io.Copy(w, file); err != nil {
-			return
-		}
-	}(); err != nil {
+	if rec.Size, err = io.Copy(w, r); err != nil {
 		return
 	}
 
@@ -355,8 +332,27 @@ func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags TagSe
 	tags = TagSet{}
 	tags.SetUint64(AID_FID, fid)
 	tags.SetString(AID_name, fname)
-	tags.SetUint64(AID_created, crt)
-	pack.Tags[strings.ToLower(fname)] = tags
+	tags.SetUint64(AID_created, uint64(crt))
+	pack.Tags[key] = tags
+	return
+}
+
+func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags TagSet, err error) {
+	var file *os.File
+	if file, err = os.Open(fpath); err != nil {
+		return
+	}
+	defer func() {
+		err = file.Close()
+	}()
+
+	var fi os.FileInfo
+	if fi, err = file.Stat(); err != nil {
+		return
+	}
+	if tags, err = pack.PackData(w, file, fname, fi.ModTime().Unix()); err != nil {
+		return
+	}
 	return
 }
 
