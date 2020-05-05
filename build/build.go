@@ -36,6 +36,7 @@ func mainluavm(path string) (err error) {
 	defer ls.Close()
 
 	OpenPath(ls)
+	RegTag(ls)
 	RegPack(ls)
 
 	ls.SetGlobal("log", ls.NewFunction(lualog))

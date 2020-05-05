@@ -104,7 +104,7 @@ func writepackage() (err error) {
 		log.Printf("put mime type tags")
 		for fname, tags := range pack.Tags {
 			if ct, ok := mimeext[filepath.Ext(fname)]; ok {
-				tags.SetString(wpk.AID_mime, ct)
+				tags[wpk.AID_mime] = wpk.TagString(ct)
 			}
 		}
 	}

@@ -24,6 +24,8 @@ type LuaPackage struct {
 	sha1     bool
 	sha224   bool
 	sha256   bool
+	sha384   bool
+	sha512   bool
 
 	w *os.File
 }
@@ -141,6 +143,8 @@ var properties_pack = []struct {
 	{"sha1", getsha1, setsha1},
 	{"sha224", getsha224, setsha224},
 	{"sha256", getsha256, setsha256},
+	{"sha384", getsha384, setsha384},
+	{"sha512", getsha512, setsha512},
 }
 
 var methods_pack = map[string]lua.LGFunction{
@@ -266,6 +270,34 @@ func setsha256(ls *lua.LState) int {
 	return 0
 }
 
+func getsha384(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pack.sha384))
+	return 1
+}
+
+func setsha384(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var val = ls.CheckBool(2)
+
+	pack.sha384 = val
+	return 0
+}
+
+func getsha512(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pack.sha512))
+	return 1
+}
+
+func setsha512(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var val = ls.CheckBool(2)
+
+	pack.sha512 = val
+	return 0
+}
+
 // methods section
 
 func begin(ls *lua.LState) int {
@@ -378,7 +410,7 @@ func putfile(ls *lua.LState) int {
 		if fi, err = file.Stat(); err != nil {
 			return
 		}
-		var tags wpk.TagSet
+		var tags wpk.Tagset
 		if tags, err = pack.PackData(pack.w, file, fname, fi.ModTime().Unix()); err != nil {
 			return
 		}
@@ -407,7 +439,7 @@ func putstring(ls *lua.LState) int {
 	var err error
 	var r = strings.NewReader(data)
 
-	var tags wpk.TagSet
+	var tags wpk.Tagset
 	if tags, err = pack.PackData(pack.w, r, fname, time.Now().Unix()); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
@@ -456,7 +488,7 @@ func rename(ls *lua.LState) int {
 		return 0
 	}
 
-	tags.SetString(wpk.AID_name, fname2)
+	tags[wpk.AID_name] = wpk.TagString(fname2)
 	delete(pack.Tags, key1) // delete at first if fname1 == fname2
 	pack.Tags[key2] = tags
 	return 0
@@ -483,11 +515,11 @@ func putalias(ls *lua.LState) int {
 		return 0
 	}
 
-	var tags2 = wpk.TagSet{}
+	var tags2 = wpk.Tagset{}
 	for k, v := range tags1 {
 		tags2[k] = v
 	}
-	tags2.SetString(wpk.AID_name, fname2)
+	tags2[wpk.AID_name] = wpk.TagString(fname2)
 	pack.Tags[key2] = tags2
 	return 0
 }

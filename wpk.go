@@ -68,101 +68,155 @@ type PackRec struct {
 	Size   int64 // datablock size
 }
 
-// Tags set for each file in package.
-type TagSet map[uint16][]byte
+// Tag - file description item.
+type Tag []byte
 
-// String tag getter.
-func (t TagSet) String(id uint16) (string, bool) {
-	if data, ok := t[id]; ok {
-		return string(data), ok
-	}
-	return "", false
+// String tag converter.
+func (t Tag) String() (string, bool) {
+	return string(t), true
 }
 
-// String tag setter.
-func (t TagSet) SetString(id uint16, val string) {
-	t[id] = []byte(val)
+// String tag constructor.
+func TagString(val string) Tag {
+	return Tag(val)
 }
 
-// Boolean tag getter.
-func (t TagSet) Bool(id uint16) (bool, bool) {
-	if data, ok := t[id]; ok && len(data) == 1 {
-		return data[0] > 0, ok
+// Boolean tag converter.
+func (t Tag) Bool() (bool, bool) {
+	if len(t) == 1 {
+		return t[0] > 0, true
 	}
 	return false, false
 }
 
-// Boolean tag setter.
-func (t TagSet) SetBool(id uint16, val bool) {
+// Boolean tag constructor.
+func TagBool(val bool) Tag {
 	var buf [1]byte
 	if val {
 		buf[0] = 1
 	}
-	t[id] = buf[:]
+	return buf[:]
+}
+
+// 16-bit unsigned int tag converter.
+func (t Tag) Uint16() (uint16, bool) {
+	if len(t) == 2 {
+		return binary.LittleEndian.Uint16(t), true
+	}
+	return 0, false
+}
+
+// 16-bit unsigned int tag constructor.
+func TagUint16(val uint16) Tag {
+	var buf [2]byte
+	binary.LittleEndian.PutUint16(buf[:], val)
+	return buf[:]
+}
+
+// 32-bit unsigned int tag converter.
+func (t Tag) Uint32() (uint32, bool) {
+	if len(t) == 4 {
+		return binary.LittleEndian.Uint32(t), true
+	}
+	return 0, false
+}
+
+// 32-bit unsigned int tag constructor.
+func TagUint32(val uint32) Tag {
+	var buf [4]byte
+	binary.LittleEndian.PutUint32(buf[:], val)
+	return buf[:]
+}
+
+// 64-bit unsigned int tag converter.
+func (t Tag) Uint64() (uint64, bool) {
+	if len(t) == 8 {
+		return binary.LittleEndian.Uint64(t), true
+	}
+	return 0, false
+}
+
+// 64-bit unsigned int tag constructor.
+func TagUint64(val uint64) Tag {
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], val)
+	return buf[:]
+}
+
+// 64-bit float tag converter.
+func (t Tag) Number() (float64, bool) {
+	if len(t) == 8 {
+		return math.Float64frombits(binary.LittleEndian.Uint64(t)), true
+	}
+	return 0, false
+}
+
+// 64-bit float tag constructor.
+func TagNumber(val float64) Tag {
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], math.Float64bits(val))
+	return buf[:]
+}
+
+// Tags set for each file in package.
+type Tagset map[uint16]Tag
+
+func (ts Tagset) Init(fid uint64, fname string, crt int64) {
+	ts[AID_FID] = TagUint64(fid)
+	ts[AID_name] = TagString(fname)
+	ts[AID_created] = TagUint64(uint64(crt))
+}
+
+// String tag getter.
+func (ts Tagset) String(aid uint16) (string, bool) {
+	if data, ok := ts[aid]; ok {
+		return data.String()
+	}
+	return "", false
+}
+
+// Boolean tag getter.
+func (ts Tagset) Bool(aid uint16) (bool, bool) {
+	if data, ok := ts[aid]; ok {
+		return data.Bool()
+	}
+	return false, false
 }
 
 // 16-bit unsigned int tag getter. Conversion can be used to get signed 16-bit integers.
-func (t TagSet) Uint16(id uint16) (uint16, bool) {
-	if data, ok := t[id]; ok && len(data) == 2 {
-		return binary.LittleEndian.Uint16(data), ok
+func (ts Tagset) Uint16(aid uint16) (uint16, bool) {
+	if data, ok := ts[aid]; ok {
+		return data.Uint16()
 	}
 	return 0, false
-}
-
-// 16-bit unsigned int tag setter.
-func (t TagSet) SetUint16(id uint16, val uint16) {
-	var buf [2]byte
-	binary.LittleEndian.PutUint16(buf[:], val)
-	t[id] = buf[:]
 }
 
 // 32-bit unsigned int tag getter. Conversion can be used to get signed 32-bit integers.
-func (t TagSet) Uint32(id uint16) (uint32, bool) {
-	if data, ok := t[id]; ok && len(data) == 4 {
-		return binary.LittleEndian.Uint32(data), ok
+func (ts Tagset) Uint32(aid uint16) (uint32, bool) {
+	if data, ok := ts[aid]; ok {
+		return data.Uint32()
 	}
 	return 0, false
-}
-
-// 32-bit unsigned int tag setter.
-func (t TagSet) SetUint32(id uint16, val uint32) {
-	var buf [4]byte
-	binary.LittleEndian.PutUint32(buf[:], val)
-	t[id] = buf[:]
 }
 
 // 64-bit unsigned int tag getter. Conversion can be used to get signed 64-bit integers.
-func (t TagSet) Uint64(id uint16) (uint64, bool) {
-	if data, ok := t[id]; ok && len(data) == 8 {
-		return binary.LittleEndian.Uint64(data), ok
+func (ts Tagset) Uint64(aid uint16) (uint64, bool) {
+	if data, ok := ts[aid]; ok {
+		return data.Uint64()
 	}
 	return 0, false
-}
-
-// 64-bit unsigned int tag setter.
-func (t TagSet) SetUint64(id uint16, val uint64) {
-	var buf [8]byte
-	binary.LittleEndian.PutUint64(buf[:], val)
-	t[id] = buf[:]
 }
 
 // 64-bit float tag getter.
-func (t TagSet) Number(id uint16) (float64, bool) {
-	if data, ok := t[id]; ok && len(data) == 8 {
-		return math.Float64frombits(binary.LittleEndian.Uint64(data)), ok
+func (ts Tagset) Number(aid uint16) (float64, bool) {
+	if data, ok := ts[aid]; ok {
+		return data.Number()
 	}
 	return 0, false
 }
 
-// 64-bit float tag setter.
-func (t TagSet) SetNumber(id uint16, val float64) {
-	var buf [8]byte
-	binary.LittleEndian.PutUint64(buf[:], math.Float64bits(val))
-	t[id] = buf[:]
-}
-
 // Reads tags set from stream.
-func (t TagSet) Read(r io.Reader) (err error) {
+func (t Tagset) Read(r io.Reader) (err error) {
 	var num uint16
 	if err = binary.Read(r, binary.LittleEndian, &num); err != nil {
 		return
@@ -185,7 +239,7 @@ func (t TagSet) Read(r io.Reader) (err error) {
 }
 
 // Writes tags set to stream.
-func (t TagSet) Write(w io.Writer) (err error) {
+func (t Tagset) Write(w io.Writer) (err error) {
 	if err = binary.Write(w, binary.LittleEndian, uint16(len(t))); err != nil {
 		return
 	}
@@ -207,14 +261,14 @@ func (t TagSet) Write(w io.Writer) (err error) {
 type Package struct {
 	PackHdr
 	FAT  []PackRec         // file allocation table
-	Tags map[string]TagSet // keys - package filenames in lower case
+	Tags map[string]Tagset // keys - package filenames in lower case
 }
 
 // Makes empty package structure ready to put new entries.
 func (pack *Package) Init() {
 	copy(pack.Signature[:], Prebuild)
 	pack.FAT = []PackRec{}
-	pack.Tags = map[string]TagSet{}
+	pack.Tags = map[string]Tagset{}
 }
 
 // Returns record associated with given filename.
@@ -266,7 +320,7 @@ func (pack *Package) Open(r io.ReadSeeker, filename string) (err error) {
 		return ErrSignBad
 	}
 	pack.FAT = make([]PackRec, pack.RecNumber)
-	pack.Tags = make(map[string]TagSet, pack.TagNumber)
+	pack.Tags = make(map[string]Tagset, pack.TagNumber)
 
 	// read records table
 	if _, err = r.Seek(pack.RecOffset, io.SeekStart); err != nil {
@@ -281,7 +335,7 @@ func (pack *Package) Open(r io.ReadSeeker, filename string) (err error) {
 		return
 	}
 	for i := int64(0); i < pack.TagNumber; i++ {
-		var tags = TagSet{}
+		var tags = Tagset{}
 		if err = tags.Read(r); err != nil {
 			return
 		}
@@ -303,7 +357,7 @@ func (pack *Package) Open(r io.ReadSeeker, filename string) (err error) {
 			return &TagError{i, AID_name, fmt.Sprintf("file name '%s' is not unique", fname)}
 		}
 		if _, ok = tags.Uint64(AID_created); !ok {
-			return &TagError{i, AID_created, "created time is absent"}
+			return &TagError{i, AID_created, "creation time is absent"}
 		}
 		// insert file tags
 		pack.Tags[key] = tags
@@ -312,7 +366,7 @@ func (pack *Package) Open(r io.ReadSeeker, filename string) (err error) {
 	return
 }
 
-func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, fname string, crt int64) (tags TagSet, err error) {
+func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, fname string, crt int64) (tags Tagset, err error) {
 	var key = strings.ToLower(filepath.ToSlash(fname))
 	if _, ok := pack.Tags[key]; ok {
 		err = ErrAlready
@@ -327,17 +381,14 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, fname string, crt i
 		return
 	}
 
-	var fid = uint64(len(pack.FAT))
 	pack.FAT = append(pack.FAT, rec)
-	tags = TagSet{}
-	tags.SetUint64(AID_FID, fid)
-	tags.SetString(AID_name, fname)
-	tags.SetUint64(AID_created, uint64(crt))
+	tags = Tagset{}
+	tags.Init(uint64(len(pack.FAT))-1, fname, crt)
 	pack.Tags[key] = tags
 	return
 }
 
-func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags TagSet, err error) {
+func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags Tagset, err error) {
 	var file *os.File
 	if file, err = os.Open(fpath); err != nil {
 		return
