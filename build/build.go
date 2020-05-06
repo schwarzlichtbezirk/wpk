@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/yuin/gopher-lua"
 )
@@ -15,10 +16,10 @@ func lualog(ls *lua.LState) int {
 }
 
 func luaexist(ls *lua.LState) int {
-	var path = ls.CheckString(1)
+	var fpath = ls.CheckString(1)
 
 	var err error
-	if _, err = os.Stat(path); err == nil {
+	if _, err = os.Stat(fpath); err == nil {
 		ls.Push(lua.LBool(true))
 		return 1
 	}
@@ -31,7 +32,7 @@ func luaexist(ls *lua.LState) int {
 	return 2
 }
 
-func mainluavm(path string) (err error) {
+func mainluavm(fpath string) (err error) {
 	var ls = lua.NewState()
 	defer ls.Close()
 
@@ -39,25 +40,26 @@ func mainluavm(path string) (err error) {
 	RegTag(ls)
 	RegPack(ls)
 
+	var bindir = filepath.ToSlash(filepath.Dir(os.Args[0])) + "/"
+	var scrdir = filepath.ToSlash(filepath.Dir(fpath)) + "/"
+	ls.SetGlobal("bindir", lua.LString(bindir))
+	ls.SetGlobal("scrdir", lua.LString(scrdir))
 	ls.SetGlobal("log", ls.NewFunction(lualog))
 	ls.SetGlobal("exist", ls.NewFunction(luaexist))
 
-	if err = ls.DoFile(path); err != nil {
+	if err = ls.DoFile(fpath); err != nil {
 		return
 	}
 	return
 }
 
 func main() {
-	log.Println("starts")
 	for _, path := range os.Args[1:] {
-		log.Printf("executes: %s", path)
 		if err := mainluavm(path); err != nil {
 			log.Println(err.Error())
 			return
 		}
 	}
-	log.Println("done.")
 }
 
 // The End.

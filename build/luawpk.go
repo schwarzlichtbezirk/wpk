@@ -65,8 +65,7 @@ func NewPack(ls *lua.LState) int {
 // Checks whether the lua argument with given number is
 // a *LUserData with *LuaPackage and returns this *LuaPackage.
 func CheckPack(ls *lua.LState, arg int) *LuaPackage {
-	var ud = ls.CheckUserData(arg)
-	if v, ok := ud.Value.(*LuaPackage); ok {
+	if v, ok := ls.CheckUserData(arg).Value.(*LuaPackage); ok {
 		return v
 	}
 	ls.ArgError(arg, PackMT+" object required")
@@ -148,14 +147,20 @@ var properties_pack = []struct {
 }
 
 var methods_pack = map[string]lua.LGFunction{
-	"begin":     begin,
-	"complete":  complete,
-	"putfile":   putfile,
-	"putstring": putstring,
-	"datasize":  datasize,
-	"rename":    rename,
-	"putalias":  putalias,
-	"deltagset": deltagset,
+	"begin":    begin,
+	"complete": complete,
+	"datasize": datasize,
+	"havefile": havefile,
+	"filesize": filesize,
+	"putfile":  putfile,
+	"putdata":  putdata,
+	"rename":   rename,
+	"putalias": putalias,
+	"delalias": delalias,
+	"havetag":  havetag,
+	"settags":  settags,
+	"addtags":  addtags,
+	"deltags":  deltags,
 }
 
 // properties section
@@ -385,10 +390,60 @@ func complete(ls *lua.LState) int {
 	return 0
 }
 
-func putfile(ls *lua.LState) int {
+func datasize(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+
+	var size int64
+	for _, rec := range pack.FAT {
+		size += rec.Size
+	}
+
+	ls.Push(lua.LNumber(size))
+	return 1
+}
+
+func havefile(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fname = ls.CheckString(2)
+
+	var key = strings.ToLower(filepath.ToSlash(fname))
+	var _, ok = pack.Tags[key]
+
+	ls.Push(lua.LBool(ok))
+	return 1
+}
+
+func filesize(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var fname = ls.CheckString(2)
+
+	var rec, err = pack.NamedRecord(fname)
+	if err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	ls.Push(lua.LNumber(rec.Size))
+	return 1
+}
+
+func putfile(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var lt = ls.CheckTable(2)
 	var fpath = ls.CheckString(3)
+
+	var err error
+
+	var tags wpk.Tagset
+	if tags, err = TableToTagset(lt); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+	var fname, ok = tags.String(wpk.AID_name)
+	if !ok {
+		ls.RaiseError("file name expected")
+		return 0
+	}
 
 	var key = strings.ToLower(filepath.ToSlash(fname))
 	if _, is := pack.Tags[key]; is {
@@ -396,7 +451,6 @@ func putfile(ls *lua.LState) int {
 		return 0
 	}
 
-	var err error
 	if func() {
 		var file *os.File
 		if file, err = os.Open(fpath); err != nil {
@@ -410,8 +464,11 @@ func putfile(ls *lua.LState) int {
 		if fi, err = file.Stat(); err != nil {
 			return
 		}
-		var tags wpk.Tagset
-		if tags, err = pack.PackData(pack.w, file, fname, fi.ModTime().Unix()); err != nil {
+		var tags = wpk.Tagset{
+			wpk.AID_name:    wpk.TagString(fname),
+			wpk.AID_created: wpk.TagUint64(uint64(fi.ModTime().Unix())),
+		}
+		if err = pack.PackData(pack.w, file, tags); err != nil {
 			return
 		}
 		if err = pack.adjusttagset(file, tags); err != nil {
@@ -425,10 +482,23 @@ func putfile(ls *lua.LState) int {
 	return 0
 }
 
-func putstring(ls *lua.LState) int {
+func putdata(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fname = ls.CheckString(2)
+	var lt = ls.CheckTable(2)
 	var data = ls.CheckString(3)
+
+	var err error
+
+	var tags wpk.Tagset
+	if tags, err = TableToTagset(lt); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+	var fname, ok = tags.String(wpk.AID_name)
+	if !ok {
+		ls.RaiseError("file name expected")
+		return 0
+	}
 
 	var key = strings.ToLower(filepath.ToSlash(fname))
 	if _, is := pack.Tags[key]; is {
@@ -436,35 +506,23 @@ func putstring(ls *lua.LState) int {
 		return 0
 	}
 
-	var err error
-	var r = strings.NewReader(data)
+	if func() {
+		var r = strings.NewReader(data)
 
-	var tags wpk.Tagset
-	if tags, err = pack.PackData(pack.w, r, fname, time.Now().Unix()); err != nil {
-		ls.RaiseError(err.Error())
-		return 0
-	}
+		if err = pack.PackData(pack.w, r, tags); err != nil {
+			return
+		}
 
-	if err = pack.adjusttagset(r, tags); err != nil {
+		tags[wpk.AID_created] = wpk.TagUint64(uint64(time.Now().Unix())) // set created to now
+		if err = pack.adjusttagset(r, tags); err != nil {
+			return
+		}
+	}(); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
 
 	return 0
-}
-
-func datasize(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	var fname = ls.CheckString(2)
-
-	var rec, err = pack.NamedRecord(fname)
-	if err != nil {
-		ls.RaiseError(err.Error())
-		return 0
-	}
-
-	ls.Push(lua.LNumber(rec.Size))
-	return 1
 }
 
 // Renames tag set with file name fname1 to fname2.
@@ -489,7 +547,7 @@ func rename(ls *lua.LState) int {
 	}
 
 	tags[wpk.AID_name] = wpk.TagString(fname2)
-	delete(pack.Tags, key1) // delete at first if fname1 == fname2
+	delete(pack.Tags, key1)
 	pack.Tags[key2] = tags
 	return 0
 }
@@ -525,7 +583,7 @@ func putalias(ls *lua.LState) int {
 }
 
 // Deletes tag set with given file name. Data block will still persist.
-func deltagset(ls *lua.LState) int {
+func delalias(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fname = ls.CheckString(2)
 
@@ -535,6 +593,129 @@ func deltagset(ls *lua.LState) int {
 		delete(pack.Tags, key)
 	}
 	ls.Push(lua.LBool(ok))
+	return 1
+}
+
+// Returns true if tags for given file name have tag with given identifier
+// (in numeric or string representation).
+func havetag(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var fname = ls.CheckString(2)
+	var akv = ls.Get(3)
+
+	var err error
+
+	var aid uint16
+	if aid, err = ValueToAid(akv); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	var key = strings.ToLower(filepath.ToSlash(fname))
+	var tags, ok = pack.Tags[key]
+	if !ok {
+		ls.RaiseError("file with name '%s' does not present", fname)
+		return 0
+	}
+	_, ok = tags[aid]
+
+	ls.Push(lua.LBool(ok))
+	return 1
+}
+
+// Sets or replaces tags for given file with new tags values.
+func settags(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var fname = ls.CheckString(2)
+	var lt = ls.CheckTable(3)
+
+	var err error
+
+	var addt wpk.Tagset
+	if addt, err = TableToTagset(lt); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	var key = strings.ToLower(filepath.ToSlash(fname))
+	var tags, ok = pack.Tags[key]
+	if !ok {
+		ls.RaiseError("file with name '%s' does not present", fname)
+		return 0
+	}
+
+	for aid, tag := range addt {
+		tags[aid] = tag
+	}
+
+	return 0
+}
+
+// Adds new tags for given file if there is no old values.
+// Returns number of added tags.
+func addtags(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var fname = ls.CheckString(2)
+	var lt = ls.CheckTable(3)
+
+	var err error
+
+	var addt wpk.Tagset
+	if addt, err = TableToTagset(lt); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	var key = strings.ToLower(filepath.ToSlash(fname))
+	var tags, ok = pack.Tags[key]
+	if !ok {
+		ls.RaiseError("file with name '%s' does not present", fname)
+		return 0
+	}
+
+	var n = 0
+	for aid, tag := range addt {
+		if _, ok := tags[aid]; !ok {
+			tags[aid] = tag
+			n++
+		}
+	}
+
+	ls.Push(lua.LNumber(n))
+	return 1
+}
+
+// Removes tags with given identifiers for given file. Specified values of
+// tags table ignored. Returns number of deleted tags.
+func deltags(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var fname = ls.CheckString(2)
+	var lt = ls.CheckTable(3)
+
+	var err error
+
+	var addt wpk.Tagset
+	if addt, err = TableToTagset(lt); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	var key = strings.ToLower(filepath.ToSlash(fname))
+	var tags, ok = pack.Tags[key]
+	if !ok {
+		ls.RaiseError("file with name '%s' does not present", fname)
+		return 0
+	}
+
+	var n = 0
+	for aid, _ := range addt {
+		if _, ok := tags[aid]; ok {
+			delete(tags, aid)
+			n++
+		}
+	}
+
+	ls.Push(lua.LNumber(n))
 	return 1
 }
 

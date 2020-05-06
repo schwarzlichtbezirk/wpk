@@ -16,6 +16,7 @@ var (
 	srcfile string
 	SrcList []string
 	DstPath string
+	MkDst   bool
 )
 
 func pathexists(path string) (bool, error) {
@@ -32,6 +33,7 @@ func pathexists(path string) (bool, error) {
 func parseargs() {
 	flag.StringVar(&srcfile, "src", "", "package full file name, or list of files divided by ';'")
 	flag.StringVar(&DstPath, "dst", "", "full destination path for output extracted files")
+	flag.BoolVar(&MkDst, "md", false, "create destination path if it does not exist")
 	flag.Parse()
 }
 
@@ -59,12 +61,18 @@ func checkargs() int {
 	if DstPath == "" {
 		log.Println("destination path does not specified")
 		ec++
-	} else if ok, _ := pathexists(DstPath); !ok {
-		log.Println("destination path does not exist")
-		ec++
-	} else {
-		if !strings.HasSuffix(DstPath, "/") {
-			DstPath += "/"
+	} else if !strings.HasSuffix(DstPath, "/") {
+		DstPath += "/"
+	}
+	if ok, _ := pathexists(DstPath); !ok {
+		if MkDst {
+			if err := os.MkdirAll(DstPath, os.ModePerm); err != nil {
+				log.Println(err.Error())
+				ec++
+			}
+		} else {
+			log.Println("destination path does not exist")
+			ec++
 		}
 	}
 

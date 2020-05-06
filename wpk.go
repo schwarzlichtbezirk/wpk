@@ -48,6 +48,7 @@ const (
 
 var (
 	ErrNotFound = errors.New("file not found")
+	ErrNoName   = errors.New("file name expected")
 	ErrAlready  = errors.New("file with this name already packed")
 	ErrSignPre  = errors.New("package is not ready yet")
 	ErrSignBad  = errors.New("signature does not pass")
@@ -160,12 +161,6 @@ func TagNumber(val float64) Tag {
 
 // Tags set for each file in package.
 type Tagset map[uint16]Tag
-
-func (ts Tagset) Init(fid uint64, fname string, crt int64) {
-	ts[AID_FID] = TagUint64(fid)
-	ts[AID_name] = TagString(fname)
-	ts[AID_created] = TagUint64(uint64(crt))
-}
 
 // String tag getter.
 func (ts Tagset) String(aid uint16) (string, bool) {
@@ -347,17 +342,17 @@ func (pack *Package) Open(r io.ReadSeeker, filename string) (err error) {
 			return &TagError{i, AID_FID, "file ID is absent"}
 		}
 		if fid >= uint64(len(pack.FAT)) {
-			return &TagError{i, AID_FID, "file ID is out of range"}
+			return &TagError{i, AID_FID, fmt.Sprintf("file ID '%d' is out of range", fid)}
 		}
 		if fname, ok = tags.String(AID_name); !ok {
-			return &TagError{i, AID_name, "file name is absent"}
+			return &TagError{i, AID_name, fmt.Sprintf("file name is absent for file ID '%d'", fid)}
 		}
 		var key = strings.ToLower(filepath.ToSlash(fname))
 		if _, ok = pack.Tags[key]; ok {
 			return &TagError{i, AID_name, fmt.Sprintf("file name '%s' is not unique", fname)}
 		}
 		if _, ok = tags.Uint64(AID_created); !ok {
-			return &TagError{i, AID_created, "creation time is absent"}
+			return &TagError{i, AID_created, fmt.Sprintf("creation time is absent for file name '%s'", fname)}
 		}
 		// insert file tags
 		pack.Tags[key] = tags
@@ -366,26 +361,34 @@ func (pack *Package) Open(r io.ReadSeeker, filename string) (err error) {
 	return
 }
 
-func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, fname string, crt int64) (tags Tagset, err error) {
-	var key = strings.ToLower(filepath.ToSlash(fname))
-	if _, ok := pack.Tags[key]; ok {
-		err = ErrAlready
-		return
+func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, tags Tagset) (err error) {
+	var key string
+	if tags != nil {
+		var fname, ok = tags.String(AID_name)
+		if !ok {
+			return ErrNoName
+		}
+		key = strings.ToLower(filepath.ToSlash(fname))
+		if _, ok = pack.Tags[key]; ok {
+			return ErrAlready
+		}
 	}
 
 	var rec PackRec
 	if rec.Offset, err = w.Seek(0, io.SeekCurrent); err != nil {
-		return
+		return err
 	}
 	if rec.Size, err = io.Copy(w, r); err != nil {
-		return
+		return err
 	}
-
 	pack.FAT = append(pack.FAT, rec)
-	tags = Tagset{}
-	tags.Init(uint64(len(pack.FAT))-1, fname, crt)
-	pack.Tags[key] = tags
-	return
+
+	if tags != nil {
+		var fid = uint64(len(pack.FAT)) - 1
+		tags[AID_FID] = TagUint64(fid)
+		pack.Tags[key] = tags
+	}
+	return nil
 }
 
 func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags Tagset, err error) {
@@ -401,7 +404,11 @@ func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags Tagse
 	if fi, err = file.Stat(); err != nil {
 		return
 	}
-	if tags, err = pack.PackData(w, file, fname, fi.ModTime().Unix()); err != nil {
+	tags = Tagset{
+		AID_name:    TagString(fname),
+		AID_created: TagUint64(uint64(fi.ModTime().Unix())),
+	}
+	if err = pack.PackData(w, file, tags); err != nil {
 		return
 	}
 	return
