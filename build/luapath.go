@@ -15,14 +15,16 @@ func OpenPath(ls *lua.LState) int {
 }
 
 var pathfuncs = map[string]lua.LGFunction{
-	"toslash":   pathtoslash,
-	"volume":    pathvolume,
-	"dir":       pathdir,
-	"base":      pathbase,
-	"ext":       pathext,
-	"split":     pathsplit,
-	"match":     pathmatch,
-	"enumnames": pathenumnames,
+	"toslash": pathtoslash,
+	"volume":  pathvolume,
+	"dir":     pathdir,
+	"base":    pathbase,
+	"ext":     pathext,
+	"split":   pathsplit,
+	"match":   pathmatch,
+	"join":    pathjoin,
+	"glob":    pathglob,
+	"enum":    pathenum,
 }
 
 func pathtoslash(ls *lua.LState) int {
@@ -87,7 +89,32 @@ func pathmatch(ls *lua.LState) int {
 	return 1
 }
 
-func pathenumnames(ls *lua.LState) int {
+func pathjoin(ls *lua.LState) int {
+	var elem = make([]string, ls.GetTop())
+	for i := range elem {
+		elem[i] = ls.CheckString(i + 1)
+	}
+
+	var dir = filepath.Join(elem...)
+	ls.Push(lua.LString(dir))
+	return 1
+}
+
+func pathglob(ls *lua.LState) int {
+	var pattern = ls.CheckString(1)
+
+	var matches, err = filepath.Glob(pattern)
+	if err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+	for _, dir := range matches {
+		ls.Push(lua.LString(dir))
+	}
+	return len(matches)
+}
+
+func pathenum(ls *lua.LState) int {
 	var dirname = ls.CheckString(1)
 	var n = ls.OptInt(2, -1)
 
@@ -96,18 +123,17 @@ func pathenumnames(ls *lua.LState) int {
 		ls.RaiseError(err.Error())
 		return 0
 	}
+	defer dir.Close()
 
 	var names []string
-	names, err = dir.Readdirnames(n)
-	if err != nil {
+	if names, err = dir.Readdirnames(n); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
 
-	var i = 1
 	var tb = ls.CreateTable(len(names), 0)
-	for _, name := range names {
-		tb.RawSetInt(i, lua.LString(name))
+	for i, name := range names {
+		tb.RawSetInt(i+1, lua.LString(name))
 		i++
 	}
 	ls.Push(tb)

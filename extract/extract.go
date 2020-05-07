@@ -93,7 +93,7 @@ func readpackage() (err error) {
 			}
 			defer src.Close()
 
-			if err = pack.Open(src, file); err != nil {
+			if err = pack.Open(src); err != nil {
 				return
 			}
 

@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"hash/crc32"
+	"hash/crc64"
 	"io"
 	"path/filepath"
 
@@ -30,6 +31,17 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err erro
 			return
 		}
 		tags[wpk.AID_CRC32C] = h.Sum(nil)
+	}
+
+	if _, ok := tags[wpk.AID_CRC64ISO]; !ok && pack.crc64 {
+		if _, err = r.Seek(0, io.SeekStart); err != nil {
+			return
+		}
+		var h = crc64.New(crc64.MakeTable(crc64.ISO))
+		if _, err = io.Copy(h, r); err != nil {
+			return
+		}
+		tags[wpk.AID_CRC64ISO] = h.Sum(nil)
 	}
 
 	if _, ok := tags[wpk.AID_MD5]; !ok && pack.md5 {

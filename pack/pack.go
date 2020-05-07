@@ -79,15 +79,18 @@ func writepackage() (err error) {
 	}
 	defer dst.Close()
 
-	log.Printf("destination file: %s", DstFile)
-
 	var pack wpk.Package
-	pack.Init()
 
 	// write prebuild header
+	copy(pack.Signature[:], wpk.Prebuild)
 	if err = binary.Write(dst, binary.LittleEndian, &pack.PackHdr); err != nil {
 		return
 	}
+	// setup empty data tables
+	pack.FAT = []wpk.PackRec{}
+	pack.Tags = map[string]wpk.Tagset{}
+
+	log.Printf("destination file: %s", DstFile)
 
 	// write all source folders
 	for i, path := range SrcList {

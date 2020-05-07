@@ -259,13 +259,6 @@ type Package struct {
 	Tags map[string]Tagset // keys - package filenames in lower case
 }
 
-// Makes empty package structure ready to put new entries.
-func (pack *Package) Init() {
-	copy(pack.Signature[:], Prebuild)
-	pack.FAT = []PackRec{}
-	pack.Tags = map[string]Tagset{}
-}
-
 // Returns record associated with given filename.
 func (pack *Package) NamedRecord(fname string) (*PackRec, error) {
 	var key = strings.ToLower(filepath.ToSlash(fname))
@@ -303,7 +296,7 @@ func (e *TagError) Error() string {
 // Opens package for reading. At first its checkup file signature, then
 // reads records table, and reads file attributes table. Tags set
 // for each file must contain at least file ID, file name and creation time.
-func (pack *Package) Open(r io.ReadSeeker, filename string) (err error) {
+func (pack *Package) Open(r io.ReadSeeker) (err error) {
 	// read header
 	if err = binary.Read(r, binary.LittleEndian, &pack.PackHdr); err != nil {
 		return

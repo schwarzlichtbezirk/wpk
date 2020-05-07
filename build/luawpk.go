@@ -20,6 +20,7 @@ type LuaPackage struct {
 	secret   string
 	automime bool
 	crc32    bool
+	crc64    bool
 	md5      bool
 	sha1     bool
 	sha224   bool
@@ -57,7 +58,11 @@ func PushPack(ls *lua.LState, v *LuaPackage) {
 // LuaPackage constructor.
 func NewPack(ls *lua.LState) int {
 	var pack LuaPackage
-	pack.Init()
+
+	copy(pack.Signature[:], wpk.Prebuild)
+	pack.FAT = []wpk.PackRec{}
+	pack.Tags = map[string]wpk.Tagset{}
+
 	PushPack(ls, &pack)
 	return 1
 }
@@ -138,6 +143,7 @@ var properties_pack = []struct {
 	{"automime", getautomime, setautomime},
 	{"secret", getsecret, setsecret},
 	{"crc32", getcrc32, setcrc32},
+	{"crc64", getcrc64, setcrc64},
 	{"md5", getmd5, setmd5},
 	{"sha1", getsha1, setsha1},
 	{"sha224", getsha224, setsha224},
@@ -147,20 +153,21 @@ var properties_pack = []struct {
 }
 
 var methods_pack = map[string]lua.LGFunction{
-	"begin":    begin,
-	"complete": complete,
-	"datasize": datasize,
-	"havefile": havefile,
-	"filesize": filesize,
-	"putfile":  putfile,
-	"putdata":  putdata,
-	"rename":   rename,
-	"putalias": putalias,
-	"delalias": delalias,
-	"havetag":  havetag,
-	"settags":  settags,
-	"addtags":  addtags,
-	"deltags":  deltags,
+	"begin":    wpkbegin,
+	"append":   wpkappend,
+	"complete": wpkcomplete,
+	"datasize": wpkdatasize,
+	"havefile": wpkhavefile,
+	"filesize": wpkfilesize,
+	"putfile":  wpkputfile,
+	"putdata":  wpkputdata,
+	"rename":   wpkrename,
+	"putalias": wpkputalias,
+	"delalias": wpkdelalias,
+	"havetag":  wpkhavetag,
+	"settags":  wpksettags,
+	"addtags":  wpkaddtags,
+	"deltags":  wpkdeltags,
 }
 
 // properties section
@@ -216,6 +223,20 @@ func setcrc32(ls *lua.LState) int {
 	var val = ls.CheckBool(2)
 
 	pack.crc32 = val
+	return 0
+}
+
+func getcrc64(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pack.crc64))
+	return 1
+}
+
+func setcrc64(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var val = ls.CheckBool(2)
+
+	pack.crc64 = val
 	return 0
 }
 
@@ -305,7 +326,7 @@ func setsha512(ls *lua.LState) int {
 
 // methods section
 
-func begin(ls *lua.LState) int {
+func wpkbegin(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var pkgname = ls.CheckString(2)
 
@@ -315,19 +336,23 @@ func begin(ls *lua.LState) int {
 	}
 
 	var err error
+	if func() {
+		// create package file
+		var dst *os.File
+		if dst, err = os.OpenFile(pkgname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+			return
+		}
+		pack.w = dst
 
-	// create package file
-	var dst *os.File
-	if dst, err = os.OpenFile(pkgname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
-		ls.RaiseError(err.Error())
-		return 0
-	}
-
-	pack.Init()
-	pack.w = dst
-
-	// write prebuild header
-	if err = binary.Write(pack.w, binary.LittleEndian, &pack.PackHdr); err != nil {
+		// write prebuild header
+		copy(pack.Signature[:], wpk.Prebuild)
+		if err = binary.Write(pack.w, binary.LittleEndian, &pack.PackHdr); err != nil {
+			return
+		}
+		// setup empty data tables
+		pack.FAT = []wpk.PackRec{}
+		pack.Tags = map[string]wpk.Tagset{}
+	}(); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
@@ -335,7 +360,52 @@ func begin(ls *lua.LState) int {
 	return 0
 }
 
-func complete(ls *lua.LState) int {
+func wpkappend(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var pkgname = ls.CheckString(2)
+
+	if pack.w != nil {
+		ls.RaiseError("package write stream already opened")
+		return 0
+	}
+
+	var err error
+	if func() {
+		// open package file
+		var dst *os.File
+		if dst, err = os.OpenFile(pkgname, os.O_RDWR, 0755); err != nil {
+			return
+		}
+		if err = pack.Open(dst); err != nil {
+			dst.Close()
+			return
+		}
+		pack.w = dst
+
+		var recoffset = pack.RecOffset
+
+		// rewrite prebuild header
+		copy(pack.Signature[:], wpk.Prebuild)
+		if _, err = pack.w.Seek(0, io.SeekStart); err != nil {
+			return
+		}
+		if err = binary.Write(pack.w, binary.LittleEndian, &pack.PackHdr); err != nil {
+			return
+		}
+
+		// go to records table start to replace it by new data
+		if _, err = pack.w.Seek(recoffset, io.SeekStart); err != nil {
+			return
+		}
+	}(); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	return 0
+}
+
+func wpkcomplete(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
 	if pack.w == nil {
@@ -345,7 +415,7 @@ func complete(ls *lua.LState) int {
 
 	var err error
 
-	// write records table
+	// write records table at the end of file
 	if pack.RecOffset, err = pack.w.Seek(0, io.SeekEnd); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
@@ -390,7 +460,7 @@ func complete(ls *lua.LState) int {
 	return 0
 }
 
-func datasize(ls *lua.LState) int {
+func wpkdatasize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
 	var size int64
@@ -402,7 +472,7 @@ func datasize(ls *lua.LState) int {
 	return 1
 }
 
-func havefile(ls *lua.LState) int {
+func wpkhavefile(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fname = ls.CheckString(2)
 
@@ -413,7 +483,7 @@ func havefile(ls *lua.LState) int {
 	return 1
 }
 
-func filesize(ls *lua.LState) int {
+func wpkfilesize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fname = ls.CheckString(2)
 
@@ -427,12 +497,17 @@ func filesize(ls *lua.LState) int {
 	return 1
 }
 
-func putfile(ls *lua.LState) int {
+func wpkputfile(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var lt = ls.CheckTable(2)
 	var fpath = ls.CheckString(3)
 
 	var err error
+
+	if pack.w == nil {
+		ls.RaiseError("package write stream does not opened")
+		return 0
+	}
 
 	var tags wpk.Tagset
 	if tags, err = TableToTagset(lt); err != nil {
@@ -482,12 +557,17 @@ func putfile(ls *lua.LState) int {
 	return 0
 }
 
-func putdata(ls *lua.LState) int {
+func wpkputdata(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var lt = ls.CheckTable(2)
 	var data = ls.CheckString(3)
 
 	var err error
+
+	if pack.w == nil {
+		ls.RaiseError("package write stream does not opened")
+		return 0
+	}
 
 	var tags wpk.Tagset
 	if tags, err = TableToTagset(lt); err != nil {
@@ -529,7 +609,7 @@ func putdata(ls *lua.LState) int {
 // rename(fname1, fname2)
 //   fname1 - old file name
 //   fname2 - new file name
-func rename(ls *lua.LState) int {
+func wpkrename(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fname1 = ls.CheckString(2)
 	var fname2 = ls.CheckString(3)
@@ -556,7 +636,7 @@ func rename(ls *lua.LState) int {
 // putalias(fname1, fname2)
 //   fname1 - file name of packaged file
 //   fname2 - new file name that will be reference to fname1 file data
-func putalias(ls *lua.LState) int {
+func wpkputalias(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fname1 = ls.CheckString(2)
 	var fname2 = ls.CheckString(3)
@@ -583,7 +663,7 @@ func putalias(ls *lua.LState) int {
 }
 
 // Deletes tag set with given file name. Data block will still persist.
-func delalias(ls *lua.LState) int {
+func wpkdelalias(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fname = ls.CheckString(2)
 
@@ -598,7 +678,7 @@ func delalias(ls *lua.LState) int {
 
 // Returns true if tags for given file name have tag with given identifier
 // (in numeric or string representation).
-func havetag(ls *lua.LState) int {
+func wpkhavetag(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fname = ls.CheckString(2)
 	var akv = ls.Get(3)
@@ -624,7 +704,7 @@ func havetag(ls *lua.LState) int {
 }
 
 // Sets or replaces tags for given file with new tags values.
-func settags(ls *lua.LState) int {
+func wpksettags(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fname = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
@@ -653,7 +733,7 @@ func settags(ls *lua.LState) int {
 
 // Adds new tags for given file if there is no old values.
 // Returns number of added tags.
-func addtags(ls *lua.LState) int {
+func wpkaddtags(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fname = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
@@ -687,7 +767,7 @@ func addtags(ls *lua.LState) int {
 
 // Removes tags with given identifiers for given file. Specified values of
 // tags table ignored. Returns number of deleted tags.
-func deltags(ls *lua.LState) int {
+func wpkdeltags(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fname = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
