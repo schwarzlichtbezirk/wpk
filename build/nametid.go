@@ -8,33 +8,33 @@ import (
 	"github.com/yuin/gopher-lua"
 )
 
-// Helps convert Lua-table string keys to associated uint16 ID values.
-var NameAid = map[string]uint16{
-	"fid":     wpk.AID_FID,
-	"name":    wpk.AID_name,
-	"created": wpk.AID_created,
-	"crt":     wpk.AID_created,
+// Helps convert Lua-table string keys to associated TID values.
+var NameTid = map[string]wpk.TID{
+	"fid":     wpk.TID_FID,
+	"name":    wpk.TID_name,
+	"created": wpk.TID_created,
+	"crt":     wpk.TID_created,
 
-	"crc32":     wpk.AID_CRC32C,
-	"crc32ieee": wpk.AID_CRC32IEEE,
-	"crc32c":    wpk.AID_CRC32C,
-	"crc32k":    wpk.AID_CRC32K,
-	"crc64":     wpk.AID_CRC64ISO,
-	"crc64iso":  wpk.AID_CRC64ISO,
+	"crc32":     wpk.TID_CRC32C,
+	"crc32ieee": wpk.TID_CRC32IEEE,
+	"crc32c":    wpk.TID_CRC32C,
+	"crc32k":    wpk.TID_CRC32K,
+	"crc64":     wpk.TID_CRC64ISO,
+	"crc64iso":  wpk.TID_CRC64ISO,
 
-	"md5":    wpk.AID_MD5,
-	"sha1":   wpk.AID_SHA1,
-	"sha224": wpk.AID_SHA224,
-	"sha256": wpk.AID_SHA256,
-	"sha384": wpk.AID_SHA384,
-	"sha512": wpk.AID_SHA512,
+	"md5":    wpk.TID_MD5,
+	"sha1":   wpk.TID_SHA1,
+	"sha224": wpk.TID_SHA224,
+	"sha256": wpk.TID_SHA256,
+	"sha384": wpk.TID_SHA384,
+	"sha512": wpk.TID_SHA512,
 
-	"mime":     wpk.AID_mime,
-	"keywords": wpk.AID_keywords,
-	"category": wpk.AID_category,
-	"version":  wpk.AID_version,
-	"author":   wpk.AID_author,
-	"comment":  wpk.AID_comment,
+	"mime":     wpk.TID_mime,
+	"keywords": wpk.TID_keywords,
+	"category": wpk.TID_category,
+	"version":  wpk.TID_version,
+	"author":   wpk.TID_author,
+	"comment":  wpk.TID_comment,
 }
 
 type ErrKeyUndef struct {
@@ -53,12 +53,12 @@ var (
 // Convert LValue to uint16 tag identifier. Numbers converts explicitly,
 // strings converts to uint16 values wich they presents.
 // Error returns on any other case.
-func ValueToAid(k lua.LValue) (aid uint16, err error) {
+func ValueToAid(k lua.LValue) (tid wpk.TID, err error) {
 	if n, ok := k.(lua.LNumber); ok {
-		aid = uint16(n)
+		tid = wpk.TID(n)
 	} else if name, ok := k.(lua.LString); ok {
-		if n, ok := NameAid[string(name)]; ok {
-			aid = n
+		if n, ok := NameTid[string(name)]; ok {
+			tid = n
 		} else {
 			err = &ErrKeyUndef{string(name)}
 			return
@@ -100,18 +100,18 @@ func TableToTagset(lt *lua.LTable) (ts wpk.Tagset, err error) {
 	ts = wpk.Tagset{}
 	lt.ForEach(func(k lua.LValue, v lua.LValue) {
 		var (
-			aid uint16
+			tid wpk.TID
 			tag wpk.Tag
 		)
 
-		if aid, err = ValueToAid(k); err != nil {
+		if tid, err = ValueToAid(k); err != nil {
 			return
 		}
 		if tag, err = ValueToTag(v); err != nil {
 			return
 		}
 
-		ts[aid] = tag
+		ts[tid] = tag
 	})
 	return
 }

@@ -76,9 +76,9 @@ func NewTagBool(ls *lua.LState) int {
 	return 1
 }
 
-// Construct LuaTag by given uint16 value.
+// Construct LuaTag by given TID value.
 func NewTagUint16(ls *lua.LState) int {
-	var val = uint16(ls.CheckInt(1))
+	var val = wpk.TID(ls.CheckInt(1))
 	PushTag(ls, &LuaTag{wpk.TagUint16(val)})
 	return 1
 }
@@ -258,7 +258,7 @@ func getuint16(ls *lua.LState) int {
 
 func setuint16(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
-	var val = uint16(ls.CheckInt(2))
+	var val = wpk.TID(ls.CheckInt(2))
 	t.Tag = wpk.TagUint16(val)
 	return 0
 }

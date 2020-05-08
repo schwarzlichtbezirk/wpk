@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"log"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,16 +108,18 @@ func writepackage() (err error) {
 		log.Printf("put mime type tags")
 		for fname, tags := range pack.Tags {
 			if ct, ok := mimeext[filepath.Ext(fname)]; ok {
-				tags[wpk.AID_mime] = wpk.TagString(ct)
+				tags[wpk.TID_mime] = wpk.TagString(ct)
 			}
 		}
 	}
 
 	// write records table
 	log.Printf("write file allocation table")
-	if pack.RecOffset, err = dst.Seek(0, os.SEEK_END); err != nil {
+	var recoffset int64
+	if recoffset, err = dst.Seek(0, io.SeekEnd); err != nil {
 		return
 	}
+	pack.RecOffset = wpk.SIZE(recoffset)
 	pack.RecNumber = int64(len(pack.FAT))
 	if err = binary.Write(dst, binary.LittleEndian, &pack.FAT); err != nil {
 		return
@@ -124,9 +127,11 @@ func writepackage() (err error) {
 
 	// write files tags table
 	log.Printf("write tags table")
-	if pack.TagOffset, err = dst.Seek(0, os.SEEK_CUR); err != nil {
+	var tagoffset int64
+	if tagoffset, err = dst.Seek(0, io.SeekCurrent); err != nil {
 		return
 	}
+	pack.TagOffset = wpk.SIZE(tagoffset)
 	pack.TagNumber = int64(len(pack.Tags))
 	for _, tags := range pack.Tags {
 		if err = tags.Write(dst); err != nil {
@@ -135,7 +140,7 @@ func writepackage() (err error) {
 	}
 
 	// rewrite true header
-	if _, err = dst.Seek(0, os.SEEK_SET); err != nil {
+	if _, err = dst.Seek(0, io.SeekStart); err != nil {
 		return
 	}
 	copy(pack.Signature[:], wpk.Signature)

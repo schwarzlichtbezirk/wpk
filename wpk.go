@@ -16,34 +16,40 @@ const (
 	Prebuild  = "Whirlwind 3.1 Prebuild  " // package is in building progress
 )
 
-// List of predefined attributes IDs.
+type (
+	TID  uint16
+	FID  uint32
+	SIZE uint64
+)
+
+// List of predefined tags IDs.
 const (
-	AID_FID        = 0 // required, uint64
-	AID_name       = 1 // required, unique, string
-	AID_created    = 2 // required, uint64
-	AID_lastaccess = 3 // uint64
-	AID_lastwrite  = 4 // uint64
-	AID_change     = 5 // uint64
-	AID_fileattr   = 6 // uint64
+	TID_FID        = 0 // required, uint64
+	TID_name       = 1 // required, unique, string
+	TID_created    = 2 // required, uint64
+	TID_lastaccess = 3 // uint64
+	TID_lastwrite  = 4 // uint64
+	TID_change     = 5 // uint64
+	TID_fileattr   = 6 // uint64
 
-	AID_CRC32IEEE = 10 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
-	AID_CRC32C    = 11 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1
-	AID_CRC32K    = 12 // uint32, (Koopman), poly = 0x741B8CD7, init = -1
-	AID_CRC64ISO  = 14 // uint64, poly = 0xD800000000000000, init = -1
+	TID_CRC32IEEE = 10 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
+	TID_CRC32C    = 11 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1
+	TID_CRC32K    = 12 // uint32, (Koopman), poly = 0x741B8CD7, init = -1
+	TID_CRC64ISO  = 14 // uint64, poly = 0xD800000000000000, init = -1
 
-	AID_MD5    = 20 // [16]byte
-	AID_SHA1   = 21 // [20]byte
-	AID_SHA224 = 22 // [28]byte
-	AID_SHA256 = 23 // [32]byte
-	AID_SHA384 = 24 // [48]byte
-	AID_SHA512 = 25 // [64]byte
+	TID_MD5    = 20 // [16]byte
+	TID_SHA1   = 21 // [20]byte
+	TID_SHA224 = 22 // [28]byte
+	TID_SHA256 = 23 // [32]byte
+	TID_SHA384 = 24 // [48]byte
+	TID_SHA512 = 25 // [64]byte
 
-	AID_mime     = 100 // string
-	AID_keywords = 101 // string
-	AID_category = 102 // string
-	AID_version  = 103 // string
-	AID_author   = 104 // string
-	AID_comment  = 105 // string
+	TID_mime     = 100 // string
+	TID_keywords = 101 // string
+	TID_category = 102 // string
+	TID_version  = 103 // string
+	TID_author   = 104 // string
+	TID_comment  = 105 // string
 )
 
 var (
@@ -57,9 +63,9 @@ var (
 // Package header.
 type PackHdr struct {
 	Signature [0x18]byte
-	RecOffset int64 // file allocation table offset
+	RecOffset SIZE  // file allocation table offset
 	RecNumber int64 // number of records
-	TagOffset int64 // tags table offset
+	TagOffset SIZE  // tags table offset
 	TagNumber int64 // number of tagset entries
 }
 
@@ -100,17 +106,17 @@ func TagBool(val bool) Tag {
 }
 
 // 16-bit unsigned int tag converter.
-func (t Tag) Uint16() (uint16, bool) {
+func (t Tag) Uint16() (TID, bool) {
 	if len(t) == 2 {
-		return binary.LittleEndian.Uint16(t), true
+		return TID(binary.LittleEndian.Uint16(t)), true
 	}
 	return 0, false
 }
 
 // 16-bit unsigned int tag constructor.
-func TagUint16(val uint16) Tag {
+func TagUint16(val TID) Tag {
 	var buf [2]byte
-	binary.LittleEndian.PutUint16(buf[:], val)
+	binary.LittleEndian.PutUint16(buf[:], uint16(val))
 	return buf[:]
 }
 
@@ -160,51 +166,51 @@ func TagNumber(val float64) Tag {
 }
 
 // Tags set for each file in package.
-type Tagset map[uint16]Tag
+type Tagset map[TID]Tag
 
 // String tag getter.
-func (ts Tagset) String(aid uint16) (string, bool) {
-	if data, ok := ts[aid]; ok {
+func (ts Tagset) String(tid TID) (string, bool) {
+	if data, ok := ts[tid]; ok {
 		return data.String()
 	}
 	return "", false
 }
 
 // Boolean tag getter.
-func (ts Tagset) Bool(aid uint16) (bool, bool) {
-	if data, ok := ts[aid]; ok {
+func (ts Tagset) Bool(tid TID) (bool, bool) {
+	if data, ok := ts[tid]; ok {
 		return data.Bool()
 	}
 	return false, false
 }
 
 // 16-bit unsigned int tag getter. Conversion can be used to get signed 16-bit integers.
-func (ts Tagset) Uint16(aid uint16) (uint16, bool) {
-	if data, ok := ts[aid]; ok {
+func (ts Tagset) Uint16(tid TID) (TID, bool) {
+	if data, ok := ts[tid]; ok {
 		return data.Uint16()
 	}
 	return 0, false
 }
 
 // 32-bit unsigned int tag getter. Conversion can be used to get signed 32-bit integers.
-func (ts Tagset) Uint32(aid uint16) (uint32, bool) {
-	if data, ok := ts[aid]; ok {
+func (ts Tagset) Uint32(tid TID) (uint32, bool) {
+	if data, ok := ts[tid]; ok {
 		return data.Uint32()
 	}
 	return 0, false
 }
 
 // 64-bit unsigned int tag getter. Conversion can be used to get signed 64-bit integers.
-func (ts Tagset) Uint64(aid uint16) (uint64, bool) {
-	if data, ok := ts[aid]; ok {
+func (ts Tagset) Uint64(tid TID) (uint64, bool) {
+	if data, ok := ts[tid]; ok {
 		return data.Uint64()
 	}
 	return 0, false
 }
 
 // 64-bit float tag getter.
-func (ts Tagset) Number(aid uint16) (float64, bool) {
-	if data, ok := ts[aid]; ok {
+func (ts Tagset) Number(tid TID) (float64, bool) {
+	if data, ok := ts[tid]; ok {
 		return data.Number()
 	}
 	return 0, false
@@ -212,12 +218,12 @@ func (ts Tagset) Number(aid uint16) (float64, bool) {
 
 // Reads tags set from stream.
 func (t Tagset) Read(r io.Reader) (err error) {
-	var num uint16
+	var num TID
 	if err = binary.Read(r, binary.LittleEndian, &num); err != nil {
 		return
 	}
-	for i := uint16(0); i < num; i++ {
-		var id, l uint16
+	for i := TID(0); i < num; i++ {
+		var id, l TID
 		if err = binary.Read(r, binary.LittleEndian, &id); err != nil {
 			return
 		}
@@ -235,14 +241,14 @@ func (t Tagset) Read(r io.Reader) (err error) {
 
 // Writes tags set to stream.
 func (t Tagset) Write(w io.Writer) (err error) {
-	if err = binary.Write(w, binary.LittleEndian, uint16(len(t))); err != nil {
+	if err = binary.Write(w, binary.LittleEndian, TID(len(t))); err != nil {
 		return
 	}
 	for id, data := range t {
 		if err = binary.Write(w, binary.LittleEndian, id); err != nil {
 			return
 		}
-		if err = binary.Write(w, binary.LittleEndian, uint16(len(data))); err != nil {
+		if err = binary.Write(w, binary.LittleEndian, TID(len(data))); err != nil {
 			return
 		}
 		if err = binary.Write(w, binary.LittleEndian, data); err != nil {
@@ -266,7 +272,7 @@ func (pack *Package) NamedRecord(fname string) (*PackRec, error) {
 	if !is {
 		return nil, ErrNotFound
 	}
-	var fid, _ = tags.Uint64(AID_FID)
+	var fid, _ = tags.Uint64(TID_FID)
 	return &pack.FAT[fid], nil
 }
 
@@ -281,20 +287,20 @@ func (pack *Package) Extract(r io.ReaderAt, fname string) (buf []byte, err error
 	return
 }
 
-// Error in tag set. Shows errors associated with any tags.
+// Error in tags set. Shows errors associated with any tags.
 type TagError struct {
 	Index int64  // index in tags table
-	AID   uint16 // attribute ID
+	TagID TID    // tag ID
 	What  string // error message
 }
 
 // Format error message of tag error.
 func (e *TagError) Error() string {
-	return fmt.Sprintf("tag index %d, attribute ID %d, %s", e.Index, e.AID, e.What)
+	return fmt.Sprintf("tag index %d, tag ID %d, %s", e.Index, e.TagID, e.What)
 }
 
 // Opens package for reading. At first its checkup file signature, then
-// reads records table, and reads file attributes table. Tags set
+// reads records table, and reads file tags set table. Tags set
 // for each file must contain at least file ID, file name and creation time.
 func (pack *Package) Open(r io.ReadSeeker) (err error) {
 	// read header
@@ -311,15 +317,15 @@ func (pack *Package) Open(r io.ReadSeeker) (err error) {
 	pack.Tags = make(map[string]Tagset, pack.TagNumber)
 
 	// read records table
-	if _, err = r.Seek(pack.RecOffset, io.SeekStart); err != nil {
+	if _, err = r.Seek(int64(pack.RecOffset), io.SeekStart); err != nil {
 		return
 	}
 	if err = binary.Read(r, binary.LittleEndian, &pack.FAT); err != nil {
 		return
 	}
 
-	// read file attributes table
-	if _, err = r.Seek(pack.TagOffset, io.SeekStart); err != nil {
+	// read file tags set table
+	if _, err = r.Seek(int64(pack.TagOffset), io.SeekStart); err != nil {
 		return
 	}
 	for i := int64(0); i < pack.TagNumber; i++ {
@@ -331,21 +337,21 @@ func (pack *Package) Open(r io.ReadSeeker) (err error) {
 		var ok bool
 		var fid uint64
 		var fname string
-		if fid, ok = tags.Uint64(AID_FID); !ok {
-			return &TagError{i, AID_FID, "file ID is absent"}
+		if fid, ok = tags.Uint64(TID_FID); !ok {
+			return &TagError{i, TID_FID, "file ID is absent"}
 		}
 		if fid >= uint64(len(pack.FAT)) {
-			return &TagError{i, AID_FID, fmt.Sprintf("file ID '%d' is out of range", fid)}
+			return &TagError{i, TID_FID, fmt.Sprintf("file ID '%d' is out of range", fid)}
 		}
-		if fname, ok = tags.String(AID_name); !ok {
-			return &TagError{i, AID_name, fmt.Sprintf("file name is absent for file ID '%d'", fid)}
+		if fname, ok = tags.String(TID_name); !ok {
+			return &TagError{i, TID_name, fmt.Sprintf("file name is absent for file ID '%d'", fid)}
 		}
 		var key = strings.ToLower(filepath.ToSlash(fname))
 		if _, ok = pack.Tags[key]; ok {
-			return &TagError{i, AID_name, fmt.Sprintf("file name '%s' is not unique", fname)}
+			return &TagError{i, TID_name, fmt.Sprintf("file name '%s' is not unique", fname)}
 		}
-		if _, ok = tags.Uint64(AID_created); !ok {
-			return &TagError{i, AID_created, fmt.Sprintf("creation time is absent for file name '%s'", fname)}
+		if _, ok = tags.Uint64(TID_created); !ok {
+			return &TagError{i, TID_created, fmt.Sprintf("creation time is absent for file name '%s'", fname)}
 		}
 		// insert file tags
 		pack.Tags[key] = tags
@@ -357,7 +363,7 @@ func (pack *Package) Open(r io.ReadSeeker) (err error) {
 func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, tags Tagset) (err error) {
 	var key string
 	if tags != nil {
-		var fname, ok = tags.String(AID_name)
+		var fname, ok = tags.String(TID_name)
 		if !ok {
 			return ErrNoName
 		}
@@ -378,7 +384,7 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, tags Tagset) (err e
 
 	if tags != nil {
 		var fid = uint64(len(pack.FAT)) - 1
-		tags[AID_FID] = TagUint64(fid)
+		tags[TID_FID] = TagUint64(fid)
 		pack.Tags[key] = tags
 	}
 	return nil
@@ -398,8 +404,8 @@ func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags Tagse
 		return
 	}
 	tags = Tagset{
-		AID_name:    TagString(fname),
-		AID_created: TagUint64(uint64(fi.ModTime().Unix())),
+		TID_name:    TagString(fname),
+		TID_created: TagUint64(uint64(fi.ModTime().Unix())),
 	}
 	if err = pack.PackData(w, file, tags); err != nil {
 		return

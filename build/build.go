@@ -15,13 +15,15 @@ func lualog(ls *lua.LState) int {
 	return 0
 }
 
-func luaexist(ls *lua.LState) int {
+func luacheckfile(ls *lua.LState) int {
 	var fpath = ls.CheckString(1)
 
 	var err error
-	if _, err = os.Stat(fpath); err == nil {
+	var fi os.FileInfo
+	if fi, err = os.Stat(fpath); err == nil {
 		ls.Push(lua.LBool(true))
-		return 1
+		ls.Push(lua.LBool(fi.IsDir()))
+		return 2
 	}
 	if os.IsNotExist(err) {
 		ls.Push(lua.LBool(false))
@@ -45,7 +47,7 @@ func mainluavm(fpath string) (err error) {
 	ls.SetGlobal("bindir", lua.LString(bindir))
 	ls.SetGlobal("scrdir", lua.LString(scrdir))
 	ls.SetGlobal("log", ls.NewFunction(lualog))
-	ls.SetGlobal("exist", ls.NewFunction(luaexist))
+	ls.SetGlobal("checkfile", ls.NewFunction(luacheckfile))
 
 	if err = ls.DoFile(fpath); err != nil {
 		return

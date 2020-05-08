@@ -15,14 +15,14 @@ import (
 )
 
 func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err error) {
-	if _, ok := tags[wpk.AID_mime]; !ok && pack.automime {
-		var fname, _ = tags.String(wpk.AID_name)
+	if _, ok := tags[wpk.TID_mime]; !ok && pack.automime {
+		var fname, _ = tags.String(wpk.TID_name)
 		if ct, ok := mimeext[filepath.Ext(fname)]; ok {
-			tags[wpk.AID_mime] = wpk.TagString(ct)
+			tags[wpk.TID_mime] = wpk.TagString(ct)
 		}
 	}
 
-	if _, ok := tags[wpk.AID_CRC32C]; !ok && pack.crc32 {
+	if _, ok := tags[wpk.TID_CRC32C]; !ok && pack.crc32 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -30,10 +30,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err erro
 		if _, err = io.Copy(h, r); err != nil {
 			return
 		}
-		tags[wpk.AID_CRC32C] = h.Sum(nil)
+		tags[wpk.TID_CRC32C] = h.Sum(nil)
 	}
 
-	if _, ok := tags[wpk.AID_CRC64ISO]; !ok && pack.crc64 {
+	if _, ok := tags[wpk.TID_CRC64ISO]; !ok && pack.crc64 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -41,10 +41,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err erro
 		if _, err = io.Copy(h, r); err != nil {
 			return
 		}
-		tags[wpk.AID_CRC64ISO] = h.Sum(nil)
+		tags[wpk.TID_CRC64ISO] = h.Sum(nil)
 	}
 
-	if _, ok := tags[wpk.AID_MD5]; !ok && pack.md5 {
+	if _, ok := tags[wpk.TID_MD5]; !ok && pack.md5 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -52,10 +52,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err erro
 		if _, err = io.Copy(mac, r); err != nil {
 			return
 		}
-		tags[wpk.AID_MD5] = mac.Sum(nil)
+		tags[wpk.TID_MD5] = mac.Sum(nil)
 	}
 
-	if _, ok := tags[wpk.AID_SHA1]; !ok && pack.sha1 {
+	if _, ok := tags[wpk.TID_SHA1]; !ok && pack.sha1 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -63,10 +63,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err erro
 		if _, err = io.Copy(mac, r); err != nil {
 			return
 		}
-		tags[wpk.AID_SHA1] = mac.Sum(nil)
+		tags[wpk.TID_SHA1] = mac.Sum(nil)
 	}
 
-	if _, ok := tags[wpk.AID_SHA224]; !ok && pack.sha224 {
+	if _, ok := tags[wpk.TID_SHA224]; !ok && pack.sha224 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -74,10 +74,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err erro
 		if _, err = io.Copy(mac, r); err != nil {
 			return
 		}
-		tags[wpk.AID_SHA224] = mac.Sum(nil)
+		tags[wpk.TID_SHA224] = mac.Sum(nil)
 	}
 
-	if _, ok := tags[wpk.AID_SHA256]; !ok && pack.sha256 {
+	if _, ok := tags[wpk.TID_SHA256]; !ok && pack.sha256 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -85,10 +85,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err erro
 		if _, err = io.Copy(mac, r); err != nil {
 			return
 		}
-		tags[wpk.AID_SHA256] = mac.Sum(nil)
+		tags[wpk.TID_SHA256] = mac.Sum(nil)
 	}
 
-	if _, ok := tags[wpk.AID_SHA384]; !ok && pack.sha384 {
+	if _, ok := tags[wpk.TID_SHA384]; !ok && pack.sha384 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -96,10 +96,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err erro
 		if _, err = io.Copy(mac, r); err != nil {
 			return
 		}
-		tags[wpk.AID_SHA384] = mac.Sum(nil)
+		tags[wpk.TID_SHA384] = mac.Sum(nil)
 	}
 
-	if _, ok := tags[wpk.AID_SHA512]; !ok && pack.sha512 {
+	if _, ok := tags[wpk.TID_SHA512]; !ok && pack.sha512 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -107,7 +107,7 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err erro
 		if _, err = io.Copy(mac, r); err != nil {
 			return
 		}
-		tags[wpk.AID_SHA512] = mac.Sum(nil)
+		tags[wpk.TID_SHA512] = mac.Sum(nil)
 	}
 
 	return
