@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/binary"
 	"flag"
-	"log"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -119,8 +119,8 @@ func writepackage() (err error) {
 	if recoffset, err = dst.Seek(0, io.SeekEnd); err != nil {
 		return
 	}
-	pack.RecOffset = wpk.SIZE(recoffset)
-	pack.RecNumber = int64(len(pack.FAT))
+	pack.RecOffset = wpk.OFFSET(recoffset)
+	pack.RecNumber = wpk.FID(len(pack.FAT))
 	if err = binary.Write(dst, binary.LittleEndian, &pack.FAT); err != nil {
 		return
 	}
@@ -131,8 +131,8 @@ func writepackage() (err error) {
 	if tagoffset, err = dst.Seek(0, io.SeekCurrent); err != nil {
 		return
 	}
-	pack.TagOffset = wpk.SIZE(tagoffset)
-	pack.TagNumber = int64(len(pack.Tags))
+	pack.TagOffset = wpk.OFFSET(tagoffset)
+	pack.TagNumber = wpk.FID(len(pack.Tags))
 	for _, tags := range pack.Tags {
 		if err = tags.Write(dst); err != nil {
 			return

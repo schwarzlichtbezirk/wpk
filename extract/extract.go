@@ -100,7 +100,7 @@ func readpackage() (err error) {
 			}
 
 			for fname, tags := range pack.Tags {
-				var fid, _ = tags.Uint64(wpk.TID_FID)
+				var fid, _ = tags.Uint32(wpk.TID_FID)
 				var rec = &pack.FAT[fid]
 				log.Printf("#%-4d %7d bytes   %s", fid, rec.Size, fname)
 
@@ -111,10 +111,10 @@ func readpackage() (err error) {
 					}
 					defer dst.Close()
 
-					if _, err = src.Seek(rec.Offset, io.SeekStart); err != nil {
+					if _, err = src.Seek(int64(rec.Offset), io.SeekStart); err != nil {
 						return
 					}
-					if _, err := io.CopyN(dst, src, rec.Size); err != nil {
+					if _, err := io.CopyN(dst, src, int64(rec.Size)); err != nil {
 						return
 					}
 				}(); err != nil {

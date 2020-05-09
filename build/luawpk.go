@@ -123,11 +123,9 @@ func setter_pack(ls *lua.LState) int {
 func tostring_pack(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	var size int64 = 0
+	var size wpk.SIZE
 	for _, rec := range pack.FAT {
-		if rec.Size > 0 {
-			size += rec.Size
-		}
+		size += rec.Size
 	}
 	var s = fmt.Sprintf("records: %d, tags: %d, total size: %d", len(pack.FAT), len(pack.Tags), size)
 	ls.Push(lua.LString(s))
@@ -456,8 +454,8 @@ func wpkcomplete(ls *lua.LState) int {
 		ls.RaiseError(err.Error())
 		return 0
 	}
-	pack.RecOffset = wpk.SIZE(recoffset)
-	pack.RecNumber = int64(len(pack.FAT))
+	pack.RecOffset = wpk.OFFSET(recoffset)
+	pack.RecNumber = wpk.FID(len(pack.FAT))
 	if err = binary.Write(pack.w, binary.LittleEndian, &pack.FAT); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
@@ -469,8 +467,8 @@ func wpkcomplete(ls *lua.LState) int {
 		ls.RaiseError(err.Error())
 		return 0
 	}
-	pack.TagOffset = wpk.SIZE(tagoffset)
-	pack.TagNumber = int64(len(pack.Tags))
+	pack.TagOffset = wpk.OFFSET(tagoffset)
+	pack.TagNumber = wpk.FID(len(pack.Tags))
 	for _, tags := range pack.Tags {
 		if err = tags.Write(pack.w); err != nil {
 			ls.RaiseError(err.Error())
@@ -502,7 +500,7 @@ func wpkcomplete(ls *lua.LState) int {
 func wpkdatasize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	var size int64
+	var size wpk.SIZE
 	for _, rec := range pack.FAT {
 		size += rec.Size
 	}

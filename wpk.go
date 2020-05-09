@@ -17,39 +17,40 @@ const (
 )
 
 type (
-	TID  uint16
-	FID  uint32
-	SIZE uint64
+	TID    uint16 // tag identifier
+	FID    uint32 // file index/identifier
+	SIZE   uint64 // data block size
+	OFFSET uint64 // data block offset
 )
 
 // List of predefined tags IDs.
 const (
-	TID_FID        = 0 // required, uint64
-	TID_name       = 1 // required, unique, string
-	TID_created    = 2 // required, uint64
-	TID_lastaccess = 3 // uint64
-	TID_lastwrite  = 4 // uint64
-	TID_change     = 5 // uint64
-	TID_fileattr   = 6 // uint64
+	TID_FID        TID = 0 // required, uint64
+	TID_name       TID = 1 // required, unique, string
+	TID_created    TID = 2 // required, uint64
+	TID_lastaccess TID = 3 // uint64
+	TID_lastwrite  TID = 4 // uint64
+	TID_change     TID = 5 // uint64
+	TID_fileattr   TID = 6 // uint64
 
-	TID_CRC32IEEE = 10 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
-	TID_CRC32C    = 11 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1
-	TID_CRC32K    = 12 // uint32, (Koopman), poly = 0x741B8CD7, init = -1
-	TID_CRC64ISO  = 14 // uint64, poly = 0xD800000000000000, init = -1
+	TID_CRC32IEEE TID = 10 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
+	TID_CRC32C    TID = 11 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1
+	TID_CRC32K    TID = 12 // uint32, (Koopman), poly = 0x741B8CD7, init = -1
+	TID_CRC64ISO  TID = 14 // uint64, poly = 0xD800000000000000, init = -1
 
-	TID_MD5    = 20 // [16]byte
-	TID_SHA1   = 21 // [20]byte
-	TID_SHA224 = 22 // [28]byte
-	TID_SHA256 = 23 // [32]byte
-	TID_SHA384 = 24 // [48]byte
-	TID_SHA512 = 25 // [64]byte
+	TID_MD5    TID = 20 // [16]byte
+	TID_SHA1   TID = 21 // [20]byte
+	TID_SHA224 TID = 22 // [28]byte
+	TID_SHA256 TID = 23 // [32]byte
+	TID_SHA384 TID = 24 // [48]byte
+	TID_SHA512 TID = 25 // [64]byte
 
-	TID_mime     = 100 // string
-	TID_keywords = 101 // string
-	TID_category = 102 // string
-	TID_version  = 103 // string
-	TID_author   = 104 // string
-	TID_comment  = 105 // string
+	TID_mime     TID = 100 // string
+	TID_keywords TID = 101 // string
+	TID_category TID = 102 // string
+	TID_version  TID = 103 // string
+	TID_author   TID = 104 // string
+	TID_comment  TID = 105 // string
 )
 
 var (
@@ -63,16 +64,16 @@ var (
 // Package header.
 type PackHdr struct {
 	Signature [0x18]byte
-	RecOffset SIZE  // file allocation table offset
-	RecNumber int64 // number of records
-	TagOffset SIZE  // tags table offset
-	TagNumber int64 // number of tagset entries
+	RecOffset OFFSET // file allocation table offset
+	RecNumber FID    // number of records
+	TagOffset OFFSET // tags table offset
+	TagNumber FID    // number of tagset entries
 }
 
 // Package record item.
 type PackRec struct {
-	Offset int64 // datablock offset
-	Size   int64 // datablock size
+	Offset OFFSET // datablock offset
+	Size   SIZE   // datablock size
 }
 
 // Tag - file description item.
@@ -272,7 +273,7 @@ func (pack *Package) NamedRecord(fname string) (*PackRec, error) {
 	if !is {
 		return nil, ErrNotFound
 	}
-	var fid, _ = tags.Uint64(TID_FID)
+	var fid, _ = tags.Uint32(TID_FID)
 	return &pack.FAT[fid], nil
 }
 
@@ -283,13 +284,13 @@ func (pack *Package) Extract(r io.ReaderAt, fname string) (buf []byte, err error
 		return
 	}
 	buf = make([]byte, rec.Size)
-	_, err = r.ReadAt(buf, rec.Offset)
+	_, err = r.ReadAt(buf, int64(rec.Offset))
 	return
 }
 
 // Error in tags set. Shows errors associated with any tags.
 type TagError struct {
-	Index int64  // index in tags table
+	Index FID    // index in tags table
 	TagID TID    // tag ID
 	What  string // error message
 }
@@ -328,21 +329,20 @@ func (pack *Package) Open(r io.ReadSeeker) (err error) {
 	if _, err = r.Seek(int64(pack.TagOffset), io.SeekStart); err != nil {
 		return
 	}
-	for i := int64(0); i < pack.TagNumber; i++ {
+	for i := FID(0); i < pack.TagNumber; i++ {
 		var tags = Tagset{}
 		if err = tags.Read(r); err != nil {
 			return
 		}
 		// check tags fields
-		var ok bool
-		var fid uint64
-		var fname string
-		if fid, ok = tags.Uint64(TID_FID); !ok {
+		var fid, ok = tags.Uint32(TID_FID)
+		if !ok {
 			return &TagError{i, TID_FID, "file ID is absent"}
 		}
-		if fid >= uint64(len(pack.FAT)) {
+		if fid >= uint32(len(pack.FAT)) {
 			return &TagError{i, TID_FID, fmt.Sprintf("file ID '%d' is out of range", fid)}
 		}
+		var fname string
 		if fname, ok = tags.String(TID_name); !ok {
 			return &TagError{i, TID_name, fmt.Sprintf("file name is absent for file ID '%d'", fid)}
 		}
@@ -373,18 +373,20 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, tags Tagset) (err e
 		}
 	}
 
-	var rec PackRec
-	if rec.Offset, err = w.Seek(0, io.SeekCurrent); err != nil {
+	var offset, size int64
+	if offset, err = w.Seek(0, io.SeekCurrent); err != nil {
 		return err
 	}
-	if rec.Size, err = io.Copy(w, r); err != nil {
+	if size, err = io.Copy(w, r); err != nil {
 		return err
 	}
-	pack.FAT = append(pack.FAT, rec)
+	pack.FAT = append(pack.FAT, PackRec{
+		Offset: OFFSET(offset),
+		Size:   SIZE(size),
+	})
 
 	if tags != nil {
-		var fid = uint64(len(pack.FAT)) - 1
-		tags[TID_FID] = TagUint64(fid)
+		tags[TID_FID] = TagUint32(uint32(len(pack.FAT) - 1))
 		pack.Tags[key] = tags
 	}
 	return nil
