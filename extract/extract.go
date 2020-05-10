@@ -91,9 +91,7 @@ func readpackage() (err error) {
 			if src, err = os.Open(pkgpath); err != nil {
 				return
 			}
-			defer func() {
-				err = src.Close()
-			}()
+			defer src.Close()
 
 			if err = pack.Open(src); err != nil {
 				return
@@ -105,8 +103,13 @@ func readpackage() (err error) {
 				log.Printf("#%-4d %7d bytes   %s", fid, rec.Size, fname)
 
 				if func() {
+					var fpath = DstPath+fname
+					if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+						return
+					}
+
 					var dst *os.File
-					if dst, err = os.OpenFile(DstPath+fname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+					if dst, err = os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
 						return
 					}
 					defer dst.Close()
@@ -114,7 +117,7 @@ func readpackage() (err error) {
 					if _, err = src.Seek(int64(rec.Offset), io.SeekStart); err != nil {
 						return
 					}
-					if _, err := io.CopyN(dst, src, int64(rec.Size)); err != nil {
+					if _, err = io.CopyN(dst, src, int64(rec.Size)); err != nil {
 						return
 					}
 				}(); err != nil {

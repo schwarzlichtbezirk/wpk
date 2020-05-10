@@ -345,9 +345,7 @@ func wpkopen(ls *lua.LState) int {
 		if src, err = os.Open(pkgpath); err != nil {
 			return
 		}
-		defer func() {
-			err = src.Close()
-		}()
+		defer src.Close()
 
 		pack.path = pkgpath
 
@@ -568,9 +566,7 @@ func wpkputfile(ls *lua.LState) int {
 		if file, err = os.Open(fpath); err != nil {
 			return
 		}
-		defer func() {
-			err = file.Close()
-		}()
+		defer file.Close()
 
 		var fi os.FileInfo
 		if fi, err = file.Stat(); err != nil {

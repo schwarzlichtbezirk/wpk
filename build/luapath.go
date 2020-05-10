@@ -46,7 +46,7 @@ func pathvolume(ls *lua.LState) int {
 func pathdir(ls *lua.LState) int {
 	var filename = ls.CheckString(1)
 
-	var dir = filepath.Dir(filename)
+	var dir = filepath.ToSlash(filepath.Dir(filename))
 	ls.Push(lua.LString(dir))
 	return 1
 }
@@ -71,7 +71,7 @@ func pathsplit(ls *lua.LState) int {
 	var filename = ls.CheckString(1)
 
 	var dir, file = filepath.Split(filename)
-	ls.Push(lua.LString(dir))
+	ls.Push(lua.LString(filepath.ToSlash(dir)))
 	ls.Push(lua.LString(file))
 	return 2
 }
@@ -95,7 +95,7 @@ func pathjoin(ls *lua.LState) int {
 		elem[i] = ls.CheckString(i + 1)
 	}
 
-	var dir = filepath.Join(elem...)
+	var dir = filepath.ToSlash(filepath.Join(elem...))
 	ls.Push(lua.LString(dir))
 	return 1
 }
@@ -109,7 +109,7 @@ func pathglob(ls *lua.LState) int {
 		return 0
 	}
 	for _, dir := range matches {
-		ls.Push(lua.LString(dir))
+		ls.Push(lua.LString(filepath.ToSlash(dir)))
 	}
 	return len(matches)
 }

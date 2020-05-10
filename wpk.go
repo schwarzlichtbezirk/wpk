@@ -397,9 +397,7 @@ func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags Tagse
 	if file, err = os.Open(fpath); err != nil {
 		return
 	}
-	defer func() {
-		err = file.Close()
-	}()
+	defer file.Close()
 
 	var fi os.FileInfo
 	if fi, err = file.Stat(); err != nil {
