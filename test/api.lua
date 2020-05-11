@@ -74,6 +74,7 @@ to build wpk-packages.
 	uint16 - get/set uint16 data, 2 bytes
 	uint32 - get/set uint32 data, 4 bytes
 	uint64 - get/set uint64 data, 8 bytes
+	uint   - get unspecified size unsigned int data
 	number - get/set float64 data, 8 bytes
 
 
@@ -144,34 +145,72 @@ to build wpk-packages.
 		'tid' can be numeric ID or string representation of tag ID. 'tag' can be
 		constructed userdata object, or string, or boolean. Numeric values cannot
 		be given as tag to prevent ambiguous data size interpretation.
-	gettags(fname)
-	settags(fname, tags)
-	addtags(fname, tags)
-	deltags(fname, tags)
+	deltag(fname, tid) - delete tag with given ID from tags set of specified file.
+		'tid' can be numeric ID or string representation of tag ID.
+	gettags(fname) - returns table with tags set of specified file. There is keys -
+		numeric tags identifiers, values - 'tag' userdata.
+	settags(fname, tags) - receive table with tags that will be replaced at tags
+		set of specified file, or added if new. Keys of table can be numeric IDs
+		or string representation of tags ID. Values - can be 'tag' userdata objects,
+		or strings, or boolean.
+	addtags(fname, tags) - receive table with tags that will be added to tags set
+		of specified file. If file tags set already has given tags, those tags will
+		be skipped. Keys of table can be numeric IDs or string representation of
+		tags ID. Values - can be 'tag' userdata objects, or strings, or boolean.
+	deltags(fname, tags) - receive table with numeric tags IDs or string
+		representation of tags ID, which should be removed. Values of table does
+		not matter.
 
 ]]
 
 log "starts"
 
--- inits new package
-local pkg = wpk.new()
-pkg.automime = true -- put MIME type for each file if it is not given explicit
-pkg.secret = "package-private-key" -- MAC private key for cryptographic hashes of any package file
-pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
-pkg.sha224 = true -- generate SHA224 hash for each file
-
--- open wpk-file for write
-pkg:begin(scrdir.."api.wpk")
-
--- pack given file with common preset
-local function packfile(fname, keywords)
-	pkg:putfile({name=fname, keywords=keywords, author="schwarzlichtbezirk"}, path.join(scrdir, "media", fname))
+-- define some functions for packing workflow
+local function logfmt(...) -- write to log formatted string
+	log(string.format(...))
+end
+function wpk.create(fpath)-- additional wpk-constructor
+	local pkg = wpk.new()
+	pkg.automime = true -- put MIME type for each file if it is not given explicit
+	pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
+	pkg:begin(fpath) -- open wpk-file for write
+	return pkg
+end
+function wpk:logfile(fname) -- write record log
+	logfmt("packed %d file %s, crc=%s", self:gettag(fname, "fid").uint32, fname, tostring(self:gettag(fname, "crc32")))
+end
+function wpk:safealias(fname1, fname2) -- make 2 file name aliases to 1 file
+	if self:hasfile(fname1) then
+		self:putalias(fname1, fname2)
+		logfmt("maked alias '%s' to '%s'", fname2, fname1)
+	else
+		logfmt("file '%s' is not found in package", fname1)
+	end
 end
 
+-- starts new package
+local pkg = wpk.create(scrdir.."api.wpk")
+pkg.secret = "package-private-key" -- private key to sign cryptographic hashes for each file
+pkg.sha224 = true -- generate SHA224 hash for each file
+
 -- put images with keywords and author addition tags
-local mediadir = scrdir.."media/"
-local auth = "schwarzlichtbezirk"
-pkg:putfile({name="bounty.jpg", keywords="beach", author=auth}, mediadir.."bounty.jpg")
+for i, tags in ipairs{
+	{name="bounty.jpg", keywords="beach", category="image"},
+	{name="img1/qarataslar.jpg", keywords="beach;rock", category="photo"},
+	{name="img1/claustral.jpg", keywords="beach;rock", category="photo"},
+	{name="img2/marble.jpg", keywords="beach", category="photo"},
+	{name="img2/uzunji.jpg", keywords="rock", category="photo"}
+} do
+	tags.author="schwarzlichtbezirk"
+	pkg:putfile(tags, path.join(scrdir, "media", tags.name))
+	pkg:logfile(tags.name)
+end
+-- make alias to file included at list
+pkg:safealias("img1/claustral.jpg", "jasper.jpg")
+pkg:settag("jasper.jpg", "comment", "beach between basalt cliffs")
+
+log(string.format("total files size sum: %d bytes", pkg:datasize()))
+log(string.format("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum))
 
 -- write records table, tags table and finalize wpk-file
 pkg:complete()

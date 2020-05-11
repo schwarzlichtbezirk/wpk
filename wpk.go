@@ -151,6 +151,21 @@ func TagUint64(val uint64) Tag {
 	return buf[:]
 }
 
+// unspecified size unsigned int tag converter.
+func (t Tag) Uint() (uint, bool) {
+	switch len(t) {
+	case 1:
+		return uint(t[0]), true
+	case 2:
+		return uint(binary.LittleEndian.Uint16(t)), true
+	case 4:
+		return uint(binary.LittleEndian.Uint32(t)), true
+	case 8:
+		return uint(binary.LittleEndian.Uint64(t)), true
+	}
+	return 0, false
+}
+
 // 64-bit float tag converter.
 func (t Tag) Number() (float64, bool) {
 	if len(t) == 8 {

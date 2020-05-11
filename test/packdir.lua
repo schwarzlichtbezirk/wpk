@@ -4,7 +4,7 @@ log "starts"
 -- inits new package
 local pkg = wpk.new()
 pkg.automime = true -- put MIME type for each file if it is not given explicit
-pkg.secret = "package-private-key" -- MAC private key for cryptographic hashes of any package file
+pkg.secret = "package-private-key" -- private key to sign cryptographic hashes for each file
 pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 pkg.sha256 = true -- generate SHA256 hash for each file
 

@@ -180,6 +180,7 @@ var properties_tag = []struct {
 	{"uint16", getuint16, setuint16},
 	{"uint32", getuint32, setuint32},
 	{"uint64", getuint64, setuint64},
+	{"uint", getuint, nil},
 	{"number", getnumber, setnumber},
 }
 
@@ -292,6 +293,15 @@ func setuint64(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = uint64(ls.CheckInt(2))
 	t.Tag = wpk.TagUint64(val)
+	return 0
+}
+
+func getuint(ls *lua.LState) int {
+	var t = CheckTag(ls, 1)
+	if val, ok := t.Uint(); ok {
+		ls.Push(lua.LNumber(val))
+		return 1
+	}
 	return 0
 }
 

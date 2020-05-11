@@ -167,6 +167,7 @@ var methods_pack = map[string]lua.LGFunction{
 	"hastag":   wpkhastag,
 	"gettag":   wpkgettag,
 	"settag":   wpksettag,
+	"deltag":   wpkdeltag,
 	"gettags":  wpkgettags,
 	"settags":  wpksettags,
 	"addtags":  wpkaddtags,
@@ -791,6 +792,31 @@ func wpksettag(ls *lua.LState) int {
 		return 0
 	}
 	tags[tid] = tag
+
+	return 0
+}
+
+// Delete tag with given identifier from tags set of specified file.
+func wpkdeltag(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var fname = ls.CheckString(2)
+	var k = ls.Get(3)
+
+	var err error
+
+	var tid wpk.TID
+	if tid, err = ValueToAid(k); err != nil {
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	var key = strings.ToLower(filepath.ToSlash(fname))
+	var tags, ok = pack.Tags[key]
+	if !ok {
+		ls.RaiseError("file with name '%s' does not present", fname)
+		return 0
+	}
+	delete(tags, tid)
 
 	return 0
 }
