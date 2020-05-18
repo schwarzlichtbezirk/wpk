@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/schwarzlichtbezirk/wpk"
@@ -18,6 +19,14 @@ var (
 	DstPath string
 	MkDst   bool
 )
+
+var efre = regexp.MustCompile(`\$\(\w+\)`)
+
+func envfmt(p string) string {
+	return filepath.ToSlash(efre.ReplaceAllStringFunc(p, func(name string) string {
+		return os.Getenv(name[2 : len(name)-1]) // strip $(...) and replace by env value
+	}))
+}
 
 func pathexists(path string) (bool, error) {
 	var err error
@@ -49,6 +58,7 @@ func checkargs() int {
 		if file == "" {
 			continue
 		}
+		file = envfmt(file)
 		if ok, _ := pathexists(file); !ok {
 			log.Printf("source file #%d '%s' does not exist", i+1, file)
 			ec++
@@ -57,7 +67,7 @@ func checkargs() int {
 		SrcList = append(SrcList, file)
 	}
 
-	DstPath = filepath.ToSlash(DstPath)
+	DstPath = envfmt(DstPath)
 	if DstPath == "" {
 		log.Println("destination path does not specified")
 		ec++
@@ -103,7 +113,7 @@ func readpackage() (err error) {
 				log.Printf("#%-4d %7d bytes   %s", fid, rec.Size, fname)
 
 				if func() {
-					var fpath = DstPath+fname
+					var fpath = DstPath + fname
 					if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
 						return
 					}

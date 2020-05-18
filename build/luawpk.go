@@ -137,6 +137,7 @@ var properties_pack = []struct {
 	getter lua.LGFunction // getters always must return 1 value
 	setter lua.LGFunction // setters always must return no values
 }{
+	{"path", getpath, nil},
 	{"recnum", getrecnum, nil},
 	{"tagnum", gettagnum, nil},
 	{"automime", getautomime, setautomime},
@@ -175,6 +176,16 @@ var methods_pack = map[string]lua.LGFunction{
 }
 
 // properties section
+
+func getpath(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	if pack.w != nil {
+		ls.Push(lua.LString(pack.path))
+	} else {
+		ls.Push(lua.LNil)
+	}
+	return 1
+}
 
 func getrecnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)

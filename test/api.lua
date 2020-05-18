@@ -48,6 +48,8 @@ to build wpk-packages.
 	enum(dir, n) - enumerates all files of given directory, returns result as table.
 		If n > 0, returns at most n file names. If n <= 0, returns all the
 		file names from the directory. 'n' is optional parameter, -1 by default.
+	envfmt(fpath) - replaces all entries "$(envname)" in path, where 'envname' is
+		an environment variable, to it's value.
 
 
 *tag* userdata:
@@ -84,6 +86,7 @@ to build wpk-packages.
 	new() - creates new empty object.
 
 	properties:
+	path - getter only, returns path to opened wpk-file.
 	recnum - getter only, returns number of records in file allocation table.
 	tagnum - getter only, returns number of records in tags table.
 	automime - get/set mode to put for each new file tag with its MIME

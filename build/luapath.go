@@ -25,6 +25,7 @@ var pathfuncs = map[string]lua.LGFunction{
 	"join":    pathjoin,
 	"glob":    pathglob,
 	"enum":    pathenum,
+	"envfmt":  pathenvfmt,
 }
 
 func pathtoslash(ls *lua.LState) int {
@@ -137,6 +138,12 @@ func pathenum(ls *lua.LState) int {
 		i++
 	}
 	ls.Push(tb)
+	return 1
+}
+
+func pathenvfmt(ls *lua.LState) int {
+	var fpath = ls.CheckString(1)
+	ls.Push(lua.LString(envfmt(fpath)))
 	return 1
 }
 

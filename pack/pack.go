@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/schwarzlichtbezirk/wpk"
@@ -19,6 +20,14 @@ var (
 	DstFile string
 	PutMIME bool
 )
+
+var efre = regexp.MustCompile(`\$\(\w+\)`)
+
+func envfmt(p string) string {
+	return filepath.ToSlash(efre.ReplaceAllStringFunc(p, func(name string) string {
+		return os.Getenv(name[2 : len(name)-1]) // strip $(...) and replace by env value
+	}))
+}
 
 func pathexists(path string) (bool, error) {
 	var err error
@@ -50,6 +59,7 @@ func checkargs() int {
 		if path == "" {
 			continue
 		}
+		path = envfmt(path)
 		if !strings.HasSuffix(path, "/") {
 			path += "/"
 		}
@@ -61,7 +71,7 @@ func checkargs() int {
 		SrcList = append(SrcList, path)
 	}
 
-	DstFile = filepath.ToSlash(DstFile)
+	DstFile = envfmt(DstFile)
 	if DstFile == "" {
 		log.Println("destination file does not specified")
 		ec++
