@@ -11,6 +11,8 @@ import (
 // Helps convert Lua-table string keys to associated TID values.
 var NameTid = map[string]wpk.TID{
 	"fid":     wpk.TID_FID,
+	"size":    wpk.TID_size,
+	"offset":  wpk.TID_offset,
 	"name":    wpk.TID_name,
 	"created": wpk.TID_created,
 	"crt":     wpk.TID_created,

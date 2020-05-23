@@ -89,6 +89,7 @@ to build wpk-packages.
 	path - getter only, returns path to opened wpk-file.
 	recnum - getter only, returns number of records in file allocation table.
 	tagnum - getter only, returns number of records in tags table.
+	datasize - getter only, returns size sum of all data records.
 	automime - get/set mode to put for each new file tag with its MIME
 		determined by file extension, if it does not issued explicitly.
 	secret - get/set private key to sign hash MAC (MD5, SHA1, SHA224, etc).
@@ -110,15 +111,16 @@ to build wpk-packages.
 		signed by 'secret' key.
 
 	methods:
-	open(fpath) - read allocation table and tags table by specified wpk-file path.
+	load(fpath) - read allocation table and tags table by specified wpk-file path.
 		File descriptor is closed after this function call.
 	begin(fpath) - start to write new empty package with given path.
 		Package can not be used until writing will be 'complete'. If package with
 		given path is already exist, it will be rewritten.
 	append() - start to append new files to already existing package, opened by
-		previous call to 'open'. Package can not be used until writing will be 'complete'.
+		previous call to 'load'. Package can not be used until writing will be 'complete'.
 	complete() - write allocation table and tags table, and finalize package writing.
-	datasize() - returns sum of all data records sezes.
+	glob(pattern) - returns the names of all files in package matching pattern or nil
+		if there is no matching file.
 	hasfile(fname) - check up file name existence in tags table.
 	filesize(fname) - return record size of specified file name.
 	putfile(tags, fpath) - write file with specified full path to package file,
@@ -212,7 +214,7 @@ end
 pkg:safealias("img1/claustral.jpg", "jasper.jpg")
 pkg:settag("jasper.jpg", "comment", "beach between basalt cliffs")
 
-log(string.format("total files size sum: %d bytes", pkg:datasize()))
+log(string.format("total files size sum: %d bytes", pkg.datasize))
 log(string.format("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum))
 
 -- write records table, tags table and finalize wpk-file

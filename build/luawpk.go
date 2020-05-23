@@ -140,6 +140,7 @@ var properties_pack = []struct {
 	{"path", getpath, nil},
 	{"recnum", getrecnum, nil},
 	{"tagnum", gettagnum, nil},
+	{"datasize", getdatasize, nil},
 	{"automime", getautomime, setautomime},
 	{"secret", getsecret, setsecret},
 	{"crc32", getcrc32, setcrc32},
@@ -153,11 +154,11 @@ var properties_pack = []struct {
 }
 
 var methods_pack = map[string]lua.LGFunction{
-	"open":     wpkopen,
+	"load":     wpkload,
 	"begin":    wpkbegin,
 	"append":   wpkappend,
 	"complete": wpkcomplete,
-	"datasize": wpkdatasize,
+	"glob":     wpkglob,
 	"hasfile":  wpkhasfile,
 	"filesize": wpkfilesize,
 	"putfile":  wpkputfile,
@@ -196,6 +197,12 @@ func getrecnum(ls *lua.LState) int {
 func gettagnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	ls.Push(lua.LNumber(len(pack.Tags)))
+	return 1
+}
+
+func getdatasize(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	ls.Push(lua.LNumber(pack.DataSize()))
 	return 1
 }
 
@@ -341,7 +348,7 @@ func setsha512(ls *lua.LState) int {
 
 // methods section
 
-func wpkopen(ls *lua.LState) int {
+func wpkload(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var pkgpath = ls.CheckString(2)
 
@@ -361,7 +368,7 @@ func wpkopen(ls *lua.LState) int {
 
 		pack.path = pkgpath
 
-		if err = pack.Open(src); err != nil {
+		if err = pack.Load(src); err != nil {
 			return
 		}
 	}(); err != nil {
@@ -480,7 +487,7 @@ func wpkcomplete(ls *lua.LState) int {
 	pack.TagOffset = wpk.OFFSET(tagoffset)
 	pack.TagNumber = wpk.FID(len(pack.Tags))
 	for _, tags := range pack.Tags {
-		if err = tags.Write(pack.w); err != nil {
+		if _, err = tags.WriteTo(pack.w); err != nil {
 			ls.RaiseError(err.Error())
 			return 0
 		}
@@ -507,16 +514,19 @@ func wpkcomplete(ls *lua.LState) int {
 	return 0
 }
 
-func wpkdatasize(ls *lua.LState) int {
+func wpkglob(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
+	var pattern = ls.CheckString(2)
 
-	var size wpk.SIZE
-	for _, rec := range pack.FAT {
-		size += rec.Size
+	var matches, err = pack.Glob(pattern)
+	if err != nil {
+		ls.RaiseError(err.Error())
+		return 0
 	}
-
-	ls.Push(lua.LNumber(size))
-	return 1
+	for _, key := range matches {
+		ls.Push(lua.LString(key))
+	}
+	return len(matches)
 }
 
 func wpkhasfile(ls *lua.LState) int {

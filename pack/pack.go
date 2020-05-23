@@ -144,7 +144,7 @@ func writepackage() (err error) {
 	pack.TagOffset = wpk.OFFSET(tagoffset)
 	pack.TagNumber = wpk.FID(len(pack.Tags))
 	for _, tags := range pack.Tags {
-		if err = tags.Write(dst); err != nil {
+		if _, err = tags.WriteTo(dst); err != nil {
 			return
 		}
 	}

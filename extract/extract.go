@@ -103,12 +103,12 @@ func readpackage() (err error) {
 			}
 			defer src.Close()
 
-			if err = pack.Open(src); err != nil {
+			if err = pack.Load(src); err != nil {
 				return
 			}
 
 			for fname, tags := range pack.Tags {
-				var fid, _ = tags.Uint32(wpk.TID_FID)
+				var fid = tags.FID()
 				var rec = &pack.FAT[fid]
 				log.Printf("#%-4d %7d bytes   %s", fid, rec.Size, fname)
 

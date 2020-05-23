@@ -17,7 +17,7 @@ pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 pkg.sha1 = true -- generate SHA1 hash for each file on this step
 
 -- read records table, tags table of existing package
-pkg:open(pkgpath)
+pkg:load(pkgpath)
 -- check if files from this step are appended by test any of them
 if pkg:hasfile "img2/marble.jpg" then
 	log "files from step 2 already appended"
@@ -65,7 +65,7 @@ pkg.sha384 = true
 -- put sample text file created from string
 packdata({name="sample.txt", keywords="fox;dog"}, "The quick brown fox jumps over the lazy dog")
 
-logfmt("packaged %d files on sum %d bytes", pkg.recnum, pkg:datasize())
+logfmt("packaged %d files on sum %d bytes", pkg.recnum, pkg.datasize)
 
 -- write records table, tags table and finalize wpk-file
 pkg:complete()
