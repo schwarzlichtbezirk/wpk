@@ -13,7 +13,8 @@ var NameTid = map[string]wpk.TID{
 	"fid":     wpk.TID_FID,
 	"size":    wpk.TID_size,
 	"offset":  wpk.TID_offset,
-	"name":    wpk.TID_name,
+	"name":    wpk.TID_path,
+	"path":    wpk.TID_path,
 	"created": wpk.TID_created,
 	"crt":     wpk.TID_created,
 

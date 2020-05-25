@@ -107,13 +107,14 @@ func readpackage() (err error) {
 				return
 			}
 
-			for fname, tags := range pack.Tags {
+			for _, tags := range pack.Tags {
 				var fid = tags.FID()
 				var rec = &pack.FAT[fid]
-				log.Printf("#%-4d %7d bytes   %s", fid, rec.Size, fname)
+				var kpath, _ = tags.String(wpk.TID_path) // get original key path
+				log.Printf("#%-4d %7d bytes   %s", fid, rec.Size, kpath)
 
 				if func() {
-					var fpath = DstPath + fname
+					var fpath = DstPath + kpath
 					if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
 						return
 					}

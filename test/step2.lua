@@ -28,17 +28,18 @@ end
 local function logfmt(...) -- write to log formatted string
 	log(string.format(...))
 end
-local function logfile(fname) -- write record log
-	logfmt("packed %d file %s, crc=%s", pkg:gettag(fname, "fid").uint32, fname, tostring(pkg:gettag(fname, "crc32")))
+local function logfile(kpath) -- write record log
+	logfmt("packed %d file %s, crc=%s", pkg:gettag(kpath, "fid").uint32, kpath, tostring(pkg:gettag(kpath, "crc32")))
 end
-local function packfile(fname, keywords) -- pack given file with common preset
-	pkg:putfile({name=fname, keywords=keywords, author="schwarzlichtbezirk"}, path.join(scrdir, "media", fname))
-	logfile(fname)
+local function packfile(kpath, keywords) -- pack given file with common preset
+	pkg:putfile(kpath, path.join(scrdir, "media", kpath))
+	pkg:addtags(kpath, {keywords=keywords, author="schwarzlichtbezirk"})
+	logfile(kpath)
 end
-local function packdata(tags, data) -- put text file created from given string
-	tags.mime = "text/plain;charset=utf-8"
-	pkg:putdata(tags, data)
-	logfile(tags.name)
+local function packdata(kpath, data, keywords) -- put text file created from given string
+	pkg:putdata(kpath, data)
+	pkg:settags(kpath, {keywords=keywords, mime="text/plain;charset=utf-8"})
+	logfile(kpath)
 end
 local function safealias(fname1, fname2) -- make 2 file name aliases to 1 file
 	if pkg:hasfile(fname1) then
@@ -63,7 +64,7 @@ safealias("img1/claustral.jpg", "jasper.jpg")
 pkg.sha384 = true
 
 -- put sample text file created from string
-packdata({name="sample.txt", keywords="fox;dog"}, "The quick brown fox jumps over the lazy dog")
+packdata("sample.txt", "The quick brown fox jumps over the lazy dog", "fox;dog")
 
 logfmt("packaged %d files on sum %d bytes", pkg.recnum, pkg.datasize)
 

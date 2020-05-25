@@ -29,8 +29,8 @@ type (
 const (
 	TID_FID        TID = 0 // required, uint64
 	TID_size       TID = 1 // required, uint64
-	TID_offset     TID = 2 // not used
-	TID_name       TID = 3 // required, unique, string
+	TID_offset     TID = 2 // required, uint64
+	TID_path       TID = 3 // required, unique, string
 	TID_created    TID = 4 // required, uint64
 	TID_lastaccess TID = 5 // uint64
 	TID_lastwrite  TID = 6 // uint64
@@ -61,7 +61,6 @@ const (
 
 var (
 	ErrNotFound = errors.New("file not found")
-	ErrNoName   = errors.New("file name expected")
 	ErrAlready  = errors.New("file with this name already packed")
 	ErrSignPre  = errors.New("package is not ready yet")
 	ErrSignBad  = errors.New("signature does not pass")
@@ -274,6 +273,13 @@ func (t Tagset) FID() FID {
 	return FID(fid)
 }
 
+// Returns file offset & size.
+func (t Tagset) Record() (OFFSET, SIZE) {
+	var size, _ = t.Uint64(TID_size)
+	var offset, _ = t.Uint64(TID_offset)
+	return OFFSET(offset), SIZE(size)
+}
+
 // Reads tags set from stream.
 func (t Tagset) ReadFrom(r io.Reader) (n int64, err error) {
 	var num TID
@@ -324,56 +330,36 @@ func (t Tagset) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-/*
-// os.FileInfo.Name interface implementation.
-func (t Tagset) Name() string {
-	var name, _ = t.String(TID_name)
-	return name
-}
+// os.FileInfo interface implementation.
 
-// os.FileInfo.Size interface implementation.
+func (t Tagset) Name() string {
+	var kpath, _ = t.String(TID_path)
+	return filepath.Base(kpath)
+}
 func (t Tagset) Size() int64 {
 	var size, _ = t.Uint64(TID_size)
 	return int64(size)
 }
-*/
-
-// os.FileInfo interface implementation.
-type fileinfo struct {
-	Tagset
-	size int64
-}
-
-func NewFileInfo(ts Tagset, size int64) os.FileInfo {
-	return &fileinfo{ts, size}
-}
-func NewDirInfo(dir string) os.FileInfo {
-	return &fileinfo{
-		Tagset: Tagset{TID_name: TagString(dir)},
-		size:   0,
-	}
-}
-
-func (fi *fileinfo) Name() string {
-	var name, _ = fi.String(TID_name)
-	return filepath.Base(name)
-}
-func (fi *fileinfo) Size() int64 {
-	return fi.size
-}
-func (fi *fileinfo) Mode() os.FileMode {
+func (t Tagset) Mode() os.FileMode {
 	return 0444
 }
-func (fi *fileinfo) ModTime() time.Time {
-	var crt, _ = fi.Uint64(TID_created)
+func (t Tagset) ModTime() time.Time {
+	var crt, _ = t.Uint64(TID_created)
 	return time.Unix(int64(crt), 0)
 }
-func (fi *fileinfo) IsDir() bool {
-	var _, ok = fi.Uint64(TID_created)
+func (t Tagset) IsDir() bool {
+	var _, ok = t.Uint64(TID_FID) // file ID is absent for dir
 	return !ok
 }
-func (fi *fileinfo) Sys() interface{} {
+func (t Tagset) Sys() interface{} {
 	return nil
+}
+
+func NewDirInfo(dir string) os.FileInfo {
+	return Tagset{
+		TID_path: TagString(dir),
+		TID_size: TagUint64(0),
+	}
 }
 
 // http.File interface implementation.
@@ -385,8 +371,11 @@ type File struct {
 
 func NewDir(dir string, pack *Package) *File {
 	return &File{
-		Tagset: Tagset{TID_name: TagString(dir)},
-		Pack:   pack,
+		Tagset: Tagset{
+			TID_path: TagString(dir),
+			TID_size: TagUint64(0),
+		},
+		Pack: pack,
 	}
 }
 
@@ -394,11 +383,11 @@ func (f *File) Close() error {
 	return nil
 }
 func (f *File) Stat() (os.FileInfo, error) {
-	return NewFileInfo(f.Tagset, f.Reader.Size()), nil
+	return f.Tagset, nil
 }
 func (f *File) Readdir(count int) (matches []os.FileInfo, err error) {
-	var name, _ = f.String(TID_name)
-	var pref = strings.ToLower(filepath.ToSlash(name))
+	var kpath, _ = f.String(TID_path)
+	var pref = strings.ToLower(filepath.ToSlash(kpath))
 	if len(pref) > 0 && pref[len(pref)-1] != '/' {
 		pref += "/"
 	}
@@ -408,8 +397,7 @@ func (f *File) Readdir(count int) (matches []os.FileInfo, err error) {
 			var suff = key[len(pref):]
 			var sp = strings.IndexByte(suff, '/')
 			if sp < 0 {
-				var fid = tags.FID()
-				matches = append(matches, NewFileInfo(tags, int64(f.Pack.FAT[fid].Size)))
+				matches = append(matches, tags)
 				count--
 			} else { // dir detected
 				var dir = pref + suff[:sp]
@@ -462,25 +450,14 @@ func (pack *Package) Glob(pattern string) (matches []string, err error) {
 }
 
 // Returns record associated with given filename.
-func (pack *Package) NamedRecord(fname string) (*PackRec, error) {
-	var key = strings.ToLower(filepath.ToSlash(fname))
+func (pack *Package) NamedRecord(kpath string) (OFFSET, SIZE, error) {
+	var key = strings.ToLower(filepath.ToSlash(kpath))
 	var tags, is = pack.Tags[key]
 	if !is {
-		return nil, ErrNotFound
+		return 0, 0, ErrNotFound
 	}
-	var fid = tags.FID()
-	return &pack.FAT[fid], nil
-}
-
-// Returns copy of data block tagged by given file name.
-func (pack *Package) Extract(r io.ReaderAt, fname string) (buf []byte, err error) {
-	var rec *PackRec
-	if rec, err = pack.NamedRecord(fname); err != nil {
-		return
-	}
-	buf = make([]byte, rec.Size)
-	_, err = r.ReadAt(buf, int64(rec.Offset))
-	return
+	var offset, size = tags.Record()
+	return offset, size, nil
 }
 
 // Error in tags set. Shows errors associated with any tags.
@@ -537,19 +514,22 @@ func (pack *Package) Load(r io.ReadSeeker) (err error) {
 		if fid >= uint32(len(pack.FAT)) {
 			return &TagError{i, TID_FID, fmt.Sprintf("file ID '%d' is out of range", fid)}
 		}
-		var fname string
-		if fname, ok = tags.String(TID_name); !ok {
-			return &TagError{i, TID_name, fmt.Sprintf("file name is absent for file ID '%d'", fid)}
+		var kpath string
+		if kpath, ok = tags.String(TID_path); !ok {
+			return &TagError{i, TID_path, fmt.Sprintf("file name is absent for file ID '%d'", fid)}
 		}
-		var key = strings.ToLower(filepath.ToSlash(fname))
+		var key = strings.ToLower(filepath.ToSlash(kpath))
 		if _, ok = pack.Tags[key]; ok {
-			return &TagError{i, TID_name, fmt.Sprintf("file name '%s' is not unique", fname)}
+			return &TagError{i, TID_path, fmt.Sprintf("file name '%s' is not unique", kpath)}
 		}
 		if _, ok = tags.Uint64(TID_size); !ok {
-			return &TagError{i, TID_size, fmt.Sprintf("size is absent for file name '%s'", fname)}
+			return &TagError{i, TID_size, fmt.Sprintf("size is absent for file name '%s'", kpath)}
+		}
+		if _, ok = tags.Uint64(TID_offset); !ok {
+			return &TagError{i, TID_offset, fmt.Sprintf("offset is absent for file name '%s'", kpath)}
 		}
 		if _, ok = tags.Uint64(TID_created); !ok {
-			return &TagError{i, TID_created, fmt.Sprintf("creation time is absent for file name '%s'", fname)}
+			return &TagError{i, TID_created, fmt.Sprintf("creation time is absent for file name '%s'", kpath)}
 		}
 		// insert file tags
 		pack.Tags[key] = tags
@@ -558,40 +538,36 @@ func (pack *Package) Load(r io.ReadSeeker) (err error) {
 	return
 }
 
-func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, tags Tagset) (err error) {
-	var key string
-	if tags != nil {
-		var fname, ok = tags.String(TID_name)
-		if !ok {
-			return ErrNoName
-		}
-		key = strings.ToLower(filepath.ToSlash(fname))
-		if _, ok = pack.Tags[key]; ok {
-			return ErrAlready
-		}
+func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags Tagset, err error) {
+	var key = strings.ToLower(filepath.ToSlash(kpath))
+	if _, ok := pack.Tags[key]; ok {
+		err = ErrAlready
+		return
 	}
 
 	var offset, size int64
 	if offset, err = w.Seek(0, io.SeekCurrent); err != nil {
-		return err
+		return
 	}
 	if size, err = io.Copy(w, r); err != nil {
-		return err
+		return
 	}
 	pack.FAT = append(pack.FAT, PackRec{
 		Offset: OFFSET(offset),
 		Size:   SIZE(size),
 	})
 
-	if tags != nil {
-		tags[TID_FID] = TagUint32(uint32(len(pack.FAT) - 1))
-		tags[TID_size] = TagUint64(uint64(size))
-		pack.Tags[key] = tags
+	tags = Tagset{
+		TID_FID:    TagUint32(uint32(len(pack.FAT) - 1)),
+		TID_size:   TagUint64(uint64(size)),
+		TID_offset: TagUint64(uint64(offset)),
+		TID_path:   TagString(kpath),
 	}
-	return nil
+	pack.Tags[key] = tags
+	return
 }
 
-func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags Tagset, err error) {
+func (pack *Package) PackFile(w io.WriteSeeker, kpath, fpath string) (tags Tagset, err error) {
 	var file *os.File
 	if file, err = os.Open(fpath); err != nil {
 		return
@@ -602,18 +578,16 @@ func (pack *Package) PackFile(w io.WriteSeeker, fname, fpath string) (tags Tagse
 	if fi, err = file.Stat(); err != nil {
 		return
 	}
-	tags = Tagset{
-		TID_name:    TagString(fname),
-		TID_created: TagUint64(uint64(fi.ModTime().Unix())),
-	}
-	if err = pack.PackData(w, file, tags); err != nil {
+	if tags, err = pack.PackData(w, file, kpath); err != nil {
 		return
 	}
+
+	tags[TID_created] = TagUint64(uint64(fi.ModTime().Unix()))
 	return
 }
 
 // Function to report about each file start processing by PackDir function.
-type FileReport = func(fi os.FileInfo, fname, fpath string)
+type FileReport = func(fi os.FileInfo, kpath, fpath string)
 
 // Puts all files of given folder and it's subfolders into package.
 func (pack *Package) PackDir(w io.WriteSeeker, dirname, prefix string, report FileReport) (err error) {
@@ -632,17 +606,17 @@ func (pack *Package) PackDir(w io.WriteSeeker, dirname, prefix string, report Fi
 		return
 	}
 	for _, fi := range fis {
-		var fname = prefix + fi.Name()
+		var kpath = prefix + fi.Name()
 		var fpath = dirname + fi.Name()
 		if fi.IsDir() {
-			if err = pack.PackDir(w, fpath+"/", fname+"/", report); err != nil {
+			if err = pack.PackDir(w, fpath+"/", kpath+"/", report); err != nil {
 				return
 			}
 		} else {
 			if report != nil {
-				report(fi, fname, fpath)
+				report(fi, kpath, fpath)
 			}
-			if _, err = pack.PackFile(w, fname, fpath); err != nil {
+			if _, err = pack.PackFile(w, kpath, fpath); err != nil {
 				return
 			}
 		}

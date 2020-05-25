@@ -121,48 +121,48 @@ to build wpk-packages.
 	complete() - write allocation table and tags table, and finalize package writing.
 	glob(pattern) - returns the names of all files in package matching pattern or nil
 		if there is no matching file.
-	hasfile(fname) - check up file name existence in tags table.
-	filesize(fname) - return record size of specified file name.
-	putfile(tags, fpath) - write file with specified full path to package file,
-		and puts specified tags set to tags table. File name expected and must be
-		unique for package. File id (tag ID = 0) and file creation time tag will be
-		inserted to tags set. After file writing there is tags set adjust by add
-		marked tags with hashes (MD5, SHA1, SHA224, etc).
-	putdata(tags, data) - write file with specified as string 'data' content,
-		and puts specified tags set to tags table. File name expected and must be
-		unique for package. File id (tag ID = 0) and current time as creation time
-		tag will be inserted to tags set. After file writing there is tags set
-		adjust by add marked tags with hashes (MD5, SHA1, SHA224, etc).
-	rename(fname1, fname2) - rename file name with fname1 to fname2. Rename is
+	hasfile(kpath) - check up file name existence in tags table.
+	filesize(kpath) - return record size of specified file name.
+	putfile(kpath, fpath) - write file with specified full path (fpath) to package,
+		and insert tags set with specified kpath to tags table. Key file name (kpath)
+		expected and must be unique for package. File id (tag ID = 0) and file
+		creation time tag will be inserted to tags set. After file writing there is
+		tags set adjust by add marked tags with hashes (MD5, SHA1, SHA224, etc).
+	putdata(kpath, data) - write file with specified as string 'data' content,
+		and insert tags set with specified kpath to tags table. Key file name (kpath)
+		expected and must be unique for package. File id (tag ID = 0) and current
+		time as creation time tag will be inserted to tags set. After file writing
+		there is tags set adjust by add marked tags with hashes (MD5, SHA1, SHA224, etc).
+	rename(kpath1, kpath2) - rename file name with kpath1 to kpath2. Rename is
 		carried out by replace name tag in file tags set from one name to other.
-	putalias(fname1, fname2) - clone tags set with file name fname1 and replace
-		name tag in it to fname2. So, there will be two tags set referenced to
+	putalias(kpath1, kpath2) - clone tags set with file name kpath1 and replace
+		name tag in it to kpath2. So, there will be two tags set referenced to
 		one data block.
-	delalias(fname) - delete tags set with specified file name. Data block is
+	delalias(kpath) - delete tags set with specified file name. Data block is
 		still remains.
-	hastag(fname, tid) - check up tag existence in tags set for specified file,
+	hastag(kpath, tid) - check up tag existence in tags set for specified file,
 		returns boolean value. 'tid' can be numeric ID or string representation
 		of tag ID.
-	gettag(fname, tid) - returns tag with given ID as userdata object for
+	gettag(kpath, tid) - returns tag with given ID as userdata object for
 		specified file. Returns nothing if tags set of specified file
 		has no that tag. 'tid' can be numeric ID or string representation of tag ID.
-	settag(fname, tid, tag) - set tag with given ID to tags set of specified file.
+	settag(kpath, tid, tag) - set tag with given ID to tags set of specified file.
 		'tid' can be numeric ID or string representation of tag ID. 'tag' can be
 		constructed userdata object, or string, or boolean. Numeric values cannot
 		be given as tag to prevent ambiguous data size interpretation.
-	deltag(fname, tid) - delete tag with given ID from tags set of specified file.
+	deltag(kpath, tid) - delete tag with given ID from tags set of specified file.
 		'tid' can be numeric ID or string representation of tag ID.
-	gettags(fname) - returns table with tags set of specified file. There is keys -
+	gettags(kpath) - returns table with tags set of specified file. There is keys -
 		numeric tags identifiers, values - 'tag' userdata.
-	settags(fname, tags) - receive table with tags that will be replaced at tags
+	settags(kpath, tags) - receive table with tags that will be replaced at tags
 		set of specified file, or added if new. Keys of table can be numeric IDs
 		or string representation of tags ID. Values - can be 'tag' userdata objects,
 		or strings, or boolean.
-	addtags(fname, tags) - receive table with tags that will be added to tags set
+	addtags(kpath, tags) - receive table with tags that will be added to tags set
 		of specified file. If file tags set already has given tags, those tags will
 		be skipped. Keys of table can be numeric IDs or string representation of
 		tags ID. Values - can be 'tag' userdata objects, or strings, or boolean.
-	deltags(fname, tags) - receive table with numeric tags IDs or string
+	deltags(kpath, tags) - receive table with numeric tags IDs or string
 		representation of tags ID, which should be removed. Values of table does
 		not matter.
 
@@ -181,8 +181,8 @@ function wpk.create(fpath)-- additional wpk-constructor
 	pkg:begin(fpath) -- open wpk-file for write
 	return pkg
 end
-function wpk:logfile(fname) -- write record log
-	logfmt("packed %d file %s, crc=%s", self:gettag(fname, "fid").uint32, fname, tostring(self:gettag(fname, "crc32")))
+function wpk:logfile(kpath) -- write record log
+	logfmt("packed %d file %s, crc=%s", self:gettag(kpath, "fid").uint32, kpath, tostring(self:gettag(kpath, "crc32")))
 end
 function wpk:safealias(fname1, fname2) -- make 2 file name aliases to 1 file
 	if self:hasfile(fname1) then
@@ -199,23 +199,24 @@ pkg.secret = "package-private-key" -- private key to sign cryptographic hashes f
 pkg.sha224 = true -- generate SHA224 hash for each file
 
 -- put images with keywords and author addition tags
-for i, tags in ipairs{
-	{name="bounty.jpg", keywords="beach", category="image"},
-	{name="img1/qarataslar.jpg", keywords="beach;rock", category="photo"},
-	{name="img1/claustral.jpg", keywords="beach;rock", category="photo"},
-	{name="img2/marble.jpg", keywords="beach", category="photo"},
-	{name="img2/uzunji.jpg", keywords="rock", category="photo"}
+for name, tags in pairs{
+	["bounty.jpg"] = {keywords="beach", category="image"},
+	["img1/qarataslar.jpg"] = {keywords="beach;rock", category="photo"},
+	["img1/claustral.jpg"] = {keywords="beach;rock", category="photo"},
+	["img2/marble.jpg"] = {keywords="beach", category="photo"},
+	["img2/uzunji.jpg"] = {keywords="rock", category="photo"},
 } do
 	tags.author="schwarzlichtbezirk"
-	pkg:putfile(tags, path.join(scrdir, "media", tags.name))
-	pkg:logfile(tags.name)
+	pkg:putfile(name, path.join(scrdir, "media", name))
+	pkg:addtags(name, tags)
+	pkg:logfile(name)
 end
 -- make alias to file included at list
 pkg:safealias("img1/claustral.jpg", "jasper.jpg")
 pkg:settag("jasper.jpg", "comment", "beach between basalt cliffs")
 
-log(string.format("total files size sum: %d bytes", pkg.datasize))
-log(string.format("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum))
+logfmt("total files size sum: %d bytes", pkg.datasize)
+logfmt("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum)
 
 -- write records table, tags table and finalize wpk-file
 pkg:complete()

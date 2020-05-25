@@ -12,17 +12,23 @@ pkg.sha256 = true -- generate SHA256 hash for each file
 -- open wpk-file for write
 pkg:begin(pkgpath)
 
+-- pack given file, then add keywords and author to tags set
+local function packfile(kpath, fpath, keywords)
+	pkg:putfile(kpath, fpath)
+	pkg:addtags(kpath, {keywords=keywords, author="schwarzlichtbezirk"})
+end
+
 -- put images with keywords and author addition tags
 local mediadir = scrdir.."media/"
-local auth = "schwarzlichtbezirk"
-pkg:putfile({name="bounty.jpg", keywords="beach", author=auth}, mediadir.."bounty.jpg")
-pkg:putfile({name="qarataslar.jpg", keywords="beach;rock", author=auth}, mediadir.."img1/qarataslar.jpg")
-pkg:putfile({name="claustral.jpg", keywords="beach;rock", author=auth}, mediadir.."img1/claustral.jpg")
-pkg:putfile({name="marble.jpg", keywords="beach", author=auth}, mediadir.."img2/marble.jpg")
-pkg:putfile({name="uzunji.jpg", keywords="rock", author=auth}, mediadir.."img2/uzunji.jpg")
+packfile("bounty.jpg", mediadir.."bounty.jpg", "beach")
+packfile("qarataslar.jpg", mediadir.."img1/qarataslar.jpg", "beach;rock")
+packfile("claustral.jpg", mediadir.."img1/claustral.jpg", "beach;rock")
+packfile("marble.jpg", mediadir.."img2/marble.jpg", "beach")
+packfile("uzunji.jpg", mediadir.."img2/uzunji.jpg", "rock")
 
 -- put file created from given string
-pkg:putdata({name="sample.txt", mime="text/plain;charset=utf-8", keywords="fox;dog"}, "The quick brown fox jumps over the lazy dog")
+pkg:putdata("sample.txt", "The quick brown fox jumps over the lazy dog")
+pkg:settags("sample.txt", {mime="text/plain;charset=utf-8", keywords="fox;dog"})
 
 -- make 2 file name aliases to 1 file
 pkg:putalias("claustral.jpg", "jasper.jpg")

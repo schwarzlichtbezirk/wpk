@@ -28,15 +28,16 @@ end
 -- pack given directory and add to each file name given prefix
 local function packdir(dir, prefix)
 	for i, name in ipairs(path.enum(dir)) do
-		local fname = prefix..name
+		local kpath = prefix..name
 		local fpath = dir..name
 		local access, isdir = checkfile(fpath)
 		if access and checkname(name) then
 			if isdir then
-				packdir(fpath.."/", fname.."/")
+				packdir(fpath.."/", kpath.."/")
 			else
-				pkg:putfile({name=fname, author="schwarzlichtbezirk"}, fpath)
-				logfmt("packed %d file %s, crc=%s", pkg:gettag(fname, "fid").uint32, fname, tostring(pkg:gettag(fname, "crc32")))
+				pkg:putfile(kpath, fpath)
+				pkg:settag(kpath, "author", "schwarzlichtbezirk")
+				logfmt("packed %d file %s, crc=%s", pkg:gettag(kpath, "fid").uint32, kpath, tostring(pkg:gettag(kpath, "crc32")))
 			end
 		end
 	end

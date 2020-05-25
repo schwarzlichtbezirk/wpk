@@ -12,9 +12,10 @@ pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 pkg.md5 = true -- generate MD5 hash for each file
 
 -- pack given file with common preset
-local function packfile(fname, fpath, keywords)
-	pkg:putfile({name=fname, keywords=keywords, [104]="schwarzlichtbezirk"}, path.join(scrdir, "media", fname))
-	log(string.format("packed %d file %s, crc=%s", pkg:gettag(fname, "fid").uint32, fname, tostring(pkg:gettag(fname, "crc32"))))
+local function packfile(kpath, fpath, keywords)
+	pkg:putfile(kpath, path.join(scrdir, "media", kpath))
+	pkg:addtags(kpath, {keywords=keywords, [104]="schwarzlichtbezirk"})
+	log(string.format("packed %d file %s, crc=%s", pkg:gettag(kpath, "fid").uint32, kpath, tostring(pkg:gettag(kpath, "crc32"))))
 end
 
 -- open wpk-file for write

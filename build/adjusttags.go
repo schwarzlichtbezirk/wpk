@@ -16,8 +16,8 @@ import (
 
 func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err error) {
 	if _, ok := tags[wpk.TID_mime]; !ok && pack.automime {
-		var fname, _ = tags.String(wpk.TID_name)
-		if ct, ok := mimeext[filepath.Ext(fname)]; ok {
+		var kpath, _ = tags.String(wpk.TID_path)
+		if ct, ok := mimeext[filepath.Ext(kpath)]; ok {
 			tags[wpk.TID_mime] = wpk.TagString(ct)
 		}
 	}
