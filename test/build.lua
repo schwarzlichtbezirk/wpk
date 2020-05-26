@@ -34,7 +34,7 @@ pkg:settags("sample.txt", {mime="text/plain;charset=utf-8", keywords="fox;dog"})
 pkg:putalias("claustral.jpg", "jasper.jpg")
 
 log(string.format("qarataşlar file size: %d bytes", pkg:filesize("qarataslar.jpg")))
-log(string.format("total files size sum: %d bytes", pkg.datasize))
+log(string.format("total files size sum: %d bytes", pkg:sumsize()))
 log(string.format("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum))
 
 -- write records table, tags table and finalize wpk-file

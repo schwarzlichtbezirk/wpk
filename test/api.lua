@@ -89,7 +89,7 @@ to build wpk-packages.
 	path - getter only, returns path to opened wpk-file.
 	recnum - getter only, returns number of records in file allocation table.
 	tagnum - getter only, returns number of records in tags table.
-	datasize - getter only, returns size sum of all data records.
+	datasize - getter only, returns package data size.
 	automime - get/set mode to put for each new file tag with its MIME
 		determined by file extension, if it does not issued explicitly.
 	secret - get/set private key to sign hash MAC (MD5, SHA1, SHA224, etc).
@@ -119,6 +119,8 @@ to build wpk-packages.
 	append() - start to append new files to already existing package, opened by
 		previous call to 'load'. Package can not be used until writing will be 'complete'.
 	complete() - write allocation table and tags table, and finalize package writing.
+	sumsize() - return size sum of all data records. Some files may refer to shared
+		data, so sumsize can be more then datasize.
 	glob(pattern) - returns the names of all files in package matching pattern or nil
 		if there is no matching file.
 	hasfile(kpath) - check up file name existence in tags table.
@@ -182,7 +184,9 @@ function wpk.create(fpath)-- additional wpk-constructor
 	return pkg
 end
 function wpk:logfile(kpath) -- write record log
-	logfmt("packed %d file %s, crc=%s", self:gettag(kpath, "fid").uint32, kpath, tostring(self:gettag(kpath, "crc32")))
+	logfmt("#%d %s, %d bytes, crc=%s",
+		self:gettag(kpath, "fid").uint32, kpath,
+		self:filesize(kpath), self:gettag(kpath, "crc32").hex)
 end
 function wpk:safealias(fname1, fname2) -- make 2 file name aliases to 1 file
 	if self:hasfile(fname1) then
@@ -215,7 +219,7 @@ end
 pkg:safealias("img1/claustral.jpg", "jasper.jpg")
 pkg:settag("jasper.jpg", "comment", "beach between basalt cliffs")
 
-logfmt("total files size sum: %d bytes", pkg.datasize)
+logfmt("total package data size: %d bytes", pkg.datasize)
 logfmt("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum)
 
 -- write records table, tags table and finalize wpk-file

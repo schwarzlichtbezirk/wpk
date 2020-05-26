@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	Signature = "Whirlwind 3.1 Package   " // package is ready for use
-	Prebuild  = "Whirlwind 3.1 Prebuild  " // package is in building progress
+	Signature = "Whirlwind 3.2 Package   " // package is ready for use
+	Prebuild  = "Whirlwind 3.2 Prebuild  " // package is in building progress
 )
 
 type (
@@ -69,17 +69,12 @@ var (
 // Package header.
 type PackHdr struct {
 	Signature [0x18]byte
-	RecOffset OFFSET // file allocation table offset
-	RecNumber FID    // number of records
 	TagOffset OFFSET // tags table offset
 	TagNumber FID    // number of tagset entries
+	RecNumber FID    // number of records
 }
 
-// Package record item.
-type PackRec struct {
-	Offset OFFSET // datablock offset
-	Size   SIZE   // datablock size
-}
+const PackHdrSize = 40
 
 // Tag - file description item.
 type Tag []byte
@@ -348,7 +343,7 @@ func (t Tagset) ModTime() time.Time {
 	return time.Unix(int64(crt), 0)
 }
 func (t Tagset) IsDir() bool {
-	var _, ok = t.Uint64(TID_FID) // file ID is absent for dir
+	var _, ok = t.Uint32(TID_FID) // file ID is absent for dir
 	return !ok
 }
 func (t Tagset) Sys() interface{} {
@@ -419,18 +414,7 @@ func (f *File) Readdir(count int) (matches []os.FileInfo, err error) {
 // Contains all data needed for package representation.
 type Package struct {
 	PackHdr
-	FAT  []PackRec         // file allocation table
 	Tags map[string]Tagset // keys - package filenames in lower case
-}
-
-// Returns size of all contained records.
-func (pack *Package) DataSize() SIZE {
-	if len(pack.FAT) == 0 {
-		return 0
-	}
-	var rec0 = &pack.FAT[0]
-	var recn = &pack.FAT[len(pack.FAT)-1]
-	return SIZE(recn.Offset-rec0.Offset) + recn.Size
 }
 
 // Returns the names of all files in package matching pattern or nil
@@ -486,16 +470,7 @@ func (pack *Package) Load(r io.ReadSeeker) (err error) {
 	if string(pack.Signature[:]) != Signature {
 		return ErrSignBad
 	}
-	pack.FAT = make([]PackRec, pack.RecNumber)
 	pack.Tags = make(map[string]Tagset, pack.TagNumber)
-
-	// read records table
-	if _, err = r.Seek(int64(pack.RecOffset), io.SeekStart); err != nil {
-		return
-	}
-	if err = binary.Read(r, binary.LittleEndian, &pack.FAT); err != nil {
-		return
-	}
 
 	// read file tags set table
 	if _, err = r.Seek(int64(pack.TagOffset), io.SeekStart); err != nil {
@@ -511,7 +486,7 @@ func (pack *Package) Load(r io.ReadSeeker) (err error) {
 		if !ok {
 			return &TagError{i, TID_FID, "file ID is absent"}
 		}
-		if fid >= uint32(len(pack.FAT)) {
+		if fid >= uint32(pack.RecNumber) {
 			return &TagError{i, TID_FID, fmt.Sprintf("file ID '%d' is out of range", fid)}
 		}
 		var kpath string
@@ -545,6 +520,7 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags
 		return
 	}
 
+	// get offset and put data ckage
 	var offset, size int64
 	if offset, err = w.Seek(0, io.SeekCurrent); err != nil {
 		return
@@ -552,18 +528,20 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags
 	if size, err = io.Copy(w, r); err != nil {
 		return
 	}
-	pack.FAT = append(pack.FAT, PackRec{
-		Offset: OFFSET(offset),
-		Size:   SIZE(size),
-	})
 
+	// insert new entry to tags table
 	tags = Tagset{
-		TID_FID:    TagUint32(uint32(len(pack.FAT) - 1)),
+		TID_FID:    TagUint32(uint32(pack.RecNumber)),
 		TID_size:   TagUint64(uint64(size)),
 		TID_offset: TagUint64(uint64(offset)),
 		TID_path:   TagString(kpath),
 	}
 	pack.Tags[key] = tags
+
+	// update header
+	pack.TagOffset = OFFSET(offset + size)
+	pack.TagNumber = FID(len(pack.Tags))
+	pack.RecNumber++
 	return
 }
 

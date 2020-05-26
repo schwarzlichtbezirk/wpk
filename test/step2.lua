@@ -29,7 +29,9 @@ local function logfmt(...) -- write to log formatted string
 	log(string.format(...))
 end
 local function logfile(kpath) -- write record log
-	logfmt("packed %d file %s, crc=%s", pkg:gettag(kpath, "fid").uint32, kpath, tostring(pkg:gettag(kpath, "crc32")))
+	logfmt("#%d file %s, crc=%s",
+		pkg:gettag(kpath, "fid").uint32, kpath,
+		tostring(pkg:gettag(kpath, "crc32")))
 end
 local function packfile(kpath, keywords) -- pack given file with common preset
 	pkg:putfile(kpath, path.join(scrdir, "media", kpath))

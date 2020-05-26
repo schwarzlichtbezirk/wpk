@@ -109,9 +109,9 @@ func readpackage() (err error) {
 
 			for _, tags := range pack.Tags {
 				var fid = tags.FID()
-				var rec = &pack.FAT[fid]
+				var offset, size = tags.Record()
 				var kpath, _ = tags.String(wpk.TID_path) // get original key path
-				log.Printf("#%-4d %7d bytes   %s", fid, rec.Size, kpath)
+				log.Printf("#%-3d %6d bytes   %s", fid, size, kpath)
 
 				if func() {
 					var fpath = DstPath + kpath
@@ -125,10 +125,10 @@ func readpackage() (err error) {
 					}
 					defer dst.Close()
 
-					if _, err = src.Seek(int64(rec.Offset), io.SeekStart); err != nil {
+					if _, err = src.Seek(int64(offset), io.SeekStart); err != nil {
 						return
 					}
-					if _, err = io.CopyN(dst, src, int64(rec.Size)); err != nil {
+					if _, err = io.CopyN(dst, src, int64(size)); err != nil {
 						return
 					}
 				}(); err != nil {

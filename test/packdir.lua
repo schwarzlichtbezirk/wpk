@@ -37,13 +37,16 @@ local function packdir(dir, prefix)
 			else
 				pkg:putfile(kpath, fpath)
 				pkg:settag(kpath, "author", "schwarzlichtbezirk")
-				logfmt("packed %d file %s, crc=%s", pkg:gettag(kpath, "fid").uint32, kpath, tostring(pkg:gettag(kpath, "crc32")))
+				logfmt("#%d %s, %d bytes, %s",
+					pkg:gettag(kpath, "fid").uint32, kpath,
+					pkg:filesize(kpath), pkg:gettag(kpath, "mime").string)
 			end
 		end
 	end
 end
 
 packdir(scrdir.."media/", "")
+log(tostring(pkg))
 
 -- write records table, tags table and finalize wpk-file
 pkg:complete()

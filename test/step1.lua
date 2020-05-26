@@ -15,7 +15,9 @@ pkg.md5 = true -- generate MD5 hash for each file
 local function packfile(kpath, fpath, keywords)
 	pkg:putfile(kpath, path.join(scrdir, "media", kpath))
 	pkg:addtags(kpath, {keywords=keywords, [104]="schwarzlichtbezirk"})
-	log(string.format("packed %d file %s, crc=%s", pkg:gettag(kpath, "fid").uint32, kpath, tostring(pkg:gettag(kpath, "crc32"))))
+	log(string.format("#%d file %s, crc=%s",
+		pkg:gettag(kpath, "fid").uint32, kpath,
+		tostring(pkg:gettag(kpath, "crc32"))))
 end
 
 -- open wpk-file for write

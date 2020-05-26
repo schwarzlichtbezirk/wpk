@@ -61,8 +61,10 @@ func NewPack(ls *lua.LState) int {
 	var pack LuaPackage
 
 	copy(pack.Signature[:], wpk.Prebuild)
-	pack.FAT = []wpk.PackRec{}
 	pack.Tags = map[string]wpk.Tagset{}
+	pack.TagOffset = wpk.PackHdrSize
+	pack.TagNumber = 0
+	pack.RecNumber = 0
 
 	PushPack(ls, &pack)
 	return 1
@@ -123,11 +125,7 @@ func setter_pack(ls *lua.LState) int {
 func tostring_pack(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	var size wpk.SIZE
-	for _, rec := range pack.FAT {
-		size += rec.Size
-	}
-	var s = fmt.Sprintf("records: %d, tags: %d, total size: %d", len(pack.FAT), len(pack.Tags), size)
+	var s = fmt.Sprintf("records: %d, aliases: %d, datasize: %d", pack.RecNumber, pack.TagNumber, pack.TagOffset-wpk.PackHdrSize)
 	ls.Push(lua.LString(s))
 	return 1
 }
@@ -158,6 +156,7 @@ var methods_pack = map[string]lua.LGFunction{
 	"begin":    wpkbegin,
 	"append":   wpkappend,
 	"complete": wpkcomplete,
+	"sumsize":  wpksumsize,
 	"glob":     wpkglob,
 	"hasfile":  wpkhasfile,
 	"filesize": wpkfilesize,
@@ -190,19 +189,19 @@ func getpath(ls *lua.LState) int {
 
 func getrecnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LNumber(len(pack.FAT)))
+	ls.Push(lua.LNumber(pack.RecNumber))
 	return 1
 }
 
 func gettagnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LNumber(len(pack.Tags)))
+	ls.Push(lua.LNumber(pack.TagNumber))
 	return 1
 }
 
 func getdatasize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LNumber(pack.DataSize()))
+	ls.Push(lua.LNumber(pack.TagOffset - wpk.PackHdrSize))
 	return 1
 }
 
@@ -399,14 +398,17 @@ func wpkbegin(ls *lua.LState) int {
 		pack.path = pkgpath
 		pack.w = dst
 
-		// write prebuild header
+		// reset header
 		copy(pack.Signature[:], wpk.Prebuild)
+		pack.TagOffset = wpk.PackHdrSize
+		pack.TagNumber = 0
+		pack.RecNumber = 0
+		// setup empty tags table
+		pack.Tags = map[string]wpk.Tagset{}
+		// write prebuild header
 		if err = binary.Write(pack.w, binary.LittleEndian, &pack.PackHdr); err != nil {
 			return
 		}
-		// setup empty data tables
-		pack.FAT = []wpk.PackRec{}
-		pack.Tags = map[string]wpk.Tagset{}
 	}(); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
@@ -432,10 +434,10 @@ func wpkappend(ls *lua.LState) int {
 		}
 
 		pack.w = dst
-		var recoffset = pack.RecOffset
 
-		// rewrite prebuild header
+		// partially reset header
 		copy(pack.Signature[:], wpk.Prebuild)
+		// rewrite prebuild header
 		if _, err = pack.w.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -443,8 +445,8 @@ func wpkappend(ls *lua.LState) int {
 			return
 		}
 
-		// go to records table start to replace it by new data
-		if _, err = pack.w.Seek(int64(recoffset), io.SeekStart); err != nil {
+		// go to tags table start to replace it by new data
+		if _, err = pack.w.Seek(int64(pack.TagOffset), io.SeekStart); err != nil {
 			return
 		}
 	}(); err != nil {
@@ -465,27 +467,15 @@ func wpkcomplete(ls *lua.LState) int {
 
 	var err error
 
-	// write records table at the end of file
-	var recoffset int64
-	if recoffset, err = pack.w.Seek(0, io.SeekEnd); err != nil {
-		ls.RaiseError(err.Error())
-		return 0
-	}
-	pack.RecOffset = wpk.OFFSET(recoffset)
-	pack.RecNumber = wpk.FID(len(pack.FAT))
-	if err = binary.Write(pack.w, binary.LittleEndian, &pack.FAT); err != nil {
-		ls.RaiseError(err.Error())
-		return 0
-	}
-
-	// write files tags table
+	// get tags table offset as actual end of file
 	var tagoffset int64
-	if tagoffset, err = pack.w.Seek(0, io.SeekCurrent); err != nil {
+	if tagoffset, err = pack.w.Seek(0, io.SeekEnd); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
 	pack.TagOffset = wpk.OFFSET(tagoffset)
 	pack.TagNumber = wpk.FID(len(pack.Tags))
+	// write files tags table
 	for _, tags := range pack.Tags {
 		if _, err = tags.WriteTo(pack.w); err != nil {
 			ls.RaiseError(err.Error())
@@ -512,6 +502,19 @@ func wpkcomplete(ls *lua.LState) int {
 	pack.w = nil
 
 	return 0
+}
+
+func wpksumsize(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+
+	var sum uint64
+	for _, tags := range pack.Tags {
+		var size, _ = tags.Uint64(wpk.TID_size)
+		sum += size
+	}
+
+	ls.Push(lua.LNumber(sum))
+	return 1
 }
 
 func wpkglob(ls *lua.LState) int {

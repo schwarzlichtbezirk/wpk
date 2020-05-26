@@ -92,14 +92,17 @@ func writepackage() (err error) {
 
 	var pack wpk.Package
 
-	// write prebuild header
+	// reset header
 	copy(pack.Signature[:], wpk.Prebuild)
+	pack.TagOffset = wpk.PackHdrSize
+	pack.TagNumber = 0
+	pack.RecNumber = 0
+	// setup empty tags table
+	pack.Tags = map[string]wpk.Tagset{}
+	// write prebuild header
 	if err = binary.Write(dst, binary.LittleEndian, &pack.PackHdr); err != nil {
 		return
 	}
-	// setup empty data tables
-	pack.FAT = []wpk.PackRec{}
-	pack.Tags = map[string]wpk.Tagset{}
 
 	log.Printf("destination file: %s", DstFile)
 
@@ -123,22 +126,10 @@ func writepackage() (err error) {
 		}
 	}
 
-	// write records table
-	log.Printf("write file allocation table")
-	var recoffset int64
-	if recoffset, err = dst.Seek(0, io.SeekEnd); err != nil {
-		return
-	}
-	pack.RecOffset = wpk.OFFSET(recoffset)
-	pack.RecNumber = wpk.FID(len(pack.FAT))
-	if err = binary.Write(dst, binary.LittleEndian, &pack.FAT); err != nil {
-		return
-	}
-
 	// write files tags table
 	log.Printf("write tags table")
 	var tagoffset int64
-	if tagoffset, err = dst.Seek(0, io.SeekCurrent); err != nil {
+	if tagoffset, err = dst.Seek(0, io.SeekEnd); err != nil {
 		return
 	}
 	pack.TagOffset = wpk.OFFSET(tagoffset)
