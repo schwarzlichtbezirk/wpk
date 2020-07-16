@@ -170,8 +170,6 @@ to build wpk-packages.
 
 ]]
 
-log "starts"
-
 -- define some functions for packing workflow
 local function logfmt(...) -- write to log formatted string
 	log(string.format(...))
@@ -181,6 +179,7 @@ function wpk.create(fpath)-- additional wpk-constructor
 	pkg.automime = true -- put MIME type for each file if it is not given explicit
 	pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 	pkg:begin(fpath) -- open wpk-file for write
+	log("starts "..pkg.path)
 	return pkg
 end
 function wpk:logfile(kpath) -- write record log
@@ -197,8 +196,8 @@ function wpk:safealias(fname1, fname2) -- make 2 file name aliases to 1 file
 	end
 end
 
--- starts new package
-local pkg = wpk.create(scrdir.."api.wpk")
+-- starts new package at bin directory
+local pkg = wpk.create(path.envfmt"$(GOPATH)/bin/api.wpk")
 pkg.secret = "package-private-key" -- private key to sign cryptographic hashes for each file
 pkg.sha224 = true -- generate SHA224 hash for each file
 
@@ -224,5 +223,4 @@ logfmt("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum)
 
 -- write records table, tags table and finalize wpk-file
 pkg:complete()
-
 log "done."

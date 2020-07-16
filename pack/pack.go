@@ -110,7 +110,7 @@ func writepackage() (err error) {
 	for i, path := range SrcList {
 		log.Printf("source folder #%d: %s", i+1, path)
 		if err = pack.PackDir(dst, path, "", func(fi os.FileInfo, fname, fpath string) {
-			log.Printf("#%-4d %7d bytes   %s", len(pack.FAT), fi.Size(), fname)
+			log.Printf("#%-4d %7d bytes   %s", pack.RecNumber, fi.Size(), fname)
 		}); err != nil {
 			return
 		}

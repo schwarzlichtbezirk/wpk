@@ -1,6 +1,4 @@
 
-log "starts"
-
 -- inits new package
 local pkg = wpk.new()
 pkg.automime = true -- put MIME type for each file if it is not given explicit
@@ -9,20 +7,43 @@ pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 pkg.sha256 = true -- generate SHA256 hash for each file
 
 -- open wpk-file for write
-pkg:begin(scrdir.."packdir.wpk")
+pkg:begin(path.envfmt"$(GOPATH)/bin/packdir.wpk")
+log("starts "..pkg.path)
 
 -- write to log formatted string
 local function logfmt(...)
 	log(string.format(...))
 end
+-- patterns for ignored files
+local skippattern = {
+	"^packdir%.lua$", -- script that generate this package
+	"^thumb%.db$",
+	"^rca%w+$",
+	"^%$recycle%.bin$",
+}
+-- extensions of files that should not be included to package
+local skipext = {
+	wpk = true,
+	sys = true,
+	tmp = true,
+	bak = true,
+	-- compiler intermediate output
+	log = true, tlog = true, lastbuildstate = true, unsuccessfulbuild = true,
+	obj = true, lib = true, res = true,
+	ilk = true, idb = true, ipdb = true, iobj = true, pdb = true, pgc = true, pgd = true,
+	pch = true, ipch = true,
+	cache = true,
+}
 -- check file names can be included to package
 local function checkname(name)
 	local fc = string.sub(name, 1, 1) -- first char
 	if fc == "." or fc == "~" then return false end
 	name = string.lower(name)
-	if name == "thumb.db" then return false end
-	local ext = string.sub(name, -4, -1) -- file extension
-	if ext == ".sys" or ext == ".tmp" or ext == ".bak" or ext == ".wpk" then return false end
+	for i, pattern in ipairs(skippattern) do
+		if string.match(name, pattern) then return false end
+	end
+	local ext = string.match(name, "%.(%w+)$") -- file extension
+	if ext and skipext[ext] then return false end
 	return true
 end
 -- pack given directory and add to each file name given prefix

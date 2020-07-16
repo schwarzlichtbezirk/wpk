@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -521,22 +520,23 @@ func wpkglob(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var pattern = ls.CheckString(2)
 
-	var matches, err = pack.Glob(pattern)
-	if err != nil {
+	var n int
+	if err := pack.Glob(pattern, func(key string) error {
+		ls.Push(lua.LString(key))
+		n++
+		return nil
+	}); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
-	for _, key := range matches {
-		ls.Push(lua.LString(key))
-	}
-	return len(matches)
+	return n
 }
 
 func wpkhasfile(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
 
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = wpk.ToKey(kpath)
 	var _, ok = pack.Tags[key]
 
 	ls.Push(lua.LBool(ok))
@@ -567,7 +567,7 @@ func wpkputfile(ls *lua.LState) int {
 		return 0
 	}
 
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = wpk.ToKey(kpath)
 	if _, is := pack.Tags[key]; is {
 		ls.RaiseError("file with name '%s' already present", kpath)
 		return 0
@@ -612,7 +612,7 @@ func wpkputdata(ls *lua.LState) int {
 		return 0
 	}
 
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = wpk.ToKey(kpath)
 	if _, is := pack.Tags[key]; is {
 		ls.RaiseError("file with name '%s' already present", kpath)
 		return 0
@@ -639,51 +639,51 @@ func wpkputdata(ls *lua.LState) int {
 	return 0
 }
 
-// Renames tags set with file name fname1 to fname2.
-// rename(fname1, fname2)
-//   fname1 - old file name
-//   fname2 - new file name
+// Renames tags set with file name kpath1 to kpath2.
+// rename(kpath1, kpath2)
+//   kpath1 - old file name
+//   kpath2 - new file name
 func wpkrename(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fname1 = ls.CheckString(2)
-	var fname2 = ls.CheckString(3)
+	var kpath1 = ls.CheckString(2)
+	var kpath2 = ls.CheckString(3)
 
-	var key1 = strings.ToLower(filepath.ToSlash(fname1))
-	var key2 = strings.ToLower(filepath.ToSlash(fname2))
+	var key1 = wpk.ToKey(kpath1)
+	var key2 = wpk.ToKey(kpath2)
 	var tags, ok = pack.Tags[key1]
 	if !ok {
-		ls.RaiseError("file with name '%s' does not present", fname1)
+		ls.RaiseError("file with name '%s' does not present", kpath1)
 		return 0
 	}
 	if _, ok = pack.Tags[key2]; ok {
-		ls.RaiseError("file with name '%s' already present", fname2)
+		ls.RaiseError("file with name '%s' already present", kpath2)
 		return 0
 	}
 
-	tags[wpk.TID_path] = wpk.TagString(fname2)
+	tags[wpk.TID_path] = wpk.TagString(kpath2)
 	delete(pack.Tags, key1)
 	pack.Tags[key2] = tags
 	return 0
 }
 
 // Creates copy of tags set with new file name.
-// putalias(fname1, fname2)
-//   fname1 - file name of packaged file
-//   fname2 - new file name that will be reference to fname1 file data
+// putalias(kpath1, kpath2)
+//   kpath1 - file name of packaged file
+//   kpath2 - new file name that will be reference to kpath1 file data
 func wpkputalias(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fname1 = ls.CheckString(2)
-	var fname2 = ls.CheckString(3)
+	var kpath1 = ls.CheckString(2)
+	var kpath2 = ls.CheckString(3)
 
-	var key1 = strings.ToLower(filepath.ToSlash(fname1))
-	var key2 = strings.ToLower(filepath.ToSlash(fname2))
+	var key1 = wpk.ToKey(kpath1)
+	var key2 = wpk.ToKey(kpath2)
 	var tags1, ok = pack.Tags[key1]
 	if !ok {
-		ls.RaiseError("file with name '%s' does not present", fname1)
+		ls.RaiseError("file with name '%s' does not present", kpath1)
 		return 0
 	}
 	if _, ok = pack.Tags[key2]; ok {
-		ls.RaiseError("file with name '%s' already present", fname2)
+		ls.RaiseError("file with name '%s' already present", kpath2)
 		return 0
 	}
 
@@ -691,7 +691,7 @@ func wpkputalias(ls *lua.LState) int {
 	for k, v := range tags1 {
 		tags2[k] = v
 	}
-	tags2[wpk.TID_path] = wpk.TagString(fname2)
+	tags2[wpk.TID_path] = wpk.TagString(kpath2)
 	pack.Tags[key2] = tags2
 	return 0
 }
@@ -701,7 +701,7 @@ func wpkdelalias(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
 
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = wpk.ToKey(kpath)
 	var _, ok = pack.Tags[key]
 	if ok {
 		delete(pack.Tags, key)
@@ -725,7 +725,7 @@ func wpkhastag(ls *lua.LState) int {
 		return 0
 	}
 
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = wpk.ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -751,7 +751,7 @@ func wpkgettag(ls *lua.LState) int {
 		return 0
 	}
 
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = wpk.ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -791,7 +791,7 @@ func wpksettag(ls *lua.LState) int {
 		return 0
 	}
 
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = wpk.ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -820,7 +820,7 @@ func wpkdeltag(ls *lua.LState) int {
 		return 0
 	}
 
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = wpk.ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -835,7 +835,7 @@ func wpkgettags(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
 
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = wpk.ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -873,7 +873,7 @@ func wpksettags(ls *lua.LState) int {
 		}
 	}
 
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = wpk.ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -902,7 +902,7 @@ func wpkaddtags(ls *lua.LState) int {
 		return 0
 	}
 
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = wpk.ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -942,7 +942,7 @@ func wpkdeltags(ls *lua.LState) int {
 		}
 	}
 
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = wpk.ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)

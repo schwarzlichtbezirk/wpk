@@ -68,12 +68,13 @@ var (
 
 // Package header.
 type PackHdr struct {
-	Signature [0x18]byte
-	TagOffset OFFSET // tags table offset
-	TagNumber FID    // number of tagset entries
-	RecNumber FID    // number of records
+	Signature [0x18]byte `json:"signature"`
+	TagOffset OFFSET     `json:"tagoffset"` // tags table offset
+	TagNumber FID        `json:"tagnumber"` // number of tagset entries
+	RecNumber FID        `json:"recnumber"` // number of records
 }
 
+// Package header length.
 const PackHdrSize = 40
 
 // Tag - file description item.
@@ -277,13 +278,12 @@ func (t Tagset) Record() (OFFSET, SIZE) {
 
 // Reads tags set from stream.
 func (t Tagset) ReadFrom(r io.Reader) (n int64, err error) {
-	var num TID
+	var num, id, l TID
 	if err = binary.Read(r, binary.LittleEndian, &num); err != nil {
 		return
 	}
 	n += 2
 	for i := TID(0); i < num; i++ {
-		var id, l TID
 		if err = binary.Read(r, binary.LittleEndian, &id); err != nil {
 			return
 		}
@@ -364,6 +364,8 @@ type File struct {
 	Pack *Package
 }
 
+// Returns File structure associated with group of files in package pooled with
+// common directory prefix. Usable to implement http.FileSystem interface.
 func NewDir(dir string, pack *Package) *File {
 	return &File{
 		Tagset: Tagset{
@@ -382,7 +384,7 @@ func (f *File) Stat() (os.FileInfo, error) {
 }
 func (f *File) Readdir(count int) (matches []os.FileInfo, err error) {
 	var kpath, _ = f.String(TID_path)
-	var pref = strings.ToLower(filepath.ToSlash(kpath))
+	var pref = ToKey(kpath)
 	if len(pref) > 0 && pref[len(pref)-1] != '/' {
 		pref += "/"
 	}
@@ -411,6 +413,12 @@ func (f *File) Readdir(count int) (matches []os.FileInfo, err error) {
 	return
 }
 
+// Format file path to tags set key. Make argument lowercase,
+// change back slashes to normal slashes.
+func ToKey(kpath string) string {
+	return strings.ToLower(filepath.ToSlash(kpath))
+}
+
 // Contains all data needed for package representation.
 type Package struct {
 	PackHdr
@@ -419,15 +427,17 @@ type Package struct {
 
 // Returns the names of all files in package matching pattern or nil
 // if there is no matching file.
-func (pack *Package) Glob(pattern string) (matches []string, err error) {
-	pattern = strings.ToLower(filepath.ToSlash(pattern))
+func (pack *Package) Glob(pattern string, found func(key string) error) (err error) {
+	pattern = ToKey(pattern)
+	var matched bool
 	for key := range pack.Tags {
-		var matched bool
 		if matched, err = filepath.Match(pattern, key); err != nil {
 			return
 		}
 		if matched {
-			matches = append(matches, key)
+			if err = found(key); err != nil {
+				return
+			}
 		}
 	}
 	return
@@ -435,7 +445,7 @@ func (pack *Package) Glob(pattern string) (matches []string, err error) {
 
 // Returns record associated with given filename.
 func (pack *Package) NamedRecord(kpath string) (OFFSET, SIZE, error) {
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = ToKey(kpath)
 	var tags, is = pack.Tags[key]
 	if !is {
 		return 0, 0, ErrNotFound
@@ -481,31 +491,45 @@ func (pack *Package) Load(r io.ReadSeeker) (err error) {
 		if _, err = tags.ReadFrom(r); err != nil {
 			return
 		}
+
 		// check tags fields
-		var fid, ok = tags.Uint32(TID_FID)
-		if !ok {
+		var ok bool
+
+		var fid uint32
+		if fid, ok = tags.Uint32(TID_FID); !ok {
 			return &TagError{i, TID_FID, "file ID is absent"}
 		}
 		if fid >= uint32(pack.RecNumber) {
 			return &TagError{i, TID_FID, fmt.Sprintf("file ID '%d' is out of range", fid)}
 		}
+
 		var kpath string
 		if kpath, ok = tags.String(TID_path); !ok {
 			return &TagError{i, TID_path, fmt.Sprintf("file name is absent for file ID '%d'", fid)}
 		}
-		var key = strings.ToLower(filepath.ToSlash(kpath))
+		var key = ToKey(kpath)
 		if _, ok = pack.Tags[key]; ok {
 			return &TagError{i, TID_path, fmt.Sprintf("file name '%s' is not unique", kpath)}
 		}
-		if _, ok = tags.Uint64(TID_size); !ok {
+
+		var size, offset uint64
+		if size, ok = tags.Uint64(TID_size); !ok {
 			return &TagError{i, TID_size, fmt.Sprintf("size is absent for file name '%s'", kpath)}
 		}
-		if _, ok = tags.Uint64(TID_offset); !ok {
+		if offset, ok = tags.Uint64(TID_offset); !ok {
 			return &TagError{i, TID_offset, fmt.Sprintf("offset is absent for file name '%s'", kpath)}
 		}
+		if offset < PackHdrSize || offset >= uint64(pack.TagOffset) {
+			return &TagError{i, TID_offset, fmt.Sprintf("offset is out of bounds for file name '%s'", kpath)}
+		}
+		if offset+size > uint64(pack.TagOffset) {
+			return &TagError{i, TID_size, fmt.Sprintf("file size is out of bounds for file name '%s'", kpath)}
+		}
+
 		if _, ok = tags.Uint64(TID_created); !ok {
 			return &TagError{i, TID_created, fmt.Sprintf("creation time is absent for file name '%s'", kpath)}
 		}
+
 		// insert file tags
 		pack.Tags[key] = tags
 	}
@@ -514,7 +538,7 @@ func (pack *Package) Load(r io.ReadSeeker) (err error) {
 }
 
 func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags Tagset, err error) {
-	var key = strings.ToLower(filepath.ToSlash(kpath))
+	var key = ToKey(kpath)
 	if _, ok := pack.Tags[key]; ok {
 		err = ErrAlready
 		return
