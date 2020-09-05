@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"flag"
 	"io"
 	"log"
+	"mime"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -85,7 +88,7 @@ func checkargs() int {
 
 func writepackage() (err error) {
 	var dst *os.File
-	if dst, err = os.OpenFile(DstFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+	if dst, err = os.OpenFile(DstFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
 		return
 	}
 	defer dst.Close()
@@ -119,10 +122,25 @@ func writepackage() (err error) {
 	// adjust tags
 	if PutMIME {
 		log.Printf("put mime type tags")
+		const sniffLen = 512
 		for fname, tags := range pack.Tags {
-			if ct, ok := mimeext[filepath.Ext(fname)]; ok {
-				tags[wpk.TID_mime] = wpk.TagString(ct)
+			var ctype = mime.TypeByExtension(filepath.Ext(fname))
+			if ctype == "" {
+				var offset, _ = tags.Uint64(wpk.TID_offset)
+				var size, _ = tags.Uint64(wpk.TID_size)
+				// rewind to file start
+				if _, err = dst.Seek(int64(offset), io.SeekStart); err != nil {
+					return
+				}
+				// read a chunk to decide between utf-8 text and binary
+				var buf [sniffLen]byte
+				var n int64
+				if n, err = io.Copy(bytes.NewBuffer(buf[:]), io.LimitReader(dst, int64(size))); err != nil {
+					return
+				}
+				ctype = http.DetectContentType(buf[:n])
 			}
+			tags[wpk.TID_mime] = wpk.TagString(ctype)
 		}
 	}
 

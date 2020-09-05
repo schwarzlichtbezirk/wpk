@@ -9,17 +9,40 @@ import (
 	"hash/crc32"
 	"hash/crc64"
 	"io"
+	"mime"
+	"net/http"
 	"path/filepath"
 
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
+const sniffLen = 512
+
 func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err error) {
 	if _, ok := tags[wpk.TID_mime]; !ok && pack.automime {
-		var kpath, _ = tags.String(wpk.TID_path)
-		if ct, ok := mimeext[filepath.Ext(kpath)]; ok {
-			tags[wpk.TID_mime] = wpk.TagString(ct)
+		var kext = filepath.Ext(tags.Name())
+		var ctype = mime.TypeByExtension(kext)
+		if ctype == "" {
+			var ok bool
+			if ctype, ok = mimeext[kext]; !ok {
+				// rewind to file start
+				if _, err = r.Seek(0, io.SeekStart); err != nil {
+					return
+				}
+				// read a chunk to decide between utf-8 text and binary
+				var buf [sniffLen]byte
+				var n int
+				if n, err = io.ReadFull(r, buf[:]); err != nil {
+					if err == io.ErrUnexpectedEOF {
+						err = nil
+					} else {
+						return
+					}
+				}
+				ctype = http.DetectContentType(buf[:n])
+			}
 		}
+		tags[wpk.TID_mime] = wpk.TagString(ctype)
 	}
 
 	if _, ok := tags[wpk.TID_CRC32C]; !ok && pack.crc32 {

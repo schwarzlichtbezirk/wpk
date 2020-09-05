@@ -350,7 +350,7 @@ func (t Tagset) Sys() interface{} {
 	return nil
 }
 
-func NewDirInfo(dir string) os.FileInfo {
+func NewDirTagset(dir string) Tagset {
 	return Tagset{
 		TID_path: TagString(dir),
 		TID_size: TagUint64(0),
@@ -362,18 +362,6 @@ type File struct {
 	bytes.Reader
 	Tagset
 	Pack *Package
-}
-
-// Returns File structure associated with group of files in package pooled with
-// common directory prefix. Usable to implement http.FileSystem interface.
-func NewDir(dir string, pack *Package) *File {
-	return &File{
-		Tagset: Tagset{
-			TID_path: TagString(dir),
-			TID_size: TagUint64(0),
-		},
-		Pack: pack,
-	}
 }
 
 func (f *File) Close() error {
@@ -399,7 +387,7 @@ func (f *File) Readdir(count int) (matches []os.FileInfo, err error) {
 			} else { // dir detected
 				var dir = pref + suff[:sp]
 				if _, ok := dirs[dir]; !ok {
-					var fi = NewDirInfo(dir)
+					var fi = NewDirTagset(dir)
 					dirs[dir] = fi
 					matches = append(matches, fi)
 					count--
@@ -423,6 +411,15 @@ func ToKey(kpath string) string {
 type Package struct {
 	PackHdr
 	Tags map[string]Tagset // keys - package filenames in lower case
+}
+
+// Returns File structure associated with group of files in package pooled with
+// common directory prefix. Usable to implement http.FileSystem interface.
+func (pack *Package) NewDir(dir string) *File {
+	return &File{
+		Tagset: NewDirTagset(dir),
+		Pack:   pack,
+	}
 }
 
 // Returns the names of all files in package matching pattern or nil
@@ -499,7 +496,7 @@ func (pack *Package) Load(r io.ReadSeeker) (err error) {
 		if fid, ok = tags.Uint32(TID_FID); !ok {
 			return &TagError{i, TID_FID, "file ID is absent"}
 		}
-		if fid >= uint32(pack.RecNumber) {
+		if fid > uint32(pack.RecNumber) {
 			return &TagError{i, TID_FID, fmt.Sprintf("file ID '%d' is out of range", fid)}
 		}
 
@@ -555,7 +552,7 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags
 
 	// insert new entry to tags table
 	tags = Tagset{
-		TID_FID:    TagUint32(uint32(pack.RecNumber)),
+		TID_FID:    TagUint32(uint32(pack.RecNumber + 1)),
 		TID_size:   TagUint64(uint64(size)),
 		TID_offset: TagUint64(uint64(offset)),
 		TID_path:   TagString(kpath),
