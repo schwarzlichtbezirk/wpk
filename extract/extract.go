@@ -103,7 +103,7 @@ func readpackage() (err error) {
 			}
 			defer src.Close()
 
-			if err = pack.Load(src); err != nil {
+			if err = pack.Read(src); err != nil {
 				return
 			}
 
@@ -125,10 +125,10 @@ func readpackage() (err error) {
 					}
 					defer dst.Close()
 
-					if _, err = src.Seek(int64(offset), io.SeekStart); err != nil {
+					if _, err = src.Seek(offset, io.SeekStart); err != nil {
 						return
 					}
-					if _, err = io.CopyN(dst, src, int64(size)); err != nil {
+					if _, err = io.CopyN(dst, src, size); err != nil {
 						return
 					}
 				}(); err != nil {

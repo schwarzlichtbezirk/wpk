@@ -270,10 +270,10 @@ func (t Tagset) FID() FID {
 }
 
 // Returns file offset & size.
-func (t Tagset) Record() (OFFSET, SIZE) {
+func (t Tagset) Record() (int64, int64) {
 	var size, _ = t.Uint64(TID_size)
 	var offset, _ = t.Uint64(TID_offset)
-	return OFFSET(offset), SIZE(size)
+	return int64(offset), int64(size)
 }
 
 // Reads tags set from stream.
@@ -359,8 +359,8 @@ func NewDirTagset(dir string) Tagset {
 
 // http.File interface implementation.
 type File struct {
-	bytes.Reader
 	Tagset
+	bytes.Reader
 	Pack *Package
 }
 
@@ -441,14 +441,15 @@ func (pack *Package) Glob(pattern string, found func(key string) error) (err err
 }
 
 // Returns record associated with given filename.
-func (pack *Package) NamedRecord(kpath string) (OFFSET, SIZE, error) {
+func (pack *Package) NamedRecord(kpath string) (offset int64, size int64, err error) {
 	var key = ToKey(kpath)
 	var tags, is = pack.Tags[key]
 	if !is {
-		return 0, 0, ErrNotFound
+		err = ErrNotFound
+		return
 	}
-	var offset, size = tags.Record()
-	return offset, size, nil
+	offset, size = tags.Record()
+	return
 }
 
 // Error in tags set. Shows errors associated with any tags.
@@ -466,7 +467,7 @@ func (e *TagError) Error() string {
 // Opens package for reading. At first its checkup file signature, then
 // reads records table, and reads file tags set table. Tags set
 // for each file must contain at least file ID, file name and creation time.
-func (pack *Package) Load(r io.ReadSeeker) (err error) {
+func (pack *Package) Read(r io.ReadSeeker) (err error) {
 	// read header
 	if err = binary.Read(r, binary.LittleEndian, &pack.PackHdr); err != nil {
 		return

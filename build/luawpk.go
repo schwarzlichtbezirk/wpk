@@ -366,7 +366,7 @@ func wpkload(ls *lua.LState) int {
 
 		pack.path = pkgpath
 
-		if err = pack.Load(src); err != nil {
+		if err = pack.Read(src); err != nil {
 			return
 		}
 	}(); err != nil {
@@ -508,8 +508,7 @@ func wpksumsize(ls *lua.LState) int {
 
 	var sum uint64
 	for _, tags := range pack.Tags {
-		var size, _ = tags.Uint64(wpk.TID_size)
-		sum += size
+		sum += tags.Size()
 	}
 
 	ls.Push(lua.LNumber(sum))
