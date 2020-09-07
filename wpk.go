@@ -197,6 +197,7 @@ func TagNumber(val float64) Tag {
 }
 
 // Tags set for each file in package.
+// os.FileInfo interface implementation.
 type Tagset map[TID]Tag
 
 // String tag getter.
@@ -325,31 +326,42 @@ func (t Tagset) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-// os.FileInfo interface implementation.
-
+// Returns name of nested into package file.
 func (t Tagset) Name() string {
 	var kpath, _ = t.String(TID_path)
 	return filepath.Base(kpath)
 }
+
+// Returns size of nested into package file.
 func (t Tagset) Size() int64 {
 	var size, _ = t.Uint64(TID_size)
 	return int64(size)
 }
+
+// For os.FileInfo interface compatibility.
 func (t Tagset) Mode() os.FileMode {
 	return 0444
 }
+
+// Returns file timestamp of nested into package file.
 func (t Tagset) ModTime() time.Time {
 	var crt, _ = t.Uint64(TID_created)
 	return time.Unix(int64(crt), 0)
 }
+
+// Detects that object presents a directory. Directory can not have file ID.
 func (t Tagset) IsDir() bool {
 	var _, ok = t.Uint32(TID_FID) // file ID is absent for dir
 	return !ok
 }
+
+// For os.FileInfo interface compatibility.
 func (t Tagset) Sys() interface{} {
 	return nil
 }
 
+// MakesMakes object compatible with http.File interface
+// to present nested into package directory.
 func NewDirTagset(dir string) Tagset {
 	return Tagset{
 		TID_path: TagString(dir),
@@ -357,6 +369,7 @@ func NewDirTagset(dir string) Tagset {
 	}
 }
 
+// Gives access to nested into package file.
 // http.File interface implementation.
 type File struct {
 	Tagset
@@ -364,12 +377,17 @@ type File struct {
 	Pack *Package
 }
 
+// For http.File interface compatibility.
 func (f *File) Close() error {
 	return nil
 }
+
+// For http.File interface compatibility.
 func (f *File) Stat() (os.FileInfo, error) {
 	return f.Tagset, nil
 }
+
+// Returns os.FileInfo array with nested into given package directory presentation.
 func (f *File) Readdir(count int) (matches []os.FileInfo, err error) {
 	var kpath, _ = f.String(TID_path)
 	var pref = ToKey(kpath)
@@ -535,6 +553,7 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 	return
 }
 
+// Puts data streamed by given reader into package as a file and associate keyname "kpath" with it.
 func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags Tagset, err error) {
 	var key = ToKey(kpath)
 	if _, ok := pack.Tags[key]; ok {
@@ -567,6 +586,7 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags
 	return
 }
 
+// Puts file with given file full path "fpath" into package and associate keyname "kpath" with it.
 func (pack *Package) PackFile(w io.WriteSeeker, kpath, fpath string) (tags Tagset, err error) {
 	var file *os.File
 	if file, err = os.Open(fpath); err != nil {

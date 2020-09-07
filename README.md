@@ -1,3 +1,4 @@
+
 Build and use data files package.
 
 # Preamble
@@ -7,21 +8,20 @@ Package keeps all files together with warranty that no any file will be deleted,
 
 # Structure
 Library have root **wpk** module that used by any code working with .wpk packages. And modules to build utilities for packing/unpacking data files to package:
-
-### wpk
+ - **wpk** 
 Places data files into single package, extracts them, and gives API for access to package.
-
-### wpk/pack
+ - **wpk/pack**
 Small utility designed to pack a directory, or a list of directories into an package.
-
-### wpk/extract
+ - **wpk/extract**
 Small utility designed to extract all packed files from package, or list of packages to given directory.
-
-### wpk/build
+ - **wpk/build**
 Utility for programmable packages build. Uses [Lua 5.1]([https://www.lua.org/manual/5.1/](https://www.lua.org/manual/5.1/)) to script package building process.
-
-### wpk/test
+ - **wpk/test**
 Contains some Lua-scripts to test wpk/build utility and learn scripting API opportunities.
+ - **wpk/bulk**
+Wrapper for package to hold WPK-file whole content as a slice. Actual for small packages.
+ - **wpk/mmap**
+Wrapper for package to get access to nested files as to memory mapped blocks. Actual for large packages.
 
 # How to use
 At first, install [Golang](https://golang.org/) minimum 1.9 version, and get this package:
@@ -65,4 +65,4 @@ and later append to exising package new files at *step2* call:
 # WPK API usage
 See [godoc](https://godoc.org/github.com/schwarzlichtbezirk/wpk) with API description.
 
-On your program initialisation open prepared wpk-package by [Package.Read](https://godoc.org/github.com/schwarzlichtbezirk/wpk#Package.Read) call. It reads tags sets of package on this call and has no any others reading of tags sets later. [File](https://godoc.org/github.com/schwarzlichtbezirk/wpk#File) structure helps you to implement custom [http.FileSystem](https://golang.org/pkg/net/http/#FileSystem) to provide local file system and route it by [http.FileServer](https://golang.org/pkg/net/http/#FileServer).
+On your program initialisation open prepared wpk-package by [Package.Read](https://godoc.org/github.com/schwarzlichtbezirk/wpk#Package.Read) call. It reads tags sets of package on this call and has no any others reading of tags sets later. [File](https://godoc.org/github.com/schwarzlichtbezirk/wpk#File) structure helps you to implement custom [http.FileSystem](https://golang.org/pkg/net/http/#FileSystem) to provide local file system and route it by [http.FileServer](https://golang.org/pkg/net/http/#FileServer). **wpk/bulk** and **wpk/mmap** modules already has file system interface implementation.
