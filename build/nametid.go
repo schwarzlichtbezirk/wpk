@@ -15,6 +15,7 @@ var NameTid = map[string]wpk.TID{
 	"offset":  wpk.TID_offset,
 	"name":    wpk.TID_path,
 	"path":    wpk.TID_path,
+	"time":    wpk.TID_created,
 	"created": wpk.TID_created,
 	"crt":     wpk.TID_created,
 
@@ -40,6 +41,7 @@ var NameTid = map[string]wpk.TID{
 	"comment":  wpk.TID_comment,
 }
 
+// Errors on tag identifiers string presentation.
 type ErrKeyUndef struct {
 	TagKey string
 }

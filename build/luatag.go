@@ -39,6 +39,7 @@ func RegTag(ls *lua.LState) {
 	}
 }
 
+// Push LuaTag object into stack.
 func PushTag(ls *lua.LState, v *LuaTag) {
 	var ud = ls.NewUserData()
 	ud.Value = v

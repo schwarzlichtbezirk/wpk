@@ -48,6 +48,7 @@ func RegPack(ls *lua.LState) {
 	}
 }
 
+// Push LuaPackage object into stack.
 func PushPack(ls *lua.LState, v *LuaPackage) {
 	var ud = ls.NewUserData()
 	ud.Value = v
@@ -508,7 +509,8 @@ func wpksumsize(ls *lua.LState) int {
 
 	var sum uint64
 	for _, tags := range pack.Tags {
-		sum += tags.Size()
+		var size, _ = tags.Uint64(wpk.TID_size)
+		sum += size
 	}
 
 	ls.Push(lua.LNumber(sum))
