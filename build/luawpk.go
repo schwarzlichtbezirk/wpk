@@ -8,14 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/schwarzlichtbezirk/wpk"
+	. "github.com/schwarzlichtbezirk/wpk"
 	"github.com/yuin/gopher-lua"
 )
 
 const PackMT = "wpk"
 
 type LuaPackage struct {
-	wpk.Package
+	Package
 	secret   string
 	automime bool
 	crc32    bool
@@ -60,9 +60,9 @@ func PushPack(ls *lua.LState, v *LuaPackage) {
 func NewPack(ls *lua.LState) int {
 	var pack LuaPackage
 
-	copy(pack.Signature[:], wpk.Prebuild)
-	pack.Tags = map[string]wpk.Tagset{}
-	pack.TagOffset = wpk.PackHdrSize
+	copy(pack.Signature[:], Prebuild)
+	pack.Tags = map[string]Tagset{}
+	pack.TagOffset = PackHdrSize
 	pack.TagNumber = 0
 	pack.RecNumber = 0
 
@@ -125,7 +125,7 @@ func setter_pack(ls *lua.LState) int {
 func tostring_pack(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	var s = fmt.Sprintf("records: %d, aliases: %d, datasize: %d", pack.RecNumber, pack.TagNumber, pack.TagOffset-wpk.PackHdrSize)
+	var s = fmt.Sprintf("records: %d, aliases: %d, datasize: %d", pack.RecNumber, pack.TagNumber, pack.TagOffset-PackHdrSize)
 	ls.Push(lua.LString(s))
 	return 1
 }
@@ -201,7 +201,7 @@ func gettagnum(ls *lua.LState) int {
 
 func getdatasize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LNumber(pack.TagOffset - wpk.PackHdrSize))
+	ls.Push(lua.LNumber(pack.TagOffset - PackHdrSize))
 	return 1
 }
 
@@ -399,12 +399,12 @@ func wpkbegin(ls *lua.LState) int {
 		pack.w = dst
 
 		// reset header
-		copy(pack.Signature[:], wpk.Prebuild)
-		pack.TagOffset = wpk.PackHdrSize
+		copy(pack.Signature[:], Prebuild)
+		pack.TagOffset = PackHdrSize
 		pack.TagNumber = 0
 		pack.RecNumber = 0
 		// setup empty tags table
-		pack.Tags = map[string]wpk.Tagset{}
+		pack.Tags = map[string]Tagset{}
 		// write prebuild header
 		if err = binary.Write(pack.w, binary.LittleEndian, &pack.PackHdr); err != nil {
 			return
@@ -436,7 +436,7 @@ func wpkappend(ls *lua.LState) int {
 		pack.w = dst
 
 		// partially reset header
-		copy(pack.Signature[:], wpk.Prebuild)
+		copy(pack.Signature[:], Prebuild)
 		// rewrite prebuild header
 		if _, err = pack.w.Seek(0, io.SeekStart); err != nil {
 			return
@@ -473,8 +473,8 @@ func wpkcomplete(ls *lua.LState) int {
 		ls.RaiseError(err.Error())
 		return 0
 	}
-	pack.TagOffset = wpk.OFFSET(tagoffset)
-	pack.TagNumber = wpk.FID(len(pack.Tags))
+	pack.TagOffset = OFFSET(tagoffset)
+	pack.TagNumber = FID(len(pack.Tags))
 	// write files tags table
 	for _, tags := range pack.Tags {
 		if _, err = tags.WriteTo(pack.w); err != nil {
@@ -488,7 +488,7 @@ func wpkcomplete(ls *lua.LState) int {
 		ls.RaiseError(err.Error())
 		return 0
 	}
-	copy(pack.Signature[:], wpk.Signature)
+	copy(pack.Signature[:], Signature)
 	if err = binary.Write(pack.w, binary.LittleEndian, &pack.PackHdr); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
@@ -509,7 +509,7 @@ func wpksumsize(ls *lua.LState) int {
 
 	var sum uint64
 	for _, tags := range pack.Tags {
-		var size, _ = tags.Uint64(wpk.TID_size)
+		var size, _ = tags.Uint64(TID_size)
 		sum += size
 	}
 
@@ -537,7 +537,7 @@ func wpkhasfile(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
 
-	var key = wpk.ToKey(kpath)
+	var key = ToKey(kpath)
 	var _, ok = pack.Tags[key]
 
 	ls.Push(lua.LBool(ok))
@@ -568,7 +568,7 @@ func wpkputfile(ls *lua.LState) int {
 		return 0
 	}
 
-	var key = wpk.ToKey(kpath)
+	var key = ToKey(kpath)
 	if _, is := pack.Tags[key]; is {
 		ls.RaiseError("file with name '%s' already present", kpath)
 		return 0
@@ -586,12 +586,12 @@ func wpkputfile(ls *lua.LState) int {
 		if fi, err = file.Stat(); err != nil {
 			return
 		}
-		var tags wpk.Tagset
+		var tags Tagset
 		if tags, err = pack.PackData(pack.w, file, kpath); err != nil {
 			return
 		}
 
-		tags[wpk.TID_created] = wpk.TagUint64(uint64(fi.ModTime().Unix()))
+		tags[TID_created] = TagUint64(uint64(fi.ModTime().Unix()))
 		if err = pack.adjusttagset(file, tags); err != nil {
 			return
 		}
@@ -613,7 +613,7 @@ func wpkputdata(ls *lua.LState) int {
 		return 0
 	}
 
-	var key = wpk.ToKey(kpath)
+	var key = ToKey(kpath)
 	if _, is := pack.Tags[key]; is {
 		ls.RaiseError("file with name '%s' already present", kpath)
 		return 0
@@ -623,12 +623,12 @@ func wpkputdata(ls *lua.LState) int {
 	if func() {
 		var r = strings.NewReader(data)
 
-		var tags wpk.Tagset
+		var tags Tagset
 		if tags, err = pack.PackData(pack.w, r, kpath); err != nil {
 			return
 		}
 
-		tags[wpk.TID_created] = wpk.TagUint64(uint64(time.Now().Unix())) // set created to now
+		tags[TID_created] = TagUint64(uint64(time.Now().Unix())) // set created to now
 		if err = pack.adjusttagset(r, tags); err != nil {
 			return
 		}
@@ -649,8 +649,8 @@ func wpkrename(ls *lua.LState) int {
 	var kpath1 = ls.CheckString(2)
 	var kpath2 = ls.CheckString(3)
 
-	var key1 = wpk.ToKey(kpath1)
-	var key2 = wpk.ToKey(kpath2)
+	var key1 = ToKey(kpath1)
+	var key2 = ToKey(kpath2)
 	var tags, ok = pack.Tags[key1]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath1)
@@ -661,7 +661,7 @@ func wpkrename(ls *lua.LState) int {
 		return 0
 	}
 
-	tags[wpk.TID_path] = wpk.TagString(kpath2)
+	tags[TID_path] = TagString(kpath2)
 	delete(pack.Tags, key1)
 	pack.Tags[key2] = tags
 	return 0
@@ -676,8 +676,8 @@ func wpkputalias(ls *lua.LState) int {
 	var kpath1 = ls.CheckString(2)
 	var kpath2 = ls.CheckString(3)
 
-	var key1 = wpk.ToKey(kpath1)
-	var key2 = wpk.ToKey(kpath2)
+	var key1 = ToKey(kpath1)
+	var key2 = ToKey(kpath2)
 	var tags1, ok = pack.Tags[key1]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath1)
@@ -688,11 +688,11 @@ func wpkputalias(ls *lua.LState) int {
 		return 0
 	}
 
-	var tags2 = wpk.Tagset{}
+	var tags2 = Tagset{}
 	for k, v := range tags1 {
 		tags2[k] = v
 	}
-	tags2[wpk.TID_path] = wpk.TagString(kpath2)
+	tags2[TID_path] = TagString(kpath2)
 	pack.Tags[key2] = tags2
 	return 0
 }
@@ -702,7 +702,7 @@ func wpkdelalias(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
 
-	var key = wpk.ToKey(kpath)
+	var key = ToKey(kpath)
 	var _, ok = pack.Tags[key]
 	if ok {
 		delete(pack.Tags, key)
@@ -720,13 +720,13 @@ func wpkhastag(ls *lua.LState) int {
 
 	var err error
 
-	var tid wpk.TID
+	var tid TID
 	if tid, err = ValueToAid(k); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
 
-	var key = wpk.ToKey(kpath)
+	var key = ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -746,19 +746,19 @@ func wpkgettag(ls *lua.LState) int {
 
 	var err error
 
-	var tid wpk.TID
+	var tid TID
 	if tid, err = ValueToAid(k); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
 
-	var key = wpk.ToKey(kpath)
+	var key = ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
 		return 0
 	}
-	var tag wpk.Tag
+	var tag Tag
 	if tag, ok = tags[tid]; !ok {
 		return 0
 	}
@@ -776,23 +776,23 @@ func wpksettag(ls *lua.LState) int {
 
 	var err error
 
-	var tid wpk.TID
+	var tid TID
 	if tid, err = ValueToAid(k); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
-	if tid < wpk.TID_SYS {
+	if tid < TID_SYS {
 		ls.RaiseError("tries to change protected tag")
 		return 0
 	}
 
-	var tag wpk.Tag
+	var tag Tag
 	if tag, err = ValueToTag(v); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
 
-	var key = wpk.ToKey(kpath)
+	var key = ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -811,17 +811,17 @@ func wpkdeltag(ls *lua.LState) int {
 
 	var err error
 
-	var tid wpk.TID
+	var tid TID
 	if tid, err = ValueToAid(k); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
-	if tid < wpk.TID_SYS {
+	if tid < TID_SYS {
 		ls.RaiseError("tries to delete protected tag")
 		return 0
 	}
 
-	var key = wpk.ToKey(kpath)
+	var key = ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -836,7 +836,7 @@ func wpkgettags(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
 
-	var key = wpk.ToKey(kpath)
+	var key = ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -862,19 +862,19 @@ func wpksettags(ls *lua.LState) int {
 
 	var err error
 
-	var addt wpk.Tagset
+	var addt Tagset
 	if addt, err = TableToTagset(lt); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
 	for tid := range addt {
-		if tid < wpk.TID_SYS {
+		if tid < TID_SYS {
 			ls.RaiseError("tries to change protected tag")
 			return 0
 		}
 	}
 
-	var key = wpk.ToKey(kpath)
+	var key = ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -897,13 +897,13 @@ func wpkaddtags(ls *lua.LState) int {
 
 	var err error
 
-	var addt wpk.Tagset
+	var addt Tagset
 	if addt, err = TableToTagset(lt); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
 
-	var key = wpk.ToKey(kpath)
+	var key = ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)
@@ -931,19 +931,19 @@ func wpkdeltags(ls *lua.LState) int {
 
 	var err error
 
-	var addt wpk.Tagset
+	var addt Tagset
 	if addt, err = TableToTagset(lt); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
 	for tid := range addt {
-		if tid < wpk.TID_SYS {
+		if tid < TID_SYS {
 			ls.RaiseError("tries to delete protected tag")
 			return 0
 		}
 	}
 
-	var key = wpk.ToKey(kpath)
+	var key = ToKey(kpath)
 	var tags, ok = pack.Tags[key]
 	if !ok {
 		ls.RaiseError("file with name '%s' does not present", kpath)

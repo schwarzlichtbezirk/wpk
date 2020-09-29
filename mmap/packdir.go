@@ -5,22 +5,22 @@ import (
 	"os"
 	"strings"
 
-	mm "github.com/edsrzf/mmap-go"
+	mm "github.com/schwarzlichtbezirk/mmap-go"
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
 // System pages granulation for memory mapping system calls.
-const pagesize int64 = 65536 // 64K
+var pagesize = int64(os.Getpagesize())
 
 // Gives access to nested into package file by memory mapping.
 // http.File interface implementation.
-type File struct {
+type MappedFile struct {
 	wpk.File
 	mm.MMap
 }
 
 // Unmaps memory and closes mapped memory handle.
-func (f *File) Close() error {
+func (f *MappedFile) Close() error {
 	return f.Unmap()
 }
 
@@ -69,15 +69,15 @@ func (pack *PackDir) SubDir(pref string) *PackDir {
 
 // Creates file object to give access to nested into package file by given tagset.
 func (pack *PackDir) NewFile(tags wpk.Tagset) (http.File, error) {
-	var f File
+	var f MappedFile
 	var offset, size = tags.Record()
 	// calculate paged size/offset
 	var pgoff = offset % pagesize
 	var offsetx = offset - pgoff
-	var sizex = int(((size+pgoff-1)/pagesize + 1) * pagesize)
+	var sizex = ((size+pgoff-1)/pagesize + 1) * pagesize
 	// create mapped memory block
 	var err error
-	if f.MMap, err = mm.MapRegion(pack.file, sizex, mm.RDONLY, 0, offsetx); err != nil {
+	if f.MMap, err = mm.MapRegion(pack.file, offsetx, sizex, mm.RDONLY, 0); err != nil {
 		return nil, err
 	}
 	// init file struct

@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/schwarzlichtbezirk/wpk"
+	. "github.com/schwarzlichtbezirk/wpk"
 )
 
 // command line settings
@@ -95,7 +95,7 @@ func readpackage() (err error) {
 	for _, pkgpath := range SrcList {
 		log.Printf("source package: %s", pkgpath)
 		if func() {
-			var pack wpk.Package
+			var pack Package
 
 			var src *os.File
 			if src, err = os.Open(pkgpath); err != nil {
@@ -110,7 +110,7 @@ func readpackage() (err error) {
 			for _, tags := range pack.Tags {
 				var fid = tags.FID()
 				var offset, size = tags.Record()
-				var kpath, _ = tags.String(wpk.TID_path) // get original key path
+				var kpath, _ = tags.String(TID_path) // get original key path
 				log.Printf("#%-3d %6d bytes   %s", fid, size, kpath)
 
 				if func() {

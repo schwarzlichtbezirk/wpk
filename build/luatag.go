@@ -4,14 +4,14 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 
-	"github.com/schwarzlichtbezirk/wpk"
+	. "github.com/schwarzlichtbezirk/wpk"
 	"github.com/yuin/gopher-lua"
 )
 
 const TagMT = "tag"
 
 type LuaTag struct {
-	wpk.Tag
+	Tag
 }
 
 func RegTag(ls *lua.LState) {
@@ -66,42 +66,42 @@ func NewTagBase64(ls *lua.LState) int {
 // Construct LuaTag by given string.
 func NewTagString(ls *lua.LState) int {
 	var val = ls.CheckString(1)
-	PushTag(ls, &LuaTag{wpk.TagString(val)})
+	PushTag(ls, &LuaTag{TagString(val)})
 	return 1
 }
 
 // Construct LuaTag by given boolean value.
 func NewTagBool(ls *lua.LState) int {
 	var val = ls.CheckBool(1)
-	PushTag(ls, &LuaTag{wpk.TagBool(val)})
+	PushTag(ls, &LuaTag{TagBool(val)})
 	return 1
 }
 
 // Construct LuaTag by given TID value.
 func NewTagUint16(ls *lua.LState) int {
-	var val = wpk.TID(ls.CheckInt(1))
-	PushTag(ls, &LuaTag{wpk.TagUint16(val)})
+	var val = TID(ls.CheckInt(1))
+	PushTag(ls, &LuaTag{TagUint16(val)})
 	return 1
 }
 
 // Construct LuaTag by given uint32 value.
 func NewTagUint32(ls *lua.LState) int {
 	var val = uint32(ls.CheckInt(1))
-	PushTag(ls, &LuaTag{wpk.TagUint32(val)})
+	PushTag(ls, &LuaTag{TagUint32(val)})
 	return 1
 }
 
 // Construct LuaTag by given uint64 value.
 func NewTagUint64(ls *lua.LState) int {
 	var val = uint64(ls.CheckInt(1))
-	PushTag(ls, &LuaTag{wpk.TagUint64(val)})
+	PushTag(ls, &LuaTag{TagUint64(val)})
 	return 1
 }
 
 // Construct LuaTag by given number value.
 func NewTagNumber(ls *lua.LState) int {
 	var val = float64(ls.CheckNumber(1))
-	PushTag(ls, &LuaTag{wpk.TagNumber(val)})
+	PushTag(ls, &LuaTag{TagNumber(val)})
 	return 1
 }
 
@@ -229,7 +229,7 @@ func getstring(ls *lua.LState) int {
 func setstring(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = ls.CheckString(2)
-	t.Tag = wpk.TagString(val)
+	t.Tag = TagString(val)
 	return 0
 }
 
@@ -245,7 +245,7 @@ func getbool(ls *lua.LState) int {
 func setbool(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = ls.CheckBool(2)
-	t.Tag = wpk.TagBool(val)
+	t.Tag = TagBool(val)
 	return 0
 }
 
@@ -260,8 +260,8 @@ func getuint16(ls *lua.LState) int {
 
 func setuint16(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
-	var val = wpk.TID(ls.CheckInt(2))
-	t.Tag = wpk.TagUint16(val)
+	var val = TID(ls.CheckInt(2))
+	t.Tag = TagUint16(val)
 	return 0
 }
 
@@ -277,7 +277,7 @@ func getuint32(ls *lua.LState) int {
 func setuint32(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = uint32(ls.CheckInt(2))
-	t.Tag = wpk.TagUint32(val)
+	t.Tag = TagUint32(val)
 	return 0
 }
 
@@ -293,7 +293,7 @@ func getuint64(ls *lua.LState) int {
 func setuint64(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = uint64(ls.CheckInt(2))
-	t.Tag = wpk.TagUint64(val)
+	t.Tag = TagUint64(val)
 	return 0
 }
 
@@ -318,7 +318,7 @@ func getnumber(ls *lua.LState) int {
 func setnumber(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = float64(ls.CheckNumber(2))
-	t.Tag = wpk.TagNumber(val)
+	t.Tag = TagNumber(val)
 	return 0
 }
 

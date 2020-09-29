@@ -13,7 +13,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/schwarzlichtbezirk/wpk"
+	. "github.com/schwarzlichtbezirk/wpk"
 )
 
 // command line settings
@@ -93,15 +93,15 @@ func writepackage() (err error) {
 	}
 	defer dst.Close()
 
-	var pack wpk.Package
+	var pack Package
 
 	// reset header
-	copy(pack.Signature[:], wpk.Prebuild)
-	pack.TagOffset = wpk.PackHdrSize
+	copy(pack.Signature[:], Prebuild)
+	pack.TagOffset = PackHdrSize
 	pack.TagNumber = 0
 	pack.RecNumber = 0
 	// setup empty tags table
-	pack.Tags = map[string]wpk.Tagset{}
+	pack.Tags = map[string]Tagset{}
 	// write prebuild header
 	if err = binary.Write(dst, binary.LittleEndian, &pack.PackHdr); err != nil {
 		return
@@ -126,8 +126,8 @@ func writepackage() (err error) {
 		for fname, tags := range pack.Tags {
 			var ctype = mime.TypeByExtension(filepath.Ext(fname))
 			if ctype == "" {
-				var offset, _ = tags.Uint64(wpk.TID_offset)
-				var size, _ = tags.Uint64(wpk.TID_size)
+				var offset, _ = tags.Uint64(TID_offset)
+				var size, _ = tags.Uint64(TID_size)
 				// rewind to file start
 				if _, err = dst.Seek(int64(offset), io.SeekStart); err != nil {
 					return
@@ -140,7 +140,7 @@ func writepackage() (err error) {
 				}
 				ctype = http.DetectContentType(buf[:n])
 			}
-			tags[wpk.TID_mime] = wpk.TagString(ctype)
+			tags[TID_mime] = TagString(ctype)
 		}
 	}
 
@@ -150,8 +150,8 @@ func writepackage() (err error) {
 	if tagoffset, err = dst.Seek(0, io.SeekEnd); err != nil {
 		return
 	}
-	pack.TagOffset = wpk.OFFSET(tagoffset)
-	pack.TagNumber = wpk.FID(len(pack.Tags))
+	pack.TagOffset = OFFSET(tagoffset)
+	pack.TagNumber = FID(len(pack.Tags))
 	for _, tags := range pack.Tags {
 		if _, err = tags.WriteTo(dst); err != nil {
 			return
@@ -162,7 +162,7 @@ func writepackage() (err error) {
 	if _, err = dst.Seek(0, io.SeekStart); err != nil {
 		return
 	}
-	copy(pack.Signature[:], wpk.Signature)
+	copy(pack.Signature[:], Signature)
 	if err = binary.Write(dst, binary.LittleEndian, &pack.PackHdr); err != nil {
 		return
 	}
