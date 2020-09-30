@@ -27,7 +27,7 @@ type (
 
 // List of predefined tags IDs.
 const (
-	TID_FID        TID = 0 // required, uint64
+	TID_FID        TID = 0 // required, uint32
 	TID_size       TID = 1 // required, uint64
 	TID_offset     TID = 2 // required, uint64
 	TID_path       TID = 3 // required, unique, string
@@ -35,7 +35,7 @@ const (
 	TID_lastaccess TID = 5 // uint64
 	TID_lastwrite  TID = 6 // uint64
 	TID_change     TID = 7 // uint64
-	TID_fileattr   TID = 8 // uint64
+	TID_fileattr   TID = 8 // uint32
 
 	TID_SYS TID = 10 // system protection marker
 
@@ -54,9 +54,10 @@ const (
 	TID_mime     TID = 100 // string
 	TID_keywords TID = 101 // string
 	TID_category TID = 102 // string
-	TID_version  TID = 103 // string
-	TID_author   TID = 104 // string
-	TID_comment  TID = 105 // string
+	TID_link     TID = 103 // string
+	TID_version  TID = 104 // string
+	TID_author   TID = 105 // string
+	TID_comment  TID = 106 // string
 )
 
 var (
@@ -461,12 +462,11 @@ func (pack *Package) Glob(pattern string, found func(key string) error) (err err
 // Returns record associated with given filename.
 func (pack *Package) NamedRecord(kpath string) (offset int64, size int64, err error) {
 	var key = ToKey(kpath)
-	var tags, is = pack.Tags[key]
-	if !is {
+	if tags, is := pack.Tags[key]; is {
+		offset, size = tags.Record()
+	} else {
 		err = ErrNotFound
-		return
 	}
-	offset, size = tags.Record()
 	return
 }
 
@@ -486,6 +486,10 @@ func (e *TagError) Error() string {
 // reads records table, and reads file tags set table. Tags set
 // for each file must contain at least file ID, file name and creation time.
 func (pack *Package) Read(r io.ReadSeeker) (err error) {
+	// go to file start
+	if _, err = r.Seek(0, io.SeekStart); err != nil {
+		return
+	}
 	// read header
 	if err = binary.Read(r, binary.LittleEndian, &pack.PackHdr); err != nil {
 		return
@@ -553,6 +557,72 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 	return
 }
 
+// Writes prebuild header for new empty package.
+func (pack *Package) Begin(w io.WriteSeeker) (err error) {
+	// reset header
+	copy(pack.Signature[:], Prebuild)
+	pack.TagOffset = PackHdrSize
+	pack.TagNumber = 0
+	pack.RecNumber = 0
+	// setup empty tags table
+	pack.Tags = map[string]Tagset{}
+	// go to file start
+	if _, err = w.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	// write prebuild header
+	if err = binary.Write(w, binary.LittleEndian, &pack.PackHdr); err != nil {
+		return
+	}
+	return
+}
+
+// Writes prebuild header for previously opened package to append new files.
+func (pack *Package) Append(w io.WriteSeeker) (err error) {
+	// partially reset header
+	copy(pack.Signature[:], Prebuild)
+	// go to file start
+	if _, err = w.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	// rewrite prebuild header
+	if err = binary.Write(w, binary.LittleEndian, &pack.PackHdr); err != nil {
+		return
+	}
+	// go to tags table start to replace it by new data
+	if _, err = w.Seek(int64(pack.TagOffset), io.SeekStart); err != nil {
+		return
+	}
+	return
+}
+
+// Finalize package writing. Writes true signature and header settings.
+func (pack *Package) Complete(w io.WriteSeeker) (err error) {
+	// get tags table offset as actual end of file
+	var tagoffset int64
+	if tagoffset, err = w.Seek(0, io.SeekEnd); err != nil {
+		return
+	}
+	pack.TagOffset = OFFSET(tagoffset)
+	pack.TagNumber = FID(len(pack.Tags))
+	// write files tags table
+	for _, tags := range pack.Tags {
+		if _, err = tags.WriteTo(w); err != nil {
+			return
+		}
+	}
+
+	// rewrite true header
+	if _, err = w.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	copy(pack.Signature[:], Signature)
+	if err = binary.Write(w, binary.LittleEndian, &pack.PackHdr); err != nil {
+		return
+	}
+	return
+}
+
 // Puts data streamed by given reader into package as a file and associate keyname "kpath" with it.
 func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags Tagset, err error) {
 	var key = ToKey(kpath)
@@ -606,6 +676,20 @@ func (pack *Package) PackFile(w io.WriteSeeker, kpath, fpath string) (tags Tagse
 	return
 }
 
+// Wrapper to hold file name with error.
+type FileError struct {
+	What error
+	Name string
+}
+
+func (e *FileError) Error() string {
+	return fmt.Sprintf("error on file '%s': %s", e.Name, e.What.Error())
+}
+
+func (e *FileError) Unwrap() error {
+	return e.What
+}
+
 // Function to report about each file start processing by PackDir function.
 type FileReport = func(fi os.FileInfo, kpath, fpath string)
 
@@ -633,11 +717,12 @@ func (pack *Package) PackDir(w io.WriteSeeker, dirname, prefix string, report Fi
 				return
 			}
 		} else {
+			if _, err = pack.PackFile(w, kpath, fpath); err != nil {
+				err = &FileError{What: err, Name: kpath}
+				return
+			}
 			if report != nil {
 				report(fi, kpath, fpath)
-			}
-			if _, err = pack.PackFile(w, kpath, fpath); err != nil {
-				return
 			}
 		}
 	}

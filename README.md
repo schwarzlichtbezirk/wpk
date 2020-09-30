@@ -63,6 +63,6 @@ and later append to exising package new files at *step2* call:
 [packdir.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/packdir.lua) script has function that can be used to put to package directory with original tree hierarchy.
 
 # WPK API usage
-See [godoc](https://godoc.org/github.com/schwarzlichtbezirk/wpk) with API description.
+See [godoc](https://godoc.org/github.com/schwarzlichtbezirk/wpk) with API description, and [wpk_test.go](https://github.com/schwarzlichtbezirk/wpk/blob/master/wpk_test.go) for usage samples.
 
 On your program initialisation open prepared wpk-package by [Package.Read](https://godoc.org/github.com/schwarzlichtbezirk/wpk#Package.Read) call. It reads tags sets of package on this call and has no any others reading of tags sets later. [File](https://godoc.org/github.com/schwarzlichtbezirk/wpk#File) structure helps you to implement custom [http.FileSystem](https://golang.org/pkg/net/http/#FileSystem) to provide local file system and route it by [http.FileServer](https://golang.org/pkg/net/http/#FileServer). **wpk/bulk** and **wpk/mmap** modules already has file system interface implementation.

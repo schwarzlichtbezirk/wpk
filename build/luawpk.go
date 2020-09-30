@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/binary"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"time"
@@ -394,19 +392,11 @@ func wpkbegin(ls *lua.LState) int {
 		if dst, err = os.OpenFile(pkgpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
 			return
 		}
-
+		// setup file representation
 		pack.path = pkgpath
 		pack.w = dst
-
-		// reset header
-		copy(pack.Signature[:], Prebuild)
-		pack.TagOffset = PackHdrSize
-		pack.TagNumber = 0
-		pack.RecNumber = 0
-		// setup empty tags table
-		pack.Tags = map[string]Tagset{}
-		// write prebuild header
-		if err = binary.Write(pack.w, binary.LittleEndian, &pack.PackHdr); err != nil {
+		// starts new package
+		if err = pack.Begin(dst); err != nil {
 			return
 		}
 	}(); err != nil {
@@ -432,21 +422,10 @@ func wpkappend(ls *lua.LState) int {
 		if dst, err = os.OpenFile(pack.path, os.O_WRONLY, 0755); err != nil {
 			return
 		}
-
+		// update file representation
 		pack.w = dst
-
-		// partially reset header
-		copy(pack.Signature[:], Prebuild)
-		// rewrite prebuild header
-		if _, err = pack.w.Seek(0, io.SeekStart); err != nil {
-			return
-		}
-		if err = binary.Write(pack.w, binary.LittleEndian, &pack.PackHdr); err != nil {
-			return
-		}
-
-		// go to tags table start to replace it by new data
-		if _, err = pack.w.Seek(int64(pack.TagOffset), io.SeekStart); err != nil {
+		// starts to append files
+		if err = pack.Append(dst); err != nil {
 			return
 		}
 	}(); err != nil {
@@ -466,40 +445,21 @@ func wpkcomplete(ls *lua.LState) int {
 	}
 
 	var err error
-
-	// get tags table offset as actual end of file
-	var tagoffset int64
-	if tagoffset, err = pack.w.Seek(0, io.SeekEnd); err != nil {
-		ls.RaiseError(err.Error())
-		return 0
-	}
-	pack.TagOffset = OFFSET(tagoffset)
-	pack.TagNumber = FID(len(pack.Tags))
-	// write files tags table
-	for _, tags := range pack.Tags {
-		if _, err = tags.WriteTo(pack.w); err != nil {
-			ls.RaiseError(err.Error())
-			return 0
+	if func() {
+		// finalize
+		if err = pack.Complete(pack.w); err != nil {
+			return
 		}
-	}
-
-	// rewrite true header
-	if _, err = pack.w.Seek(0, io.SeekStart); err != nil {
+		// close package file
+		if err = pack.w.Close(); err != nil {
+			return
+		}
+		// clear file stream
+		pack.w = nil
+	}(); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
-	copy(pack.Signature[:], Signature)
-	if err = binary.Write(pack.w, binary.LittleEndian, &pack.PackHdr); err != nil {
-		ls.RaiseError(err.Error())
-		return 0
-	}
-
-	// close package file
-	if err = pack.w.Close(); err != nil {
-		ls.RaiseError(err.Error())
-		return 0
-	}
-	pack.w = nil
 
 	return 0
 }
@@ -568,12 +528,6 @@ func wpkputfile(ls *lua.LState) int {
 		return 0
 	}
 
-	var key = ToKey(kpath)
-	if _, is := pack.Tags[key]; is {
-		ls.RaiseError("file with name '%s' already present", kpath)
-		return 0
-	}
-
 	var err error
 	if func() {
 		var file *os.File
@@ -596,6 +550,7 @@ func wpkputfile(ls *lua.LState) int {
 			return
 		}
 	}(); err != nil {
+		err = &FileError{What: err, Name: kpath}
 		ls.RaiseError(err.Error())
 		return 0
 	}
@@ -613,12 +568,6 @@ func wpkputdata(ls *lua.LState) int {
 		return 0
 	}
 
-	var key = ToKey(kpath)
-	if _, is := pack.Tags[key]; is {
-		ls.RaiseError("file with name '%s' already present", kpath)
-		return 0
-	}
-
 	var err error
 	if func() {
 		var r = strings.NewReader(data)
@@ -633,6 +582,7 @@ func wpkputdata(ls *lua.LState) int {
 			return
 		}
 	}(); err != nil {
+		err = &FileError{What: err, Name: kpath}
 		ls.RaiseError(err.Error())
 		return 0
 	}
@@ -693,7 +643,11 @@ func wpkputalias(ls *lua.LState) int {
 		tags2[k] = v
 	}
 	tags2[TID_path] = TagString(kpath2)
+	if _, ok := tags2.String(TID_link); !ok {
+		tags2[TID_link] = TagString(kpath1)
+	}
 	pack.Tags[key2] = tags2
+	pack.TagNumber = FID(len(pack.Tags))
 	return 0
 }
 
@@ -706,6 +660,7 @@ func wpkdelalias(ls *lua.LState) int {
 	var _, ok = pack.Tags[key]
 	if ok {
 		delete(pack.Tags, key)
+		pack.TagNumber = FID(len(pack.Tags))
 	}
 	ls.Push(lua.LBool(ok))
 	return 1
