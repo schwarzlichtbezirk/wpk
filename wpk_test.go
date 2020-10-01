@@ -31,7 +31,8 @@ func CheckPackage(t *testing.T, file *os.File) {
 	for _, tags := range pack.Tags {
 		var path, _ = tags.String(TID_path)
 		var offset, size = tags.Record()
-		if _, ok := tags.String(TID_link); ok {
+		if link, ok := tags.String(TID_link); ok {
+			t.Logf("found alias '%s' to '%s'", path, link)
 			continue // skip aliases
 		}
 
@@ -64,6 +65,8 @@ func CheckPackage(t *testing.T, file *os.File) {
 
 		t.Logf("#%d checkup of '%s' is ok", tags.FID(), path)
 	}
+
+	//t.Fail()
 }
 
 func TestPackDir(t *testing.T) {
@@ -87,7 +90,9 @@ func TestPackDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	// finalize
-	pack.Complete(file)
+	if err = pack.Complete(file); err != nil {
+		t.Fatal(err)
+	}
 
 	CheckPackage(t, file)
 }
@@ -105,26 +110,10 @@ func TestPutFiles(t *testing.T) {
 		t.Logf("#%-2d %6d bytes   %s", pack.RecNumber, tags.Size(), name)
 	}
 	var makealias = func(oldname, newname string) {
-		var key1 = ToKey(oldname)
-		var key2 = ToKey(newname)
-		var tags1, ok = pack.Tags[key1]
-		if !ok {
-			t.Fatalf("file '%s' is not found in package", oldname)
+		if err = pack.PutAlias(oldname, newname); err != nil {
+			t.Fatal(err)
 		}
-		if _, ok = pack.Tags[key2]; ok {
-			t.Fatalf("file '%s' already present in package", newname)
-		}
-		var tags2 = Tagset{}
-		for k, v := range tags1 {
-			tags2[k] = v
-		}
-		tags2[TID_path] = TagString(newname)
-		if _, ok := tags2.String(TID_link); !ok {
-			tags2[TID_link] = TagString(oldname)
-		}
-		pack.Tags[key2] = tags2
-		pack.TagNumber = FID(len(pack.Tags))
-		t.Logf("alias '%s' to '%s'", oldname, newname)
+		t.Logf("maked alias '%s' to '%s'", newname, oldname)
 	}
 
 	if file, err = os.OpenFile(testpack, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
@@ -144,11 +133,11 @@ func TestPutFiles(t *testing.T) {
 	putfile("img2/uzunji.jpg")
 	makealias("img1/claustral.jpg", "jasper.jpg")
 	// finalize
-	pack.Complete(file)
+	if err = pack.Complete(file); err != nil {
+		t.Fatal(err)
+	}
 
 	CheckPackage(t, file)
-
-	t.Fail()
 }
 
 // The End.

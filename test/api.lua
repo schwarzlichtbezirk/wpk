@@ -139,7 +139,7 @@ to build wpk-packages.
 		carried out by replace name tag in file tags set from one name to other.
 	putalias(kpath1, kpath2) - clone tags set with file name kpath1 and replace
 		name tag in it to kpath2. So, there will be two tags set referenced to
-		one data block.
+		one data block. Puts link to original file name.
 	delalias(kpath) - delete tags set with specified file name. Data block is
 		still remains.
 	hastag(kpath, tid) - check up tag existence in tags set for specified file,

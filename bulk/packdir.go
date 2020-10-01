@@ -78,8 +78,8 @@ func (pack *PackDir) Open(kpath string) (http.File, error) {
 	} else if key == "wpk" {
 		var tags = wpk.Tagset{
 			wpk.TID_FID:    wpk.TagUint32(0),
-			wpk.TID_size:   wpk.TagUint64(uint64(len(pack.bulk))),
 			wpk.TID_offset: wpk.TagUint64(0),
+			wpk.TID_size:   wpk.TagUint64(uint64(len(pack.bulk))),
 		}
 		return pack.NewFile(tags)
 	}

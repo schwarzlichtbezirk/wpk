@@ -61,8 +61,8 @@ func NewPack(ls *lua.LState) int {
 	copy(pack.Signature[:], Prebuild)
 	pack.Tags = map[string]Tagset{}
 	pack.TagOffset = PackHdrSize
-	pack.TagNumber = 0
 	pack.RecNumber = 0
+	pack.TagNumber = 0
 
 	PushPack(ls, &pack)
 	return 1
@@ -626,28 +626,10 @@ func wpkputalias(ls *lua.LState) int {
 	var kpath1 = ls.CheckString(2)
 	var kpath2 = ls.CheckString(3)
 
-	var key1 = ToKey(kpath1)
-	var key2 = ToKey(kpath2)
-	var tags1, ok = pack.Tags[key1]
-	if !ok {
-		ls.RaiseError("file with name '%s' does not present", kpath1)
+	if err := pack.PutAlias(kpath1, kpath2); err != nil {
+		ls.RaiseError(err.Error())
 		return 0
 	}
-	if _, ok = pack.Tags[key2]; ok {
-		ls.RaiseError("file with name '%s' already present", kpath2)
-		return 0
-	}
-
-	var tags2 = Tagset{}
-	for k, v := range tags1 {
-		tags2[k] = v
-	}
-	tags2[TID_path] = TagString(kpath2)
-	if _, ok := tags2.String(TID_link); !ok {
-		tags2[TID_link] = TagString(kpath1)
-	}
-	pack.Tags[key2] = tags2
-	pack.TagNumber = FID(len(pack.Tags))
 	return 0
 }
 
@@ -656,12 +638,7 @@ func wpkdelalias(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
 
-	var key = ToKey(kpath)
-	var _, ok = pack.Tags[key]
-	if ok {
-		delete(pack.Tags, key)
-		pack.TagNumber = FID(len(pack.Tags))
-	}
+	var ok = pack.DelAlias(kpath)
 	ls.Push(lua.LBool(ok))
 	return 1
 }

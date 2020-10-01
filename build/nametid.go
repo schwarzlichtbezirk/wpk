@@ -11,8 +11,8 @@ import (
 // Helps convert Lua-table string keys to associated TID values.
 var NameTid = map[string]TID{
 	"fid":     TID_FID,
-	"size":    TID_size,
 	"offset":  TID_offset,
+	"size":    TID_size,
 	"name":    TID_path,
 	"path":    TID_path,
 	"time":    TID_created,
@@ -34,6 +34,7 @@ var NameTid = map[string]TID{
 	"sha512": TID_SHA512,
 
 	"mime":     TID_mime,
+	"link":     TID_link,
 	"keywords": TID_keywords,
 	"category": TID_category,
 	"version":  TID_version,

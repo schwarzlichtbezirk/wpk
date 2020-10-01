@@ -21,15 +21,15 @@ const (
 type (
 	TID    uint16 // tag identifier
 	FID    uint32 // file index/identifier
-	SIZE   uint64 // data block size
 	OFFSET uint64 // data block offset
+	SIZE   uint64 // data block size
 )
 
 // List of predefined tags IDs.
 const (
 	TID_FID        TID = 0 // required, uint32
-	TID_size       TID = 1 // required, uint64
-	TID_offset     TID = 2 // required, uint64
+	TID_offset     TID = 1 // required, uint64
+	TID_size       TID = 2 // required, uint64
 	TID_path       TID = 3 // required, unique, string
 	TID_created    TID = 4 // required, uint64
 	TID_lastaccess TID = 5 // uint64
@@ -52,27 +52,36 @@ const (
 	TID_SHA512 TID = 25 // [64]byte
 
 	TID_mime     TID = 100 // string
-	TID_keywords TID = 101 // string
-	TID_category TID = 102 // string
-	TID_link     TID = 103 // string
+	TID_link     TID = 101 // string
+	TID_keywords TID = 102 // string
+	TID_category TID = 103 // string
 	TID_version  TID = 104 // string
 	TID_author   TID = 105 // string
 	TID_comment  TID = 106 // string
 )
 
 var (
-	ErrNotFound = errors.New("file not found")
-	ErrAlready  = errors.New("file with this name already packed")
+	ErrNotFound = errors.New("file is not found in package")
+	ErrAlready  = errors.New("file with this name already present in package")
 	ErrSignPre  = errors.New("package is not ready yet")
 	ErrSignBad  = errors.New("signature does not pass")
+
+	ErrNoPath   = errors.New("file name is absent")
+	ErrNoFID    = errors.New("file ID is absent")
+	ErrOutFID   = errors.New("file ID is out of range")
+	ErrNoOffset = errors.New("file offset is absent")
+	ErrOutOff   = errors.New("file offset is out of bounds")
+	ErrNoSize   = errors.New("file size is absent")
+	ErrOutSize  = errors.New("file size is out of bounds")
+	ErrNoTime   = errors.New("file creation time is absent")
 )
 
 // Package header.
 type PackHdr struct {
 	Signature [0x18]byte `json:"signature"`
 	TagOffset OFFSET     `json:"tagoffset"` // tags table offset
-	TagNumber FID        `json:"tagnumber"` // number of tagset entries
 	RecNumber FID        `json:"recnumber"` // number of records
+	TagNumber FID        `json:"tagnumber"` // number of tagset entries
 }
 
 // Package header length.
@@ -273,8 +282,8 @@ func (t Tagset) FID() FID {
 
 // Returns file offset & size.
 func (t Tagset) Record() (int64, int64) {
-	var size, _ = t.Uint64(TID_size)
 	var offset, _ = t.Uint64(TID_offset)
+	var size, _ = t.Uint64(TID_size)
 	return int64(offset), int64(size)
 }
 
@@ -472,14 +481,17 @@ func (pack *Package) NamedRecord(kpath string) (offset int64, size int64, err er
 
 // Error in tags set. Shows errors associated with any tags.
 type TagError struct {
-	Index FID    // index in tags table
-	TagID TID    // tag ID
-	What  string // error message
+	What error  // error message
+	TID  TID    // tag ID
+	Path string // file path, if it known
 }
 
-// Format error message of tag error.
 func (e *TagError) Error() string {
-	return fmt.Sprintf("tag index %d, tag ID %d, %s", e.Index, e.TagID, e.What)
+	return fmt.Sprintf("error on file '%s' for tag ID %d, %s", e.Path, e.TID, e.What)
+}
+
+func (e *TagError) Unwrap() error {
+	return e.What
 }
 
 // Opens package for reading. At first its checkup file signature, then
@@ -506,226 +518,57 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 	if _, err = r.Seek(int64(pack.TagOffset), io.SeekStart); err != nil {
 		return
 	}
-	for i := FID(0); i < pack.TagNumber; i++ {
+	var n int64
+	for {
 		var tags = Tagset{}
-		if _, err = tags.ReadFrom(r); err != nil {
+		if n, err = tags.ReadFrom(r); err != nil {
 			return
+		}
+		if n == 2 {
+			break // end marker was readed
 		}
 
 		// check tags fields
 		var ok bool
-
-		var fid uint32
-		if fid, ok = tags.Uint32(TID_FID); !ok {
-			return &TagError{i, TID_FID, "file ID is absent"}
-		}
-		if fid > uint32(pack.RecNumber) {
-			return &TagError{i, TID_FID, fmt.Sprintf("file ID '%d' is out of range", fid)}
-		}
-
 		var kpath string
 		if kpath, ok = tags.String(TID_path); !ok {
-			return &TagError{i, TID_path, fmt.Sprintf("file name is absent for file ID '%d'", fid)}
+			return &TagError{ErrNoPath, TID_path, kpath}
 		}
 		var key = ToKey(kpath)
 		if _, ok = pack.Tags[key]; ok {
-			return &TagError{i, TID_path, fmt.Sprintf("file name '%s' is not unique", kpath)}
+			return &TagError{ErrAlready, TID_path, kpath}
 		}
 
-		var size, offset uint64
-		if size, ok = tags.Uint64(TID_size); !ok {
-			return &TagError{i, TID_size, fmt.Sprintf("size is absent for file name '%s'", kpath)}
+		var fid uint32
+		if fid, ok = tags.Uint32(TID_FID); !ok {
+			return &TagError{ErrNoFID, TID_FID, kpath}
 		}
+		if fid > uint32(pack.RecNumber) {
+			return &TagError{ErrOutFID, TID_FID, kpath}
+		}
+
+		var offset, size uint64
 		if offset, ok = tags.Uint64(TID_offset); !ok {
-			return &TagError{i, TID_offset, fmt.Sprintf("offset is absent for file name '%s'", kpath)}
+			return &TagError{ErrNoOffset, TID_offset, kpath}
+		}
+		if size, ok = tags.Uint64(TID_size); !ok {
+			return &TagError{ErrNoSize, TID_size, kpath}
 		}
 		if offset < PackHdrSize || offset >= uint64(pack.TagOffset) {
-			return &TagError{i, TID_offset, fmt.Sprintf("offset is out of bounds for file name '%s'", kpath)}
+			return &TagError{ErrOutOff, TID_offset, kpath}
 		}
 		if offset+size > uint64(pack.TagOffset) {
-			return &TagError{i, TID_size, fmt.Sprintf("file size is out of bounds for file name '%s'", kpath)}
+			return &TagError{ErrOutSize, TID_size, kpath}
 		}
 
 		if _, ok = tags.Uint64(TID_created); !ok {
-			return &TagError{i, TID_created, fmt.Sprintf("creation time is absent for file name '%s'", kpath)}
+			return &TagError{ErrNoTime, TID_created, kpath}
 		}
 
 		// insert file tags
 		pack.Tags[key] = tags
 	}
 
-	return
-}
-
-// Writes prebuild header for new empty package.
-func (pack *Package) Begin(w io.WriteSeeker) (err error) {
-	// reset header
-	copy(pack.Signature[:], Prebuild)
-	pack.TagOffset = PackHdrSize
-	pack.TagNumber = 0
-	pack.RecNumber = 0
-	// setup empty tags table
-	pack.Tags = map[string]Tagset{}
-	// go to file start
-	if _, err = w.Seek(0, io.SeekStart); err != nil {
-		return
-	}
-	// write prebuild header
-	if err = binary.Write(w, binary.LittleEndian, &pack.PackHdr); err != nil {
-		return
-	}
-	return
-}
-
-// Writes prebuild header for previously opened package to append new files.
-func (pack *Package) Append(w io.WriteSeeker) (err error) {
-	// partially reset header
-	copy(pack.Signature[:], Prebuild)
-	// go to file start
-	if _, err = w.Seek(0, io.SeekStart); err != nil {
-		return
-	}
-	// rewrite prebuild header
-	if err = binary.Write(w, binary.LittleEndian, &pack.PackHdr); err != nil {
-		return
-	}
-	// go to tags table start to replace it by new data
-	if _, err = w.Seek(int64(pack.TagOffset), io.SeekStart); err != nil {
-		return
-	}
-	return
-}
-
-// Finalize package writing. Writes true signature and header settings.
-func (pack *Package) Complete(w io.WriteSeeker) (err error) {
-	// get tags table offset as actual end of file
-	var tagoffset int64
-	if tagoffset, err = w.Seek(0, io.SeekEnd); err != nil {
-		return
-	}
-	pack.TagOffset = OFFSET(tagoffset)
-	pack.TagNumber = FID(len(pack.Tags))
-	// write files tags table
-	for _, tags := range pack.Tags {
-		if _, err = tags.WriteTo(w); err != nil {
-			return
-		}
-	}
-
-	// rewrite true header
-	if _, err = w.Seek(0, io.SeekStart); err != nil {
-		return
-	}
-	copy(pack.Signature[:], Signature)
-	if err = binary.Write(w, binary.LittleEndian, &pack.PackHdr); err != nil {
-		return
-	}
-	return
-}
-
-// Puts data streamed by given reader into package as a file and associate keyname "kpath" with it.
-func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags Tagset, err error) {
-	var key = ToKey(kpath)
-	if _, ok := pack.Tags[key]; ok {
-		err = ErrAlready
-		return
-	}
-
-	// get offset and put data ckage
-	var offset, size int64
-	if offset, err = w.Seek(0, io.SeekCurrent); err != nil {
-		return
-	}
-	if size, err = io.Copy(w, r); err != nil {
-		return
-	}
-
-	// insert new entry to tags table
-	tags = Tagset{
-		TID_FID:    TagUint32(uint32(pack.RecNumber + 1)),
-		TID_size:   TagUint64(uint64(size)),
-		TID_offset: TagUint64(uint64(offset)),
-		TID_path:   TagString(kpath),
-	}
-	pack.Tags[key] = tags
-
-	// update header
-	pack.TagOffset = OFFSET(offset + size)
-	pack.TagNumber = FID(len(pack.Tags))
-	pack.RecNumber++
-	return
-}
-
-// Puts file with given file full path "fpath" into package and associate keyname "kpath" with it.
-func (pack *Package) PackFile(w io.WriteSeeker, kpath, fpath string) (tags Tagset, err error) {
-	var file *os.File
-	if file, err = os.Open(fpath); err != nil {
-		return
-	}
-	defer file.Close()
-
-	var fi os.FileInfo
-	if fi, err = file.Stat(); err != nil {
-		return
-	}
-	if tags, err = pack.PackData(w, file, kpath); err != nil {
-		return
-	}
-
-	tags[TID_created] = TagUint64(uint64(fi.ModTime().Unix()))
-	return
-}
-
-// Wrapper to hold file name with error.
-type FileError struct {
-	What error
-	Name string
-}
-
-func (e *FileError) Error() string {
-	return fmt.Sprintf("error on file '%s': %s", e.Name, e.What.Error())
-}
-
-func (e *FileError) Unwrap() error {
-	return e.What
-}
-
-// Function to report about each file start processing by PackDir function.
-type FileReport = func(fi os.FileInfo, kpath, fpath string)
-
-// Puts all files of given folder and it's subfolders into package.
-func (pack *Package) PackDir(w io.WriteSeeker, dirname, prefix string, report FileReport) (err error) {
-	var fis []os.FileInfo
-	if func() {
-		var dir *os.File
-		if dir, err = os.Open(dirname); err != nil {
-			return
-		}
-		defer dir.Close()
-
-		if fis, err = dir.Readdir(-1); err != nil {
-			return
-		}
-	}(); err != nil {
-		return
-	}
-	for _, fi := range fis {
-		var kpath = prefix + fi.Name()
-		var fpath = dirname + fi.Name()
-		if fi.IsDir() {
-			if err = pack.PackDir(w, fpath+"/", kpath+"/", report); err != nil {
-				return
-			}
-		} else {
-			if _, err = pack.PackFile(w, kpath, fpath); err != nil {
-				err = &FileError{What: err, Name: kpath}
-				return
-			}
-			if report != nil {
-				report(fi, kpath, fpath)
-			}
-		}
-	}
 	return
 }
 
