@@ -55,6 +55,7 @@ func mainluavm(fpath string) (err error) {
 	var scrdir = filepath.ToSlash(filepath.Dir(fpath)) + "/"
 	ls.SetGlobal("bindir", lua.LString(bindir))
 	ls.SetGlobal("scrdir", lua.LString(scrdir))
+	ls.SetGlobal("tmpdir", lua.LString(filepath.ToSlash(os.TempDir())))
 	ls.SetGlobal("log", ls.NewFunction(lualog))
 	ls.SetGlobal("checkfile", ls.NewFunction(luacheckfile))
 

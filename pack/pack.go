@@ -98,8 +98,8 @@ func writepackage() (err error) {
 	// reset header
 	copy(pack.Signature[:], Prebuild)
 	pack.TagOffset = PackHdrSize
-	pack.TagNumber = 0
 	pack.RecNumber = 0
+	pack.TagNumber = 0
 	// setup empty tags table
 	pack.Tags = map[string]Tagset{}
 	// write prebuild header

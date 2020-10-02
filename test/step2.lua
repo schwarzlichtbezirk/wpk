@@ -1,6 +1,6 @@
 
 -- ensure package existence
-local pkgpath = scrdir.."steps.wpk" -- make package full file name on script directory
+local pkgpath = path.join(tmpdir, "steps.wpk") -- make package full file name on temporary directory
 if not checkfile(pkgpath) then
 	log "package file 'steps.wpk' to append data is not found, performs previous step"
 	dofile(scrdir.."step1.lua")
@@ -54,6 +54,7 @@ end
 
 -- prepare to append new files to existing package
 pkg:append()
+log("append: "..pkgpath)
 
 -- put images with keywords and author addition tags
 packfile("img2/marble.jpg", "beach")

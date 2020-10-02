@@ -31,9 +31,9 @@ const (
 	TID_offset     TID = 1 // required, uint64
 	TID_size       TID = 2 // required, uint64
 	TID_path       TID = 3 // required, unique, string
-	TID_created    TID = 4 // required, uint64
-	TID_lastaccess TID = 5 // uint64
-	TID_lastwrite  TID = 6 // uint64
+	TID_created    TID = 4 // required for files, uint64
+	TID_lastwrite  TID = 5 // uint64
+	TID_lastaccess TID = 6 // uint64
 	TID_change     TID = 7 // uint64
 	TID_fileattr   TID = 8 // uint32
 
@@ -73,7 +73,6 @@ var (
 	ErrOutOff   = errors.New("file offset is out of bounds")
 	ErrNoSize   = errors.New("file size is absent")
 	ErrOutSize  = errors.New("file size is out of bounds")
-	ErrNoTime   = errors.New("file creation time is absent")
 )
 
 // Package header.
@@ -487,7 +486,7 @@ type TagError struct {
 }
 
 func (e *TagError) Error() string {
-	return fmt.Sprintf("error on file '%s' for tag ID %d, %s", e.Path, e.TID, e.What)
+	return fmt.Sprintf("error on file '%s' for tag ID %d: %s", e.Path, e.TID, e.What)
 }
 
 func (e *TagError) Unwrap() error {
@@ -559,10 +558,6 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 		}
 		if offset+size > uint64(pack.TagOffset) {
 			return &TagError{ErrOutSize, TID_size, kpath}
-		}
-
-		if _, ok = tags.Uint64(TID_created); !ok {
-			return &TagError{ErrNoTime, TID_created, kpath}
 		}
 
 		// insert file tags

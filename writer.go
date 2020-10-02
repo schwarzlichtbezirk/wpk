@@ -106,18 +106,12 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags
 	// update header
 	pack.TagOffset = OFFSET(offset + size)
 	pack.RecNumber++
-	pack.TagNumber = FID(len(pack.Tags))
+	pack.TagNumber++
 	return
 }
 
-// Puts file with given file full path "fpath" into package and associate keyname "kpath" with it.
-func (pack *Package) PackFile(w io.WriteSeeker, kpath, fpath string) (tags Tagset, err error) {
-	var file *os.File
-	if file, err = os.Open(fpath); err != nil {
-		return
-	}
-	defer file.Close()
-
+// Puts file with given file handle into package and associate keyname "kpath" with it.
+func (pack *Package) PackFile(w io.WriteSeeker, file *os.File, kpath string) (tags Tagset, err error) {
 	var fi os.FileInfo
 	if fi, err = file.Stat(); err != nil {
 		return
@@ -127,6 +121,7 @@ func (pack *Package) PackFile(w io.WriteSeeker, kpath, fpath string) (tags Tagse
 	}
 
 	tags[TID_created] = TagUint64(uint64(fi.ModTime().Unix()))
+	tags[TID_link] = TagString(kpath)
 	return
 }
 
@@ -144,11 +139,12 @@ func (e *FileError) Unwrap() error {
 	return e.What
 }
 
-// Function to report about each file start processing by PackDir function.
-type FileReport = func(fi os.FileInfo, kpath, fpath string)
+// Function called after each file with its parameters during PackDir processing.
+type PackDirHook = func(fi os.FileInfo, kpath, fpath string)
 
 // Puts all files of given folder and it's subfolders into package.
-func (pack *Package) PackDir(w io.WriteSeeker, dirname, prefix string, report FileReport) (err error) {
+// Hook function can be nil.
+func (pack *Package) PackDir(w io.WriteSeeker, dirname, prefix string, hook PackDirHook) (err error) {
 	var fis []os.FileInfo
 	if func() {
 		var dir *os.File
@@ -167,16 +163,24 @@ func (pack *Package) PackDir(w io.WriteSeeker, dirname, prefix string, report Fi
 		var kpath = prefix + fi.Name()
 		var fpath = dirname + fi.Name()
 		if fi.IsDir() {
-			if err = pack.PackDir(w, fpath+"/", kpath+"/", report); err != nil {
+			if err = pack.PackDir(w, fpath+"/", kpath+"/", hook); err != nil {
 				return
 			}
 		} else {
-			if _, err = pack.PackFile(w, kpath, fpath); err != nil {
-				err = &FileError{What: err, Name: kpath}
-				return
-			}
-			if report != nil {
-				report(fi, kpath, fpath)
+			func() {
+				var file *os.File
+				if file, err = os.Open(fpath); err != nil {
+					return
+				}
+				defer file.Close()
+
+				if _, err = pack.PackFile(w, file, kpath); err != nil {
+					err = &FileError{What: err, Name: kpath}
+					return
+				}
+			}()
+			if hook != nil {
+				hook(fi, kpath, fpath)
 			}
 		}
 	}
@@ -200,11 +204,8 @@ func (pack *Package) PutAlias(oldname, newname string) error {
 		tags2[k] = v
 	}
 	tags2[TID_path] = TagString(newname)
-	if _, ok := tags2.String(TID_link); !ok {
-		tags2[TID_link] = TagString(oldname)
-	}
 	pack.Tags[key2] = tags2
-	pack.TagNumber = FID(len(pack.Tags))
+	pack.TagNumber++
 	return nil
 }
 
@@ -214,7 +215,7 @@ func (pack *Package) DelAlias(name string) bool {
 	var _, ok = pack.Tags[key]
 	if ok {
 		delete(pack.Tags, key)
-		pack.TagNumber = FID(len(pack.Tags))
+		pack.TagNumber--
 	}
 	return ok
 }

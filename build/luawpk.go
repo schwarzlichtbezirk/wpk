@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	. "github.com/schwarzlichtbezirk/wpk"
 	"github.com/yuin/gopher-lua"
@@ -158,8 +157,8 @@ var methods_pack = map[string]lua.LGFunction{
 	"glob":     wpkglob,
 	"hasfile":  wpkhasfile,
 	"filesize": wpkfilesize,
-	"putfile":  wpkputfile,
 	"putdata":  wpkputdata,
+	"putfile":  wpkputfile,
 	"rename":   wpkrename,
 	"putalias": wpkputalias,
 	"delalias": wpkdelalias,
@@ -518,46 +517,6 @@ func wpkfilesize(ls *lua.LState) int {
 	return 1
 }
 
-func wpkputfile(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	var kpath = ls.CheckString(2)
-	var fpath = ls.CheckString(3)
-
-	if pack.w == nil {
-		ls.RaiseError("package write stream does not opened")
-		return 0
-	}
-
-	var err error
-	if func() {
-		var file *os.File
-		if file, err = os.Open(fpath); err != nil {
-			return
-		}
-		defer file.Close()
-
-		var fi os.FileInfo
-		if fi, err = file.Stat(); err != nil {
-			return
-		}
-		var tags Tagset
-		if tags, err = pack.PackData(pack.w, file, kpath); err != nil {
-			return
-		}
-
-		tags[TID_created] = TagUint64(uint64(fi.ModTime().Unix()))
-		if err = pack.adjusttagset(file, tags); err != nil {
-			return
-		}
-	}(); err != nil {
-		err = &FileError{What: err, Name: kpath}
-		ls.RaiseError(err.Error())
-		return 0
-	}
-
-	return 0
-}
-
 func wpkputdata(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
@@ -577,8 +536,42 @@ func wpkputdata(ls *lua.LState) int {
 			return
 		}
 
-		tags[TID_created] = TagUint64(uint64(time.Now().Unix())) // set created to now
 		if err = pack.adjusttagset(r, tags); err != nil {
+			return
+		}
+	}(); err != nil {
+		err = &FileError{What: err, Name: kpath}
+		ls.RaiseError(err.Error())
+		return 0
+	}
+
+	return 0
+}
+
+func wpkputfile(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var kpath = ls.CheckString(2)
+	var fpath = ls.CheckString(3)
+
+	if pack.w == nil {
+		ls.RaiseError("package write stream does not opened")
+		return 0
+	}
+
+	var err error
+	if func() {
+		var file *os.File
+		if file, err = os.Open(fpath); err != nil {
+			return
+		}
+		defer file.Close()
+
+		var tags Tagset
+		if tags, err = pack.PackFile(pack.w, file, kpath); err != nil {
+			return
+		}
+
+		if err = pack.adjusttagset(file, tags); err != nil {
 			return
 		}
 	}(); err != nil {

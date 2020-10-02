@@ -1,6 +1,5 @@
 
-local pkgpath = scrdir.."build.wpk" -- make package full file name on script directory
-log("starts: "..pkgpath)
+local pkgpath = path.envfmt"$(GOPATH)/bin/build.wpk" -- make package full file name on temporary directory
 
 -- inits new package
 local pkg = wpk.new()
@@ -11,6 +10,7 @@ pkg.sha256 = true -- generate SHA256 hash for each file
 
 -- open wpk-file for write
 pkg:begin(pkgpath)
+log("starts: "..pkgpath)
 
 -- pack given file, then add keywords and author to tags set
 local function packfile(kpath, fpath, keywords)

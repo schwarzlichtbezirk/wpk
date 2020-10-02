@@ -11,6 +11,7 @@ to build wpk-packages.
 		Directory is splash-terminated.
 	scrdir - string value with directory to this Lua script.
 		Directory is splash-terminated.
+	tmpdir - string value with default directory to use for temporary files.
 	log(str) - writes to log given string with current date.
 	checkfile(fpath) - checks up file existence with given full path to it.
 		Returns 2 values: first - boolean file existence. If first is true,
@@ -179,7 +180,7 @@ function wpk.create(fpath)-- additional wpk-constructor
 	pkg.automime = true -- put MIME type for each file if it is not given explicit
 	pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 	pkg:begin(fpath) -- open wpk-file for write
-	log("starts "..pkg.path)
+	log("starts: "..pkg.path)
 	return pkg
 end
 function wpk:logfile(kpath) -- write record log

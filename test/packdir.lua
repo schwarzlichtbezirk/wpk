@@ -7,8 +7,8 @@ pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 pkg.sha256 = true -- generate SHA256 hash for each file
 
 -- open wpk-file for write
-pkg:begin(path.envfmt"$(GOPATH)/bin/packdir.wpk")
-log("starts "..pkg.path)
+pkg:begin(path.join(tmpdir, "packdir.wpk"))
+log("starts: "..pkg.path)
 
 -- write to log formatted string
 local function logfmt(...)

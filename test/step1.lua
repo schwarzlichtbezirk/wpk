@@ -1,5 +1,5 @@
 
-local pkgpath = scrdir.."steps.wpk" -- make package full file name on script directory
+local pkgpath = path.join(tmpdir, "steps.wpk") -- make package full file name on temporary directory
 
 print ""
 log "starts step 1"
@@ -22,6 +22,7 @@ end
 
 -- open wpk-file for write
 pkg:begin(pkgpath)
+log("create: "..pkgpath)
 
 -- put images with keywords and author addition tags
 packfile("bounty.jpg", "beach")
