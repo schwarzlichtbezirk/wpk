@@ -12,13 +12,22 @@ import (
 var efre = regexp.MustCompile(`\$\(\w+\)`)
 
 func envfmt(p string) string {
-	return filepath.ToSlash(efre.ReplaceAllStringFunc(p, func(name string) string {
+	return ToSlash(efre.ReplaceAllStringFunc(p, func(name string) string {
 		return os.Getenv(name[2 : len(name)-1]) // strip $(...) and replace by env value
 	}))
 }
 
 var mediadir = envfmt("$(GOPATH)/src/github.com/schwarzlichtbezirk/wpk/test/media/")
 var testpack = filepath.Join(os.TempDir(), "testpack.wpk")
+
+var memdata = map[string][]byte{
+	"sample.txt": []byte("The quick brown fox jumps over the lazy dog"),
+	"array.dat": []byte{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+		100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
+		200, 201, 202, 203, 204, 205, 206, 207, 208, 209,
+	},
+}
 
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
@@ -36,22 +45,29 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 	}
 
 	for _, tags := range pack.Tags {
-		var path, _ = tags.String(TID_path)
+		var _, isfile = tags[TID_created]
+
 		var link, is = tags.String(TID_link)
-		if !is {
-			t.Logf("found packed data #%d '%s'", tags.FID(), path)
-			continue // skip file without link
+		if isfile && !is {
+			t.Fatalf("found file without link #%d '%s'", tags.FID(), tags.Path())
 		}
 		var offset, size = tags.Record()
 
 		var orig []byte
-		if orig, err = ioutil.ReadFile(mediadir + link); err != nil {
-			t.Fatal(err)
+		if isfile {
+			if orig, err = ioutil.ReadFile(mediadir + link); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			var is bool
+			if orig, is = memdata[tags.Path()]; !is {
+				t.Fatalf("memory block named as '%s' not found", tags.Path())
+			}
 		}
 
 		if tags.Size() != int64(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
-				path, tags.Size(), len(orig))
+				tags.Path(), tags.Size(), len(orig))
 		}
 
 		var extr = make([]byte, size, size)
@@ -60,18 +76,21 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 			t.Fatal(err)
 		}
 		if n != len(extr) {
-			t.Errorf("can not extract content of file '%s' completely", path)
+			t.Errorf("can not extract content of file '%s' completely", tags.Path())
 		}
-
 		if !bytes.Equal(orig, extr) {
-			t.Errorf("content of file '%s' is defer from original", path)
+			t.Errorf("content of file '%s' is defer from original", tags.Path())
 		}
 
 		if t.Failed() {
 			break
 		}
 
-		t.Logf("checkup #%d '%s' is ok", tags.FID(), path)
+		if isfile {
+			t.Logf("check file #%d '%s' is ok", tags.FID(), tags.Path())
+		} else {
+			t.Logf("check data #%d '%s' is ok", tags.FID(), tags.Path())
+		}
 	}
 }
 
@@ -135,6 +154,17 @@ func TestPutFiles(t *testing.T) {
 		tagsnum++
 		t.Logf("put file #%d '%s', %d bytes", pack.RecNumber, name, tags.Size())
 	}
+	var putdata = func(name string, data []byte) {
+		var r = bytes.NewReader(data)
+
+		var tags Tagset
+		if tags, err = pack.PackData(fwpk, r, name); err != nil {
+			t.Fatal(err)
+		}
+
+		tagsnum++
+		t.Logf("put data #%d '%s', %d bytes", pack.RecNumber, name, tags.Size())
+	}
 	var putalias = func(oldname, newname string) {
 		if err = pack.PutAlias(oldname, newname); err != nil {
 			t.Fatal(err)
@@ -167,6 +197,9 @@ func TestPutFiles(t *testing.T) {
 	putfile("img2/marble.jpg")
 	putfile("img2/uzunji.jpg")
 	putalias("img1/claustral.jpg", "basaltbay.jpg")
+	for name, data := range memdata {
+		putdata(name, data)
+	}
 	putalias("img1/claustral.jpg", "jasper.jpg")
 	delalias("basaltbay.jpg")
 	// finalize

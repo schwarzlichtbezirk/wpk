@@ -93,6 +93,7 @@ to build wpk-packages.
 	datasize - getter only, returns package data size.
 	automime - get/set mode to put for each new file tag with its MIME
 		determined by file extension, if it does not issued explicitly.
+	nolink - get/set mode to exclude link from tags set. Exclude on 'true'.
 	secret - get/set private key to sign hash MAC (MD5, SHA1, SHA224, etc).
 	crc32 - get/set mode to put for each new file tag with CRC32 of file.
 		Used Castagnoli's polynomial 0x82f63b78.
@@ -178,6 +179,7 @@ end
 function wpk.create(fpath)-- additional wpk-constructor
 	local pkg = wpk.new()
 	pkg.automime = true -- put MIME type for each file if it is not given explicit
+	pkg.nolink = true -- exclude links
 	pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 	pkg:begin(fpath) -- open wpk-file for write
 	log("starts: "..pkg.path)

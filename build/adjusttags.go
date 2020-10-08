@@ -45,6 +45,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags Tagset) (err error) {
 		tags[TID_mime] = TagString(ctype)
 	}
 
+	if pack.nolink {
+		delete(tags, TID_link)
+	}
+
 	if _, ok := tags[TID_CRC32C]; !ok && pack.crc32 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return

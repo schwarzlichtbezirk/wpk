@@ -18,14 +18,13 @@ type PackDir struct {
 	pref string
 }
 
-// Reads WPK-file package by given file name.
-func (pack *PackDir) ReadWPK(fname string) (err error) {
+// Opens WPK-file package by given file name.
+func (pack *PackDir) OpenWPK(fname string) (err error) {
 	var bulk []byte
 	if bulk, err = ioutil.ReadFile(fname); err != nil {
 		return
 	}
 
-	pack.Package = &wpk.Package{}
 	pack.bulk = bulk
 	pack.pref = ""
 
@@ -42,7 +41,7 @@ func (pack *PackDir) Close() error {
 }
 
 // Clones object and gives access to pointed subdirectory.
-func (pack *PackDir) SubDir(pref string) *PackDir {
+func (pack *PackDir) SubDir(pref string) wpk.Packager {
 	pref = wpk.ToKey(pref)
 	if len(pref) > 0 && pref[len(pref)-1] != '/' {
 		pref += "/"
@@ -55,7 +54,7 @@ func (pack *PackDir) SubDir(pref string) *PackDir {
 }
 
 // Creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) NewFile(tags wpk.Tagset) (http.File, error) {
+func (pack *PackDir) OpenFile(tags wpk.Tagset) (http.File, error) {
 	var offset, size = tags.Record()
 	return &wpk.File{
 		Tagset: tags,
@@ -65,37 +64,36 @@ func (pack *PackDir) NewFile(tags wpk.Tagset) (http.File, error) {
 }
 
 // Returns slice with nested into package file content.
-func (pack *PackDir) Extract(tags wpk.Tagset) ([]byte, error) {
-	var offset, size = tags.Record()
+func (pack *PackDir) Extract(key string) ([]byte, error) {
+	var offset, size, err = pack.NamedRecord(key)
+	if err != nil {
+		return nil, err
+	}
 	return pack.bulk[offset : offset+size], nil
 }
 
 // Implements access to nested into package file or directory by keyname.
-func (pack *PackDir) Open(kpath string) (http.File, error) {
-	var key = pack.pref + strings.TrimPrefix(wpk.ToKey(kpath), "/")
-	if key == "" {
-		return pack.NewDir(key), nil
-	} else if key == "wpk" {
-		var tags = wpk.Tagset{
-			wpk.TID_FID:    wpk.TagUint32(0),
-			wpk.TID_offset: wpk.TagUint64(0),
-			wpk.TID_size:   wpk.TagUint64(uint64(len(pack.bulk))),
-		}
-		return pack.NewFile(tags)
+func (pack *PackDir) Open(kname string) (http.File, error) {
+	var kpath = pack.pref + strings.TrimPrefix(kname, "/")
+	if kpath == "" {
+		return pack.OpenDir(kpath)
+	} else if kpath == "wpk" {
+		return &wpk.File{
+			Tagset: wpk.Tagset{
+				wpk.TID_FID:    wpk.TagUint32(0),
+				wpk.TID_offset: wpk.TagUint64(0),
+				wpk.TID_size:   wpk.TagUint64(uint64(len(pack.bulk))),
+			},
+			Reader: *bytes.NewReader(pack.bulk),
+			Pack:   pack.Package,
+		}, nil
 	}
 
+	var key = wpk.ToKey(kpath)
 	if tags, is := pack.Tags[key]; is {
-		return pack.NewFile(tags)
+		return pack.OpenFile(tags)
 	} else {
-		if key[len(key)-1] != '/' { // bring key to dir
-			key += "/"
-		}
-		for k := range pack.Tags {
-			if strings.HasPrefix(k, key) {
-				return pack.NewDir(key), nil
-			}
-		}
-		return nil, wpk.ErrNotFound
+		return pack.OpenDir(kpath)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,11 +61,39 @@ const (
 	TID_comment  TID = 106 // string
 )
 
+// Some error with key of tags set.
+type ErrKey struct {
+	What error  // error message
+	Key  string // file key
+}
+
+func (e *ErrKey) Error() string {
+	return fmt.Sprintf("key '%s': %s", e.Key, e.What)
+}
+
+func (e *ErrKey) Unwrap() error {
+	return e.What
+}
+
+// Error on some field of tags set.
+type ErrTag struct {
+	ErrKey
+	TID TID // tag ID
+}
+
+func (e *ErrTag) Error() string {
+	return fmt.Sprintf("key '%s', tag ID %d: %s", e.Key, e.TID, e.What)
+}
+
+func (e *ErrTag) Unwrap() error {
+	return &e.ErrKey
+}
+
 var (
-	ErrNotFound = errors.New("file is not found in package")
-	ErrAlready  = errors.New("file with this name already present in package")
 	ErrSignPre  = errors.New("package is not ready yet")
 	ErrSignBad  = errors.New("signature does not pass")
+	ErrNotFound = errors.New("file is not found in package")
+	ErrAlready  = errors.New("file already present in package")
 
 	ErrNoPath   = errors.New("file name is absent")
 	ErrNoFID    = errors.New("file ID is absent")
@@ -74,6 +103,15 @@ var (
 	ErrNoSize   = errors.New("file size is absent")
 	ErrOutSize  = errors.New("file size is out of bounds")
 )
+
+// Refers to package data access management implementation.
+type Packager interface {
+	OpenWPK(string) error
+	io.Closer
+	SubDir(string) Packager
+	Extract(string) ([]byte, error)
+	http.FileSystem
+}
 
 // Package header.
 type PackHdr struct {
@@ -335,6 +373,12 @@ func (t Tagset) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
+// Returns path of nested into package file.
+func (t Tagset) Path() string {
+	var kpath, _ = t.String(TID_path)
+	return kpath
+}
+
 // Returns name of nested into package file.
 func (t Tagset) Name() string {
 	var kpath, _ = t.String(TID_path)
@@ -373,7 +417,7 @@ func (t Tagset) Sys() interface{} {
 // to present nested into package directory.
 func NewDirTagset(dir string) Tagset {
 	return Tagset{
-		TID_path: TagString(dir),
+		TID_path: TagString(ToSlash(dir)),
 		TID_size: TagUint64(0),
 	}
 }
@@ -398,10 +442,9 @@ func (f *File) Stat() (os.FileInfo, error) {
 
 // Returns os.FileInfo array with nested into given package directory presentation.
 func (f *File) Readdir(count int) (matches []os.FileInfo, err error) {
-	var kpath, _ = f.String(TID_path)
-	var pref = ToKey(kpath)
+	var pref = ToKey(f.Path())
 	if len(pref) > 0 && pref[len(pref)-1] != '/' {
-		pref += "/"
+		pref += "/" // set terminated slash
 	}
 	var dirs = map[string]os.FileInfo{}
 	for key, tags := range f.Pack.Tags {
@@ -412,7 +455,7 @@ func (f *File) Readdir(count int) (matches []os.FileInfo, err error) {
 				matches = append(matches, tags)
 				count--
 			} else { // dir detected
-				var dir = pref + suff[:sp]
+				var dir = pref + suff[:sp+1] // with terminates slash
 				if _, ok := dirs[dir]; !ok {
 					var fi = NewDirTagset(dir)
 					dirs[dir] = fi
@@ -428,10 +471,13 @@ func (f *File) Readdir(count int) (matches []os.FileInfo, err error) {
 	return
 }
 
+// Brings filenames to true slashes.
+var ToSlash = filepath.ToSlash
+
 // Format file path to tags set key. Make argument lowercase,
 // change back slashes to normal slashes.
 func ToKey(kpath string) string {
-	return strings.ToLower(filepath.ToSlash(kpath))
+	return strings.ToLower(ToSlash(kpath))
 }
 
 // Contains all data needed for package representation.
@@ -442,11 +488,20 @@ type Package struct {
 
 // Returns File structure associated with group of files in package pooled with
 // common directory prefix. Usable to implement http.FileSystem interface.
-func (pack *Package) NewDir(dir string) *File {
-	return &File{
-		Tagset: NewDirTagset(dir),
-		Pack:   pack,
+func (pack *Package) OpenDir(dir string) (http.File, error) {
+	var pref = ToKey(dir)
+	if len(pref) > 0 && pref[len(pref)-1] != '/' {
+		pref += "/" // set terminated slash
 	}
+	for key := range pack.Tags {
+		if strings.HasPrefix(key, pref) {
+			return &File{
+				Tagset: NewDirTagset(dir),
+				Pack:   pack,
+			}, nil
+		}
+	}
+	return nil, &ErrKey{ErrNotFound, pref}
 }
 
 // Returns the names of all files in package matching pattern or nil
@@ -468,29 +523,13 @@ func (pack *Package) Glob(pattern string, found func(key string) error) (err err
 }
 
 // Returns record associated with given filename.
-func (pack *Package) NamedRecord(kpath string) (offset int64, size int64, err error) {
-	var key = ToKey(kpath)
+func (pack *Package) NamedRecord(key string) (offset int64, size int64, err error) {
 	if tags, is := pack.Tags[key]; is {
 		offset, size = tags.Record()
 	} else {
-		err = ErrNotFound
+		err = &ErrKey{ErrNotFound, key}
 	}
 	return
-}
-
-// Error in tags set. Shows errors associated with any tags.
-type TagError struct {
-	What error  // error message
-	TID  TID    // tag ID
-	Path string // file path, if it known
-}
-
-func (e *TagError) Error() string {
-	return fmt.Sprintf("error on file '%s' for tag ID %d: %s", e.Path, e.TID, e.What)
-}
-
-func (e *TagError) Unwrap() error {
-	return e.What
 }
 
 // Opens package for reading. At first its checkup file signature, then
@@ -531,33 +570,33 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 		var ok bool
 		var kpath string
 		if kpath, ok = tags.String(TID_path); !ok {
-			return &TagError{ErrNoPath, TID_path, kpath}
+			return &ErrTag{ErrKey{ErrNoPath, ""}, TID_path}
 		}
-		var key = ToKey(kpath)
+		var key = strings.ToLower(kpath)
 		if _, ok = pack.Tags[key]; ok {
-			return &TagError{ErrAlready, TID_path, kpath}
+			return &ErrTag{ErrKey{ErrAlready, key}, TID_path}
 		}
 
 		var fid uint32
 		if fid, ok = tags.Uint32(TID_FID); !ok {
-			return &TagError{ErrNoFID, TID_FID, kpath}
+			return &ErrTag{ErrKey{ErrNoFID, key}, TID_FID}
 		}
 		if fid > uint32(pack.RecNumber) {
-			return &TagError{ErrOutFID, TID_FID, kpath}
+			return &ErrTag{ErrKey{ErrOutFID, key}, TID_FID}
 		}
 
 		var offset, size uint64
 		if offset, ok = tags.Uint64(TID_offset); !ok {
-			return &TagError{ErrNoOffset, TID_offset, kpath}
+			return &ErrTag{ErrKey{ErrNoOffset, key}, TID_offset}
 		}
 		if size, ok = tags.Uint64(TID_size); !ok {
-			return &TagError{ErrNoSize, TID_size, kpath}
+			return &ErrTag{ErrKey{ErrNoSize, key}, TID_size}
 		}
 		if offset < PackHdrSize || offset >= uint64(pack.TagOffset) {
-			return &TagError{ErrOutOff, TID_offset, kpath}
+			return &ErrTag{ErrKey{ErrOutOff, key}, TID_offset}
 		}
 		if offset+size > uint64(pack.TagOffset) {
-			return &TagError{ErrOutSize, TID_size, kpath}
+			return &ErrTag{ErrKey{ErrOutSize, key}, TID_size}
 		}
 
 		// insert file tags

@@ -2,7 +2,6 @@ package wpk
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"os"
 )
@@ -81,7 +80,7 @@ func (pack *Package) Complete(w io.WriteSeeker) (err error) {
 func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags Tagset, err error) {
 	var key = ToKey(kpath)
 	if _, ok := pack.Tags[key]; ok {
-		err = ErrAlready
+		err = &ErrKey{ErrAlready, key}
 		return
 	}
 
@@ -99,7 +98,7 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags
 		TID_FID:    TagUint32(uint32(pack.RecNumber + 1)),
 		TID_offset: TagUint64(uint64(offset)),
 		TID_size:   TagUint64(uint64(size)),
-		TID_path:   TagString(kpath),
+		TID_path:   TagString(ToSlash(kpath)),
 	}
 	pack.Tags[key] = tags
 
@@ -121,22 +120,8 @@ func (pack *Package) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ta
 	}
 
 	tags[TID_created] = TagUint64(uint64(fi.ModTime().Unix()))
-	tags[TID_link] = TagString(kpath)
+	tags[TID_link] = TagString(ToSlash(kpath))
 	return
-}
-
-// Wrapper to hold file name with error.
-type FileError struct {
-	What error
-	Name string
-}
-
-func (e *FileError) Error() string {
-	return fmt.Sprintf("error on file '%s': %s", e.Name, e.What.Error())
-}
-
-func (e *FileError) Unwrap() error {
-	return e.What
 }
 
 // Function called after each file with its parameters during PackDir processing.
@@ -175,10 +160,12 @@ func (pack *Package) PackDir(w io.WriteSeeker, dirname, prefix string, hook Pack
 				defer file.Close()
 
 				if _, err = pack.PackFile(w, file, kpath); err != nil {
-					err = &FileError{What: err, Name: kpath}
 					return
 				}
 			}()
+			if err != nil {
+				return
+			}
 			if hook != nil {
 				hook(fi, kpath, fpath)
 			}
@@ -194,16 +181,16 @@ func (pack *Package) PutAlias(oldname, newname string) error {
 	var key2 = ToKey(newname)
 	var tags1, ok = pack.Tags[key1]
 	if !ok {
-		return ErrNotFound
+		return &ErrKey{ErrNotFound, key1}
 	}
 	if _, ok = pack.Tags[key2]; ok {
-		return ErrAlready
+		return &ErrKey{ErrAlready, key2}
 	}
 	var tags2 = Tagset{}
 	for k, v := range tags1 {
 		tags2[k] = v
 	}
-	tags2[TID_path] = TagString(newname)
+	tags2[TID_path] = TagString(ToSlash(newname))
 	pack.Tags[key2] = tags2
 	pack.TagNumber++
 	return nil
