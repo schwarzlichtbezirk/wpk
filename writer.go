@@ -124,8 +124,10 @@ func (pack *Package) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ta
 	return
 }
 
-// Function called after each file with its parameters during PackDir processing.
-type PackDirHook = func(fi os.FileInfo, kpath, fpath string)
+// Function called before each file or directory with its parameters
+// during PackDir processing. Returns whether to process the file or directory.
+// Can be used as filter and logger.
+type PackDirHook = func(fi os.FileInfo, kpath, fpath string) bool
 
 // Puts all files of given folder and it's subfolders into package.
 // Hook function can be nil.
@@ -145,37 +147,54 @@ func (pack *Package) PackDir(w io.WriteSeeker, dirname, prefix string, hook Pack
 		return
 	}
 	for _, fi := range fis {
-		var kpath = prefix + fi.Name()
-		var fpath = dirname + fi.Name()
-		if fi.IsDir() {
-			if err = pack.PackDir(w, fpath+"/", kpath+"/", hook); err != nil {
-				return
-			}
-		} else {
-			func() {
-				var file *os.File
-				if file, err = os.Open(fpath); err != nil {
-					return
-				}
-				defer file.Close()
+		if fi != nil {
+			var kpath = prefix + fi.Name()
+			var fpath = dirname + fi.Name()
+			if hook == nil || hook(fi, kpath, fpath) {
+				if fi.IsDir() {
+					if err = pack.PackDir(w, fpath+"/", kpath+"/", hook); err != nil {
+						return
+					}
+				} else if func() {
+					var file *os.File
+					if file, err = os.Open(fpath); err != nil {
+						return
+					}
+					defer file.Close()
 
-				if _, err = pack.PackFile(w, file, kpath); err != nil {
+					if _, err = pack.PackFile(w, file, kpath); err != nil {
+						return
+					}
+				}(); err != nil {
 					return
 				}
-			}()
-			if err != nil {
-				return
-			}
-			if hook != nil {
-				hook(fi, kpath, fpath)
 			}
 		}
 	}
 	return
 }
 
+// Rename tags set with file name 'oldname' to 'newname'.
+// Keeps link to original file name.
+func (pack *Package) Rename(oldname, newname string) error {
+	var key1 = ToKey(oldname)
+	var key2 = ToKey(newname)
+	var tags, ok = pack.Tags[key1]
+	if !ok {
+		return &ErrKey{ErrNotFound, key1}
+	}
+	if _, ok = pack.Tags[key2]; ok {
+		return &ErrKey{ErrAlready, key2}
+	}
+
+	tags[TID_path] = TagString(ToSlash(newname))
+	delete(pack.Tags, key1)
+	pack.Tags[key2] = tags
+	return nil
+}
+
 // Clone tags set with file name 'oldname' and replace name tag in it to 'newname'.
-// Puts link to original file name.
+// Keeps link to original file name.
 func (pack *Package) PutAlias(oldname, newname string) error {
 	var key1 = ToKey(oldname)
 	var key2 = ToKey(newname)
@@ -186,6 +205,7 @@ func (pack *Package) PutAlias(oldname, newname string) error {
 	if _, ok = pack.Tags[key2]; ok {
 		return &ErrKey{ErrAlready, key2}
 	}
+
 	var tags2 = Tagset{}
 	for k, v := range tags1 {
 		tags2[k] = v

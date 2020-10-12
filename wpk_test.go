@@ -114,9 +114,12 @@ func TestPackDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	// put media directory to file
-	if err = pack.PackDir(fwpk, mediadir, "", func(fi os.FileInfo, fname, fpath string) {
-		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.RecNumber, fname, fi.Size())
+	if err = pack.PackDir(fwpk, mediadir, "", func(fi os.FileInfo, fname, fpath string) bool {
+		if !fi.IsDir() {
+			tagsnum++
+			t.Logf("put file #%d '%s', %d bytes", pack.RecNumber+1, fname, fi.Size())
+		}
+		return true
 	}); err != nil {
 		t.Fatal(err)
 	}

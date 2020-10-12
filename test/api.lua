@@ -26,6 +26,8 @@ to build wpk-packages.
 	toslash(fpath) - returns the result of replacing each separator character
 		in fpath with a slash ('/') character. Multiple separators are replaced
 		by multiple slashes.
+	clean(fpath) - returns the shortest path name equivalent to path by purely
+		lexical processing.
 	volume(fpath) - returns leading volume name. Given "C:\foo\bar"
 		it returns "C:" on Windows. Given "\\host\share\foo" it returns
 		"\\host\share". On other platforms it returns "".
@@ -139,9 +141,10 @@ to build wpk-packages.
 		there is tags set adjust by add marked tags with hashes (MD5, SHA1, SHA224, etc).
 	rename(kpath1, kpath2) - rename file name with kpath1 to kpath2. Rename is
 		carried out by replace name tag in file tags set from one name to other.
+		Keeps link to original file name.
 	putalias(kpath1, kpath2) - clone tags set with file name kpath1 and replace
 		name tag in it to kpath2. So, there will be two tags set referenced to
-		one data block. Puts link to original file name.
+		one data block. Keeps link to original file name.
 	delalias(kpath) - delete tags set with specified file name. Data block is
 		still remains.
 	hastag(kpath, tid) - check up tag existence in tags set for specified file,

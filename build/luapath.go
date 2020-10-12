@@ -16,6 +16,7 @@ func OpenPath(ls *lua.LState) int {
 
 var pathfuncs = map[string]lua.LGFunction{
 	"toslash": pathtoslash,
+	"clean":   pathclean,
 	"volume":  pathvolume,
 	"dir":     pathdir,
 	"base":    pathbase,
@@ -33,6 +34,14 @@ func pathtoslash(ls *lua.LState) int {
 
 	var name = filepath.ToSlash(filename)
 	ls.Push(lua.LString(name))
+	return 1
+}
+
+func pathclean(ls *lua.LState) int {
+	var filename = ls.CheckString(1)
+
+	var path = filepath.Clean(filename)
+	ls.Push(lua.LString(path))
 	return 1
 }
 

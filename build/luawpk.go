@@ -621,28 +621,10 @@ func wpkrename(ls *lua.LState) int {
 	var kpath1 = ls.CheckString(2)
 	var kpath2 = ls.CheckString(3)
 
-	var err error
-	if func() {
-		var key1 = ToKey(kpath1)
-		var key2 = ToKey(kpath2)
-		var tags, ok = pack.Tags[key1]
-		if !ok {
-			err = &ErrKey{What: ErrNotFound, Key: key1}
-			return
-		}
-		if _, ok = pack.Tags[key2]; ok {
-			err = &ErrKey{What: ErrAlready, Key: key2}
-			return
-		}
-
-		tags[TID_path] = TagString(ToSlash(kpath2))
-		delete(pack.Tags, key1)
-		pack.Tags[key2] = tags
-	}(); err != nil {
+	if err := pack.Rename(kpath1, kpath2); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
-
 	return 0
 }
 
