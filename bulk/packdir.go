@@ -18,6 +18,12 @@ type PackDir struct {
 	pref string
 }
 
+// Returns tags set referred by offset at TAT field.
+func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
+	var tagpos, is = pack.TAT[key]
+	return pack.bulk[tagpos:], is
+}
+
 // Opens WPK-file package by given file name.
 func (pack *PackDir) OpenWPK(fname string) (err error) {
 	var bulk []byte
@@ -54,20 +60,22 @@ func (pack *PackDir) SubDir(pref string) wpk.Packager {
 }
 
 // Creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenFile(tags wpk.Tagset) (http.File, error) {
-	var offset, size = tags.Record()
+func (pack *PackDir) OpenFile(ts wpk.TagSlice) (http.File, error) {
+	var offset, size = ts.Offset(), ts.Size()
 	return &wpk.File{
-		Tagset: tags,
-		Reader: *bytes.NewReader(pack.bulk[offset : offset+size]),
-		Pack:   pack.Package,
+		TagSlice: ts,
+		Reader:   *bytes.NewReader(pack.bulk[offset : offset+size]),
+		Pack:     pack,
 	}, nil
 }
 
 // Returns slice with nested into package file content.
 func (pack *PackDir) Extract(key string) ([]byte, error) {
-	var offset, size, err = pack.NamedRecord(key)
-	if err != nil {
-		return nil, err
+	var offset, size int64
+	if ts, is := pack.NamedTags(key); is {
+		offset, size = ts.Offset(), ts.Size()
+	} else {
+		return nil, &wpk.ErrKey{wpk.ErrNotFound, key}
 	}
 	return pack.bulk[offset : offset+size], nil
 }
@@ -76,24 +84,27 @@ func (pack *PackDir) Extract(key string) ([]byte, error) {
 func (pack *PackDir) Open(kname string) (http.File, error) {
 	var kpath = pack.pref + strings.TrimPrefix(kname, "/")
 	if kpath == "" {
-		return pack.OpenDir(kpath)
+		return wpk.OpenDir(pack, kpath)
 	} else if kpath == "wpk" {
+		var buf bytes.Buffer
+		var tags = wpk.Tagset{
+			wpk.TID_FID:    wpk.TagUint32(0),
+			wpk.TID_offset: wpk.TagUint64(0),
+			wpk.TID_size:   wpk.TagUint64(uint64(len(pack.bulk))),
+		}
+		tags.WriteTo(&buf)
 		return &wpk.File{
-			Tagset: wpk.Tagset{
-				wpk.TID_FID:    wpk.TagUint32(0),
-				wpk.TID_offset: wpk.TagUint64(0),
-				wpk.TID_size:   wpk.TagUint64(uint64(len(pack.bulk))),
-			},
-			Reader: *bytes.NewReader(pack.bulk),
-			Pack:   pack.Package,
+			TagSlice: buf.Bytes(),
+			Reader:   *bytes.NewReader(pack.bulk),
+			Pack:     pack,
 		}, nil
 	}
 
 	var key = wpk.ToKey(kpath)
-	if tags, is := pack.Tags[key]; is {
-		return pack.OpenFile(tags)
+	if ts, is := pack.NamedTags(key); is {
+		return pack.OpenFile(ts)
 	} else {
-		return pack.OpenDir(kpath)
+		return wpk.OpenDir(pack, kpath)
 	}
 }
 

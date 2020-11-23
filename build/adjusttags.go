@@ -20,7 +20,7 @@ const sniffLen = 512
 
 func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags Tagset) (err error) {
 	if _, ok := tags[TID_mime]; !ok && pack.automime {
-		var kext = filepath.Ext(tags.Name())
+		var kext = filepath.Ext(tags.Path())
 		var ctype = mime.TypeByExtension(kext)
 		if ctype == "" {
 			var ok bool

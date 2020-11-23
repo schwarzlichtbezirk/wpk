@@ -47,14 +47,14 @@ local function checkname(name)
 	return true
 end
 -- pack given directory and add to each file name given prefix
-local function packdir(dir, prefix)
+local function packdir(prefix, dir)
 	for i, name in ipairs(path.enum(dir)) do
 		local kpath = prefix..name
 		local fpath = dir..name
 		local access, isdir = checkfile(fpath)
 		if access and checkname(name) then
 			if isdir then
-				packdir(fpath.."/", kpath.."/")
+				packdir(kpath.."/", fpath.."/")
 			else
 				pkg:putfile(kpath, fpath)
 				pkg:settag(kpath, "author", "schwarzlichtbezirk")
@@ -66,7 +66,7 @@ local function packdir(dir, prefix)
 	end
 end
 
-packdir(scrdir.."media/", "")
+packdir("", scrdir.."media/")
 log(tostring(pkg))
 
 -- write records table, tags table and finalize wpk-file

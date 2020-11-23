@@ -28,7 +28,7 @@ var (
 const PackMT = "wpk"
 
 type LuaPackage struct {
-	Package
+	Writer
 	automime bool
 	nolink   bool
 	secret   string
@@ -498,9 +498,9 @@ func wpkcomplete(ls *lua.LState) int {
 func wpksumsize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	var sum uint64
+	var sum int64
 	for _, tags := range pack.Tags {
-		var size, _ = tags.Uint64(TID_size)
+		var size = tags.Size()
 		sum += size
 	}
 
@@ -538,12 +538,14 @@ func wpkfilesize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var key = ToKey(ls.CheckString(2))
 
-	var _, size, err = pack.NamedRecord(key)
-	if err != nil {
-		ls.RaiseError(err.Error())
+	var tags Tagset
+	var ok bool
+	if tags, ok = pack.Tags[key]; !ok {
+		ls.RaiseError((&ErrKey{What: ErrNotFound, Key: key}).Error())
 		return 0
 	}
 
+	var size = tags.Size()
 	ls.Push(lua.LNumber(size))
 	return 1
 }

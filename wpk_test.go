@@ -32,12 +32,12 @@ var memdata = map[string][]byte{
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 	var err error
-	var pack Package
+	var pack Writer
 
 	if err = pack.Read(fwpk); err != nil {
 		t.Fatal(err)
 	}
-	if int(pack.TagNumber) != len(pack.Tags) {
+	if int(pack.TagNumber) != len(pack.TAT) {
 		t.Fatalf("stored at header %d entries, realy got %d entries", pack.TagNumber, len(pack.Tags))
 	}
 	if len(pack.Tags) != tagsnum {
@@ -46,28 +46,28 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 
 	for _, tags := range pack.Tags {
 		var _, isfile = tags[TID_created]
-
-		var link, is = tags.String(TID_link)
+		var kpath = tags.Path()
+		var link, is = tags[TID_link]
 		if isfile && !is {
-			t.Fatalf("found file without link #%d '%s'", tags.FID(), tags.Path())
+			t.Fatalf("found file without link #%d '%s'", tags.FID(), kpath)
 		}
-		var offset, size = tags.Record()
+		var offset, size = tags.Offset(), tags.Size()
 
 		var orig []byte
 		if isfile {
-			if orig, err = ioutil.ReadFile(mediadir + link); err != nil {
+			if orig, err = ioutil.ReadFile(mediadir + string(link)); err != nil {
 				t.Fatal(err)
 			}
 		} else {
 			var is bool
-			if orig, is = memdata[tags.Path()]; !is {
-				t.Fatalf("memory block named as '%s' not found", tags.Path())
+			if orig, is = memdata[kpath]; !is {
+				t.Fatalf("memory block named as '%s' not found", kpath)
 			}
 		}
 
-		if tags.Size() != int64(len(orig)) {
+		if size != int64(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
-				tags.Path(), tags.Size(), len(orig))
+				kpath, size, len(orig))
 		}
 
 		var extr = make([]byte, size, size)
@@ -76,10 +76,10 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 			t.Fatal(err)
 		}
 		if n != len(extr) {
-			t.Errorf("can not extract content of file '%s' completely", tags.Path())
+			t.Errorf("can not extract content of file '%s' completely", kpath)
 		}
 		if !bytes.Equal(orig, extr) {
-			t.Errorf("content of file '%s' is defer from original", tags.Path())
+			t.Errorf("content of file '%s' is defer from original", kpath)
 		}
 
 		if t.Failed() {
@@ -87,9 +87,9 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 		}
 
 		if isfile {
-			t.Logf("check file #%d '%s' is ok", tags.FID(), tags.Path())
+			t.Logf("check file #%d '%s' is ok", tags.FID(), kpath)
 		} else {
-			t.Logf("check data #%d '%s' is ok", tags.FID(), tags.Path())
+			t.Logf("check data #%d '%s' is ok", tags.FID(), kpath)
 		}
 	}
 }
@@ -97,7 +97,7 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 // Test PackDir function work.
 func TestPackDir(t *testing.T) {
 	var err error
-	var pack Package
+	var pack Writer
 	var fwpk *os.File
 	var tagsnum = 0
 
@@ -135,7 +135,7 @@ func TestPackDir(t *testing.T) {
 // Test ability of files sequence packing, and make alias.
 func TestPutFiles(t *testing.T) {
 	var err error
-	var pack Package
+	var pack Writer
 	var fwpk *os.File
 	var tagsnum = 0
 
@@ -227,7 +227,7 @@ func TestPutFiles(t *testing.T) {
 // then append new files to existing package.
 func TestAppendContinues(t *testing.T) {
 	var err error
-	var pack Package
+	var pack Writer
 	var fwpk *os.File
 	var tagsnum = 0
 
@@ -297,7 +297,7 @@ func TestAppendContinues(t *testing.T) {
 // then open package file again and append new files.
 func TestAppendDiscrete(t *testing.T) {
 	var err error
-	var pack Package
+	var pack Writer
 	var fwpk *os.File
 	var tagsnum = 0
 

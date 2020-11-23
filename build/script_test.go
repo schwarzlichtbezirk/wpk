@@ -16,7 +16,7 @@ var mediadir = scrdir + "media/"
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, wpkname string) {
 	var err error
-	var pack Package
+	var pack Writer
 	var fwpk *os.File
 
 	// open temporary file for read/write
@@ -28,30 +28,31 @@ func CheckPackage(t *testing.T, wpkname string) {
 	if err = pack.Read(fwpk); err != nil {
 		t.Fatal(err)
 	}
-	if int(pack.TagNumber) != len(pack.Tags) {
+	if int(pack.TagNumber) != len(pack.TAT) {
 		t.Fatalf("stored at header %d entries, realy got %d entries", pack.TagNumber, len(pack.Tags))
 	}
 
 	for _, tags := range pack.Tags {
+		var kpath = tags.Path()
 		if _, is := tags[TID_created]; !is {
-			t.Logf("found packed data #%d '%s'", tags.FID(), tags.Path())
+			t.Logf("found packed data #%d '%s'", tags.FID(), kpath)
 			continue // skip packed data
 		}
 
-		var link, is = tags.String(TID_link)
+		var link, is = tags[TID_link]
 		if !is {
-			t.Fatalf("found file without link #%d '%s'", tags.FID(), tags.Path())
+			t.Fatalf("found file without link #%d '%s'", tags.FID(), kpath)
 		}
-		var offset, size = tags.Record()
+		var offset, size = tags.Offset(), tags.Size()
 
 		var orig []byte
-		if orig, err = ioutil.ReadFile(mediadir + link); err != nil {
+		if orig, err = ioutil.ReadFile(mediadir + string(link)); err != nil {
 			t.Fatal(err)
 		}
 
-		if tags.Size() != int64(len(orig)) {
+		if size != int64(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
-				tags.Path(), tags.Size(), len(orig))
+				kpath, size, len(orig))
 		}
 
 		var extr = make([]byte, size, size)
@@ -60,17 +61,17 @@ func CheckPackage(t *testing.T, wpkname string) {
 			t.Fatal(err)
 		}
 		if n != len(extr) {
-			t.Errorf("can not extract content of file '%s' completely", tags.Path())
+			t.Errorf("can not extract content of file '%s' completely", kpath)
 		}
 		if !bytes.Equal(orig, extr) {
-			t.Errorf("content of file '%s' is defer from original", tags.Path())
+			t.Errorf("content of file '%s' is defer from original", kpath)
 		}
 
 		if t.Failed() {
 			break
 		}
 
-		t.Logf("checkup #%d '%s' is ok", tags.FID(), tags.Path())
+		t.Logf("checkup #%d '%s' is ok", tags.FID(), kpath)
 	}
 }
 
