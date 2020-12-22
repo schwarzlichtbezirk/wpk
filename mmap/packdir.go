@@ -63,6 +63,9 @@ func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
 
 // Opens WPK-file package by given file name.
 func (pack *PackDir) OpenWPK(fname string) (err error) {
+	if pack.Package == nil {
+		pack.Package = &wpk.Package{}
+	}
 	if pack.fwpk, err = os.Open(fname); err != nil {
 		return
 	}
@@ -140,7 +143,7 @@ func (pack *PackDir) Extract(key string) ([]byte, error) {
 	defer f.Close()
 
 	var size = ts.Size()
-	var buf = make([]byte, size, size)
+	var buf = make([]byte, size)
 	_, err = f.Read(buf)
 	return buf, err
 }

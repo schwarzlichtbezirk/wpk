@@ -31,6 +31,9 @@ func (pack *PackDir) OpenWPK(fname string) (err error) {
 		return
 	}
 
+	if pack.Package == nil {
+		pack.Package = &wpk.Package{}
+	}
 	pack.bulk = bulk
 	pack.pref = ""
 

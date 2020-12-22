@@ -30,12 +30,12 @@ At first, install [Golang](https://golang.org/) minimum 1.9 version, and get thi
 
 Then you can make simple package with files at [test/media](https://github.com/schwarzlichtbezirk/wpk/tree/master/test/media) directory by command:
 
-    go run github.com/schwarzlichtbezirk/wpk/pack -src=$(GOPATH)/src/github.com/schwarzlichtbezirk/wpk/test/media -dst=$(GOPATH)/bin/media.wpk
+    go run github.com/schwarzlichtbezirk/wpk/pack --src=$(GOPATH)/src/github.com/schwarzlichtbezirk/wpk/test/media --dst=$(GOPATH)/bin/media.wpk
 It's runs utility that receives source directory full path and destination package full path. $(GOPATH) at command line directory path replaced by GOPATH environment variable value. To place any other environment variable VAR you can by $(VAR). In this sample package placed into *bin* directory with other compiled golang binary files.
 
 To extract files from this *media.wpk* package run command:
 
-    go run github.com/schwarzlichtbezirk/wpk/extract -md -src=$(GOPATH)/bin/media.wpk -dst=$(GOPATH)/bin/media
+    go run github.com/schwarzlichtbezirk/wpk/extract --md --src=$(GOPATH)/bin/media.wpk --dst=$(GOPATH)/bin/media
 and see files in directory *bin/media*.
 
 To build package at development workflow you can by **build** utility. It can put files into package from any different paths with given names, and bind addition tags to each file, such as MIME types, keywords, CRC, MD5, SHA256 and others. Run this command to see how its work:

@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	. "github.com/schwarzlichtbezirk/wpk"
+	"github.com/schwarzlichtbezirk/wpk/bulk"
 )
 
 // command line settings
@@ -95,23 +95,16 @@ func readpackage() (err error) {
 	for _, pkgpath := range SrcList {
 		log.Printf("source package: %s", pkgpath)
 		if func() {
-			var pack Package
-
-			var src *os.File
-			if src, err = os.Open(pkgpath); err != nil {
-				return
-			}
-			defer src.Close()
-
-			if err = pack.Read(src); err != nil {
+			var pack bulk.PackDir
+			if err = pack.OpenWPK(pkgpath); err != nil {
 				return
 			}
 
-			for _, tags := range pack.Tags {
-				var fid = tags.FID()
-				var offset, size = tags.Record()
-				var kpath, _ = tags.String(TID_path) // get original key path
-				log.Printf("#%-3d %6d bytes   %s", fid, size, kpath)
+			var tat = pack.Enum()
+			for key := range tat {
+				var ts, _ = pack.NamedTags(key)
+				var kpath = ts.Path()
+				log.Printf("#%-3d %6d bytes   %s", ts.FID(), ts.Size(), kpath)
 
 				if func() {
 					var fpath = DstPath + kpath
@@ -119,16 +112,19 @@ func readpackage() (err error) {
 						return
 					}
 
+					var src, err = pack.OpenFile(ts)
+					if err != nil {
+						return
+					}
+					defer src.Close()
+
 					var dst *os.File
 					if dst, err = os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
 						return
 					}
 					defer dst.Close()
 
-					if _, err = src.Seek(offset, io.SeekStart); err != nil {
-						return
-					}
-					if _, err = io.CopyN(dst, src, size); err != nil {
+					if _, err = io.Copy(dst, src); err != nil {
 						return
 					}
 				}(); err != nil {
