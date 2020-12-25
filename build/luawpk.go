@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	. "github.com/schwarzlichtbezirk/wpk"
@@ -75,7 +76,7 @@ func NewPack(ls *lua.LState) int {
 	var pack LuaPackage
 
 	copy(pack.Signature[:], Prebuild)
-	pack.Tags = map[string]Tagset{}
+	pack.Tags = TagsMap{}
 	pack.TagOffset = PackHdrSize
 	pack.RecNumber = 0
 	pack.TagNumber = 0
@@ -513,13 +514,17 @@ func wpkglob(ls *lua.LState) int {
 	var pattern = ls.CheckString(2)
 
 	var n int
-	if err := pack.Glob(pattern, func(key string) error {
-		ls.Push(lua.LString(key))
-		n++
-		return nil
-	}); err != nil {
-		ls.RaiseError(err.Error())
-		return 0
+	var matched bool
+	var err error
+	for key := range pack.Tags {
+		if matched, err = filepath.Match(pattern, key); err != nil {
+			ls.RaiseError(err.Error())
+			return 0
+		}
+		if matched {
+			ls.Push(lua.LString(key))
+			n++
+		}
 	}
 	return n
 }

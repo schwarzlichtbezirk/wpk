@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/binary"
 	"flag"
 	"io"
 	"log"
@@ -87,33 +86,29 @@ func checkargs() int {
 }
 
 func writepackage() (err error) {
-	var dst *os.File
-	if dst, err = os.OpenFile(DstFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+	var pack Writer
+	var fwpk *os.File
+
+	// open package file to write
+	if fwpk, err = os.OpenFile(DstFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
 		return
 	}
-	defer dst.Close()
-
-	var pack Package
-
-	// reset header
-	copy(pack.Signature[:], Prebuild)
-	pack.TagOffset = PackHdrSize
-	pack.RecNumber = 0
-	pack.TagNumber = 0
-	// setup empty tags table
-	pack.Tags = map[string]Tagset{}
-	// write prebuild header
-	if err = binary.Write(dst, binary.LittleEndian, &pack.PackHdr); err != nil {
-		return
-	}
-
+	defer fwpk.Close()
 	log.Printf("destination file: %s", DstFile)
+
+	// starts new package
+	if err = pack.Begin(fwpk); err != nil {
+		return
+	}
 
 	// write all source folders
 	for i, path := range SrcList {
 		log.Printf("source folder #%d: %s", i+1, path)
-		if err = pack.PackDir(dst, path, "", func(fi os.FileInfo, fname, fpath string) {
-			log.Printf("#%-4d %7d bytes   %s", pack.RecNumber, fi.Size(), fname)
+		if err = pack.PackDir(fwpk, path, "", func(fi os.FileInfo, fname, fpath string) bool {
+			if !fi.IsDir() {
+				log.Printf("#%-4d %7d bytes   %s", pack.RecNumber+1, fi.Size(), fname)
+			}
+			return true
 		}); err != nil {
 			return
 		}
@@ -126,16 +121,15 @@ func writepackage() (err error) {
 		for fname, tags := range pack.Tags {
 			var ctype = mime.TypeByExtension(filepath.Ext(fname))
 			if ctype == "" {
-				var offset, _ = tags.Uint64(TID_offset)
-				var size, _ = tags.Uint64(TID_size)
+				var offset, size = tags.Offset(), tags.Size()
 				// rewind to file start
-				if _, err = dst.Seek(int64(offset), io.SeekStart); err != nil {
+				if _, err = fwpk.Seek(offset, io.SeekStart); err != nil {
 					return
 				}
 				// read a chunk to decide between utf-8 text and binary
 				var buf [sniffLen]byte
 				var n int64
-				if n, err = io.Copy(bytes.NewBuffer(buf[:]), io.LimitReader(dst, int64(size))); err != nil {
+				if n, err = io.CopyN(bytes.NewBuffer(buf[:]), io.LimitReader(fwpk, size), sniffLen); err != nil && err != io.EOF {
 					return
 				}
 				ctype = http.DetectContentType(buf[:n])
@@ -144,26 +138,9 @@ func writepackage() (err error) {
 		}
 	}
 
-	// write files tags table
+	// finalize
 	log.Printf("write tags table")
-	var tagoffset int64
-	if tagoffset, err = dst.Seek(0, io.SeekEnd); err != nil {
-		return
-	}
-	pack.TagOffset = OFFSET(tagoffset)
-	pack.TagNumber = FID(len(pack.Tags))
-	for _, tags := range pack.Tags {
-		if _, err = tags.WriteTo(dst); err != nil {
-			return
-		}
-	}
-
-	// rewrite true header
-	if _, err = dst.Seek(0, io.SeekStart); err != nil {
-		return
-	}
-	copy(pack.Signature[:], Signature)
-	if err = binary.Write(dst, binary.LittleEndian, &pack.PackHdr); err != nil {
+	if err = pack.Complete(fwpk); err != nil {
 		return
 	}
 

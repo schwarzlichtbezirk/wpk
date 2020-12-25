@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/schwarzlichtbezirk/wpk/bulk"
+	"github.com/schwarzlichtbezirk/wpk/mmap"
 )
 
 // command line settings
@@ -95,18 +95,18 @@ func readpackage() (err error) {
 	for _, pkgpath := range SrcList {
 		log.Printf("source package: %s", pkgpath)
 		if func() {
-			var pack bulk.PackDir
+			var pack mmap.PackDir
+			var sum int64
 			if err = pack.OpenWPK(pkgpath); err != nil {
 				return
 			}
 
 			var tat = pack.Enum()
 			for key := range tat {
-				var ts, _ = pack.NamedTags(key)
-				var kpath = ts.Path()
-				log.Printf("#%-3d %6d bytes   %s", ts.FID(), ts.Size(), kpath)
-
 				if func() {
+					var ts, _ = pack.NamedTags(key)
+					var kpath = ts.Path()
+
 					var fpath = DstPath + kpath
 					if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
 						return
@@ -124,13 +124,18 @@ func readpackage() (err error) {
 					}
 					defer dst.Close()
 
-					if _, err = io.Copy(dst, src); err != nil {
+					var n int64
+					if n, err = io.Copy(dst, src); err != nil {
 						return
 					}
+					sum += n
+
+					log.Printf("#%-3d %6d bytes   %s", ts.FID(), n, kpath)
 				}(); err != nil {
 					return
 				}
 			}
+			log.Printf("unpacked: %d files on %d bytes", len(tat), sum)
 		}(); err != nil {
 			return
 		}

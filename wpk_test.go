@@ -37,7 +37,7 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 	if err = pack.Read(fwpk); err != nil {
 		t.Fatal(err)
 	}
-	if int(pack.TagNumber) != len(pack.TAT) {
+	if int(pack.TagNumber) != len(pack.Tags) {
 		t.Fatalf("stored at header %d entries, realy got %d entries", pack.TagNumber, len(pack.Tags))
 	}
 	if len(pack.Tags) != tagsnum {

@@ -6,10 +6,13 @@ import (
 	"os"
 )
 
+// Tags sets map.
+type TagsMap map[string]Tagset
+
 // Package writer structure.
 type Writer struct {
-	Package
-	Tags map[string]Tagset
+	PackHdr
+	Tags TagsMap
 }
 
 // Opens package for reading. At first its checkup file signature, then
@@ -30,8 +33,7 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 	if string(pack.Signature[:]) != Signature {
 		return ErrSignBad
 	}
-	pack.TAT = make(TATMap, pack.TagNumber)
-	pack.Tags = make(map[string]Tagset, pack.TagNumber)
+	pack.Tags = make(TagsMap, pack.TagNumber)
 
 	// read file tags set table
 	if _, err = r.Seek(int64(pack.TagOffset), io.SeekStart); err != nil {
@@ -39,8 +41,7 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 	}
 	var n int64
 	for {
-		var tagpos int64
-		if tagpos, err = r.Seek(0, io.SeekCurrent); err != nil {
+		if _, err = r.Seek(0, io.SeekCurrent); err != nil {
 			return
 		}
 		var tags = Tagset{}
@@ -56,7 +57,7 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 			return &ErrTag{ErrKey{ErrNoPath, ""}, TID_path}
 		}
 		var key = ToKey(tags.Path())
-		if _, ok := pack.TAT[key]; ok {
+		if _, ok := pack.Tags[key]; ok {
 			return &ErrTag{ErrKey{ErrAlready, key}, TID_path}
 		}
 
@@ -83,7 +84,6 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 		}
 
 		// insert file tags
-		pack.TAT[key] = OFFSET(tagpos)
 		pack.Tags[key] = tags
 	}
 
@@ -98,7 +98,7 @@ func (pack *Writer) Begin(w io.WriteSeeker) (err error) {
 	pack.RecNumber = 0
 	pack.TagNumber = 0
 	// setup empty tags table
-	pack.Tags = map[string]Tagset{}
+	pack.Tags = TagsMap{}
 	// go to file start
 	if _, err = w.Seek(0, io.SeekStart); err != nil {
 		return

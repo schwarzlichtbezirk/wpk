@@ -20,6 +20,7 @@ const pagesize = int64(64 * 1024)
 type MappedFile struct {
 	wpk.File
 	mm.MMap
+	region []byte
 }
 
 func (f *MappedFile) OpenTags(pack *PackDir, ts wpk.TagSlice) error {
@@ -27,15 +28,16 @@ func (f *MappedFile) OpenTags(pack *PackDir, ts wpk.TagSlice) error {
 	var offset, size = ts.Offset(), ts.Size()
 	var pgoff = offset % pagesize
 	var offsetx = offset - pgoff
-	var sizex = ((size+pgoff-1)/pagesize + 1) * pagesize
+	var sizex = size + pgoff
 	// create mapped memory block
 	var err error
 	if f.MMap, err = mm.MapRegion(pack.fwpk, offsetx, sizex, mm.RDONLY, 0); err != nil {
 		return err
 	}
+	f.region = f.MMap[pgoff : pgoff+size]
 	// init file struct
 	f.TagSlice = ts
-	f.Reader.Reset(f.MMap[pgoff : pgoff+size])
+	f.Reader.Reset(f.region)
 	f.Pack = pack
 	return nil
 }
@@ -58,7 +60,7 @@ type PackDir struct {
 // Returns tags set referred by offset at TAT field.
 func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
 	var tagpos, is = pack.TAT[key]
-	return wpk.TagSlice(pack.ftag.MMap[tagpos-pack.TagOffset:]), is
+	return wpk.TagSlice(pack.ftag.region[tagpos-pack.TagOffset:]), is
 }
 
 // Opens WPK-file package by given file name.
