@@ -13,13 +13,13 @@ import (
 	"net/http"
 	"path/filepath"
 
-	. "github.com/schwarzlichtbezirk/wpk"
+	"github.com/schwarzlichtbezirk/wpk"
 )
 
 const sniffLen = 512
 
-func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags Tagset) (err error) {
-	if _, ok := tags[TID_mime]; !ok && pack.automime {
+func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err error) {
+	if _, ok := tags[wpk.TIDmime]; !ok && pack.automime {
 		var kext = filepath.Ext(tags.Path())
 		var ctype = mime.TypeByExtension(kext)
 		if ctype == "" {
@@ -42,14 +42,14 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags Tagset) (err error) {
 				ctype = http.DetectContentType(buf[:n])
 			}
 		}
-		tags[TID_mime] = TagString(ctype)
+		tags[wpk.TIDmime] = wpk.TagString(ctype)
 	}
 
 	if pack.nolink {
-		delete(tags, TID_link)
+		delete(tags, wpk.TIDlink)
 	}
 
-	if _, ok := tags[TID_CRC32C]; !ok && pack.crc32 {
+	if _, ok := tags[wpk.TIDcrc32c]; !ok && pack.crc32 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -57,10 +57,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags Tagset) (err error) {
 		if _, err = io.Copy(h, r); err != nil {
 			return
 		}
-		tags[TID_CRC32C] = h.Sum(nil)
+		tags[wpk.TIDcrc32c] = h.Sum(nil)
 	}
 
-	if _, ok := tags[TID_CRC64ISO]; !ok && pack.crc64 {
+	if _, ok := tags[wpk.TIDcrc64iso]; !ok && pack.crc64 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -68,10 +68,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags Tagset) (err error) {
 		if _, err = io.Copy(h, r); err != nil {
 			return
 		}
-		tags[TID_CRC64ISO] = h.Sum(nil)
+		tags[wpk.TIDcrc64iso] = h.Sum(nil)
 	}
 
-	if _, ok := tags[TID_MD5]; !ok && pack.md5 {
+	if _, ok := tags[wpk.TIDmd5]; !ok && pack.md5 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -79,10 +79,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags Tagset) (err error) {
 		if _, err = io.Copy(mac, r); err != nil {
 			return
 		}
-		tags[TID_MD5] = mac.Sum(nil)
+		tags[wpk.TIDmd5] = mac.Sum(nil)
 	}
 
-	if _, ok := tags[TID_SHA1]; !ok && pack.sha1 {
+	if _, ok := tags[wpk.TIDsha1]; !ok && pack.sha1 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -90,10 +90,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags Tagset) (err error) {
 		if _, err = io.Copy(mac, r); err != nil {
 			return
 		}
-		tags[TID_SHA1] = mac.Sum(nil)
+		tags[wpk.TIDsha1] = mac.Sum(nil)
 	}
 
-	if _, ok := tags[TID_SHA224]; !ok && pack.sha224 {
+	if _, ok := tags[wpk.TIDsha224]; !ok && pack.sha224 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -101,10 +101,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags Tagset) (err error) {
 		if _, err = io.Copy(mac, r); err != nil {
 			return
 		}
-		tags[TID_SHA224] = mac.Sum(nil)
+		tags[wpk.TIDsha224] = mac.Sum(nil)
 	}
 
-	if _, ok := tags[TID_SHA256]; !ok && pack.sha256 {
+	if _, ok := tags[wpk.TIDsha256]; !ok && pack.sha256 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -112,10 +112,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags Tagset) (err error) {
 		if _, err = io.Copy(mac, r); err != nil {
 			return
 		}
-		tags[TID_SHA256] = mac.Sum(nil)
+		tags[wpk.TIDsha256] = mac.Sum(nil)
 	}
 
-	if _, ok := tags[TID_SHA384]; !ok && pack.sha384 {
+	if _, ok := tags[wpk.TIDsha384]; !ok && pack.sha384 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -123,10 +123,10 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags Tagset) (err error) {
 		if _, err = io.Copy(mac, r); err != nil {
 			return
 		}
-		tags[TID_SHA384] = mac.Sum(nil)
+		tags[wpk.TIDsha384] = mac.Sum(nil)
 	}
 
-	if _, ok := tags[TID_SHA512]; !ok && pack.sha512 {
+	if _, ok := tags[wpk.TIDsha512]; !ok && pack.sha512 {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return
 		}
@@ -134,7 +134,7 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags Tagset) (err error) {
 		if _, err = io.Copy(mac, r); err != nil {
 			return
 		}
-		tags[TID_SHA512] = mac.Sum(nil)
+		tags[wpk.TIDsha512] = mac.Sum(nil)
 	}
 
 	return

@@ -4,16 +4,19 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 
-	. "github.com/schwarzlichtbezirk/wpk"
-	"github.com/yuin/gopher-lua"
+	"github.com/schwarzlichtbezirk/wpk"
+	lua "github.com/yuin/gopher-lua"
 )
 
+// TagMT is "tag" name of Lua metatable.
 const TagMT = "tag"
 
+// LuaTag is "tag" userdata structure.
 type LuaTag struct {
-	Tag
+	wpk.Tag
 }
 
+// RegTag registers "tag" userdata into Lua virtual machine.
 func RegTag(ls *lua.LState) {
 	var mt = ls.NewTypeMetatable(TagMT)
 	ls.SetGlobal(TagMT, mt)
@@ -27,19 +30,19 @@ func RegTag(ls *lua.LState) {
 	ls.SetField(mt, "newuint64", ls.NewFunction(NewTagUint64))
 	ls.SetField(mt, "newnumber", ls.NewFunction(NewTagNumber))
 	// methods
-	ls.SetField(mt, "__index", ls.NewFunction(getter_tag))
-	ls.SetField(mt, "__newindex", ls.NewFunction(setter_tag))
-	ls.SetField(mt, "__tostring", ls.NewFunction(string_tag))
-	ls.SetField(mt, "__len", ls.NewFunction(len_tag))
-	for name, f := range methods_tag {
+	ls.SetField(mt, "__index", ls.NewFunction(getterTag))
+	ls.SetField(mt, "__newindex", ls.NewFunction(setterTag))
+	ls.SetField(mt, "__tostring", ls.NewFunction(stringTag))
+	ls.SetField(mt, "__len", ls.NewFunction(lenTag))
+	for name, f := range methodsTag {
 		ls.SetField(mt, name, ls.NewFunction(f))
 	}
-	for i, p := range properties_tag {
+	for i, p := range propertiesTag {
 		ls.SetField(mt, p.name, lua.LNumber(i))
 	}
 }
 
-// Push LuaTag object into stack.
+// PushTag push LuaTag object into stack.
 func PushTag(ls *lua.LState, v *LuaTag) {
 	var ud = ls.NewUserData()
 	ud.Value = v
@@ -47,7 +50,7 @@ func PushTag(ls *lua.LState, v *LuaTag) {
 	ls.Push(ud)
 }
 
-// Construct LuaTag by given hexadecimal data representation.
+// NewTagHex constructs LuaTag by given hexadecimal data representation.
 func NewTagHex(ls *lua.LState) int {
 	var val = ls.CheckString(1)
 	var ds, _ = hex.DecodeString(val)
@@ -55,7 +58,7 @@ func NewTagHex(ls *lua.LState) int {
 	return 1
 }
 
-// Construct LuaTag by given base-64 data representation.
+// NewTagBase64 constructs LuaTag by given base-64 data representation.
 func NewTagBase64(ls *lua.LState) int {
 	var val = ls.CheckString(1)
 	var ds, _ = base64.StdEncoding.DecodeString(val)
@@ -63,49 +66,49 @@ func NewTagBase64(ls *lua.LState) int {
 	return 1
 }
 
-// Construct LuaTag by given string.
+// NewTagString constructs LuaTag by given string.
 func NewTagString(ls *lua.LState) int {
 	var val = ls.CheckString(1)
-	PushTag(ls, &LuaTag{TagString(val)})
+	PushTag(ls, &LuaTag{wpk.TagString(val)})
 	return 1
 }
 
-// Construct LuaTag by given boolean value.
+// NewTagBool constructs LuaTag by given boolean value.
 func NewTagBool(ls *lua.LState) int {
 	var val = ls.CheckBool(1)
-	PushTag(ls, &LuaTag{TagBool(val)})
+	PushTag(ls, &LuaTag{wpk.TagBool(val)})
 	return 1
 }
 
-// Construct LuaTag by given TID value.
+// NewTagUint16 constructs LuaTag by given TID value.
 func NewTagUint16(ls *lua.LState) int {
-	var val = TID(ls.CheckInt(1))
-	PushTag(ls, &LuaTag{TagUint16(val)})
+	var val = wpk.TID(ls.CheckInt(1))
+	PushTag(ls, &LuaTag{wpk.TagUint16(val)})
 	return 1
 }
 
-// Construct LuaTag by given uint32 value.
+// NewTagUint32 constructs LuaTag by given uint32 value.
 func NewTagUint32(ls *lua.LState) int {
 	var val = uint32(ls.CheckInt(1))
-	PushTag(ls, &LuaTag{TagUint32(val)})
+	PushTag(ls, &LuaTag{wpk.TagUint32(val)})
 	return 1
 }
 
-// Construct LuaTag by given uint64 value.
+// NewTagUint64 constructs LuaTag by given uint64 value.
 func NewTagUint64(ls *lua.LState) int {
 	var val = uint64(ls.CheckInt(1))
-	PushTag(ls, &LuaTag{TagUint64(val)})
+	PushTag(ls, &LuaTag{wpk.TagUint64(val)})
 	return 1
 }
 
-// Construct LuaTag by given number value.
+// NewTagNumber constructs LuaTag by given number value.
 func NewTagNumber(ls *lua.LState) int {
 	var val = float64(ls.CheckNumber(1))
-	PushTag(ls, &LuaTag{TagNumber(val)})
+	PushTag(ls, &LuaTag{wpk.TagNumber(val)})
 	return 1
 }
 
-// Checks whether the lua argument with given number is
+// CheckTag checks whether the lua argument with given number is
 // a *LUserData with *LuaTag and returns this *LuaTag.
 func CheckTag(ls *lua.LState, arg int) *LuaTag {
 	if v, ok := ls.CheckUserData(arg).Value.(*LuaTag); ok {
@@ -115,7 +118,7 @@ func CheckTag(ls *lua.LState, arg int) *LuaTag {
 	return nil
 }
 
-func getter_tag(ls *lua.LState) int {
+func getterTag(ls *lua.LState) int {
 	var mt = ls.GetMetatable(ls.Get(1))
 	var val = ls.GetField(mt, ls.CheckString(2))
 	switch val := val.(type) {
@@ -123,7 +126,7 @@ func getter_tag(ls *lua.LState) int {
 		ls.Push(val)
 		return 1
 	case lua.LNumber:
-		var l = &properties_tag[int(val)]
+		var l = &propertiesTag[int(val)]
 		if l.getter == nil {
 			ls.RaiseError("no getter \"%s\" of class \"%s\" defined", l.name, TagMT)
 			return 0
@@ -136,7 +139,7 @@ func getter_tag(ls *lua.LState) int {
 	}
 }
 
-func setter_tag(ls *lua.LState) int {
+func setterTag(ls *lua.LState) int {
 	var mt = ls.GetMetatable(ls.Get(1))
 	var val = ls.GetField(mt, ls.CheckString(2))
 	switch val := val.(type) {
@@ -144,7 +147,7 @@ func setter_tag(ls *lua.LState) int {
 		ls.Push(val)
 		return 1
 	case lua.LNumber:
-		var l = &properties_tag[int(val)]
+		var l = &propertiesTag[int(val)]
 		if l.setter == nil {
 			ls.RaiseError("no setter \"%s\" of class \"%s\" defined", l.name, TagMT)
 			return 0
@@ -157,19 +160,19 @@ func setter_tag(ls *lua.LState) int {
 	}
 }
 
-func string_tag(ls *lua.LState) int {
+func stringTag(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	ls.Push(lua.LString(hex.EncodeToString(t.Tag)))
 	return 1
 }
 
-func len_tag(ls *lua.LState) int {
+func lenTag(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	ls.Push(lua.LNumber(len(t.Tag)))
 	return 1
 }
 
-var properties_tag = []struct {
+var propertiesTag = []struct {
 	name   string
 	getter lua.LGFunction // getters always must return 1 value
 	setter lua.LGFunction // setters always must return no values
@@ -185,7 +188,7 @@ var properties_tag = []struct {
 	{"number", getnumber, setnumber},
 }
 
-var methods_tag = map[string]lua.LGFunction{
+var methodsTag = map[string]lua.LGFunction{
 	// no methods
 }
 
@@ -229,7 +232,7 @@ func getstring(ls *lua.LState) int {
 func setstring(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = ls.CheckString(2)
-	t.Tag = TagString(val)
+	t.Tag = wpk.TagString(val)
 	return 0
 }
 
@@ -245,7 +248,7 @@ func getbool(ls *lua.LState) int {
 func setbool(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = ls.CheckBool(2)
-	t.Tag = TagBool(val)
+	t.Tag = wpk.TagBool(val)
 	return 0
 }
 
@@ -260,8 +263,8 @@ func getuint16(ls *lua.LState) int {
 
 func setuint16(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
-	var val = TID(ls.CheckInt(2))
-	t.Tag = TagUint16(val)
+	var val = wpk.TID(ls.CheckInt(2))
+	t.Tag = wpk.TagUint16(val)
 	return 0
 }
 
@@ -277,7 +280,7 @@ func getuint32(ls *lua.LState) int {
 func setuint32(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = uint32(ls.CheckInt(2))
-	t.Tag = TagUint32(val)
+	t.Tag = wpk.TagUint32(val)
 	return 0
 }
 
@@ -293,7 +296,7 @@ func getuint64(ls *lua.LState) int {
 func setuint64(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = uint64(ls.CheckInt(2))
-	t.Tag = TagUint64(val)
+	t.Tag = wpk.TagUint64(val)
 	return 0
 }
 
@@ -318,7 +321,7 @@ func getnumber(ls *lua.LState) int {
 func setnumber(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = float64(ls.CheckNumber(2))
-	t.Tag = TagNumber(val)
+	t.Tag = wpk.TagNumber(val)
 	return 0
 }
 

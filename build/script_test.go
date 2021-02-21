@@ -34,12 +34,12 @@ func CheckPackage(t *testing.T, wpkname string) {
 
 	for _, tags := range pack.Tags {
 		var kpath = tags.Path()
-		if _, is := tags[TID_created]; !is {
+		if _, is := tags[TIDcreated]; !is {
 			t.Logf("found packed data #%d '%s'", tags.FID(), kpath)
 			continue // skip packed data
 		}
 
-		var link, is = tags[TID_link]
+		var link, is = tags[TIDlink]
 		if !is {
 			t.Fatalf("found file without link #%d '%s'", tags.FID(), kpath)
 		}

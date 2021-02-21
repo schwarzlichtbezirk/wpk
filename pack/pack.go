@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strings"
 
-	. "github.com/schwarzlichtbezirk/wpk"
+	"github.com/schwarzlichtbezirk/wpk"
 )
 
 // command line settings
@@ -86,7 +86,7 @@ func checkargs() int {
 }
 
 func writepackage() (err error) {
-	var pack Writer
+	var pack wpk.Writer
 	var fwpk *os.File
 
 	// open package file to write
@@ -134,7 +134,7 @@ func writepackage() (err error) {
 				}
 				ctype = http.DetectContentType(buf[:n])
 			}
-			tags[TID_mime] = TagString(ctype)
+			tags[wpk.TIDmime] = wpk.TagString(ctype)
 		}
 	}
 

@@ -6,10 +6,10 @@ import (
 	"os"
 )
 
-// Tags sets map.
+// TagsMap is tags sets map.
 type TagsMap map[string]Tagset
 
-// Package writer structure.
+// Writer is package writer structure.
 type Writer struct {
 	PackHdr
 	Tags TagsMap
@@ -53,34 +53,34 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 		}
 
 		// check tags fields
-		if _, ok := tags[TID_path]; !ok {
-			return &ErrTag{ErrKey{ErrNoPath, ""}, TID_path}
+		if _, ok := tags[TIDpath]; !ok {
+			return &ErrTag{ErrKey{ErrNoPath, ""}, TIDpath}
 		}
 		var key = ToKey(tags.Path())
 		if _, ok := pack.Tags[key]; ok {
-			return &ErrTag{ErrKey{ErrAlready, key}, TID_path}
+			return &ErrTag{ErrKey{ErrAlready, key}, TIDpath}
 		}
 
-		if _, ok := tags[TID_FID]; !ok {
-			return &ErrTag{ErrKey{ErrNoFID, key}, TID_FID}
+		if _, ok := tags[TIDfid]; !ok {
+			return &ErrTag{ErrKey{ErrNoFID, key}, TIDfid}
 		}
 		var fid = tags.FID()
 		if fid > pack.RecNumber {
-			return &ErrTag{ErrKey{ErrOutFID, key}, TID_FID}
+			return &ErrTag{ErrKey{ErrOutFID, key}, TIDfid}
 		}
 
-		if _, ok := tags[TID_offset]; !ok {
-			return &ErrTag{ErrKey{ErrNoOffset, key}, TID_offset}
+		if _, ok := tags[TIDoffset]; !ok {
+			return &ErrTag{ErrKey{ErrNoOffset, key}, TIDoffset}
 		}
-		if _, ok := tags[TID_size]; !ok {
-			return &ErrTag{ErrKey{ErrNoSize, key}, TID_size}
+		if _, ok := tags[TIDsize]; !ok {
+			return &ErrTag{ErrKey{ErrNoSize, key}, TIDsize}
 		}
 		var offset, size = tags.Offset(), tags.Size()
 		if offset < PackHdrSize || offset >= int64(pack.TagOffset) {
-			return &ErrTag{ErrKey{ErrOutOff, key}, TID_offset}
+			return &ErrTag{ErrKey{ErrOutOff, key}, TIDoffset}
 		}
 		if offset+size > int64(pack.TagOffset) {
-			return &ErrTag{ErrKey{ErrOutSize, key}, TID_size}
+			return &ErrTag{ErrKey{ErrOutSize, key}, TIDsize}
 		}
 
 		// insert file tags
@@ -90,7 +90,7 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 	return
 }
 
-// Writes prebuild header for new empty package.
+// Begin writes prebuild header for new empty package.
 func (pack *Writer) Begin(w io.WriteSeeker) (err error) {
 	// reset header
 	copy(pack.Signature[:], Prebuild)
@@ -110,7 +110,7 @@ func (pack *Writer) Begin(w io.WriteSeeker) (err error) {
 	return
 }
 
-// Writes prebuild header for previously opened package to append new files.
+// Append writes prebuild header for previously opened package to append new files.
 func (pack *Writer) Append(w io.WriteSeeker) (err error) {
 	// partially reset header
 	copy(pack.Signature[:], Prebuild)
@@ -129,7 +129,7 @@ func (pack *Writer) Append(w io.WriteSeeker) (err error) {
 	return
 }
 
-// Finalize package writing. Writes true signature and header settings.
+// Complete finalizes package writing. Writes true signature and header settings.
 func (pack *Writer) Complete(w io.WriteSeeker) (err error) {
 	// get tags table offset as actual end of file
 	var tagoffset int64
@@ -160,7 +160,7 @@ func (pack *Writer) Complete(w io.WriteSeeker) (err error) {
 	return
 }
 
-// Puts data streamed by given reader into package as a file and associate keyname "kpath" with it.
+// PackData puts data streamed by given reader into package as a file and associate keyname "kpath" with it.
 func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags Tagset, err error) {
 	var key = ToKey(kpath)
 	if _, ok := pack.Tags[key]; ok {
@@ -179,10 +179,10 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags 
 
 	// insert new entry to tags table
 	tags = Tagset{
-		TID_FID:    TagUint32(uint32(pack.RecNumber + 1)),
-		TID_offset: TagUint64(uint64(offset)),
-		TID_size:   TagUint64(uint64(size)),
-		TID_path:   TagString(ToSlash(kpath)),
+		TIDfid:    TagUint32(uint32(pack.RecNumber + 1)),
+		TIDoffset: TagUint64(uint64(offset)),
+		TIDsize:   TagUint64(uint64(size)),
+		TIDpath:   TagString(ToSlash(kpath)),
 	}
 	pack.Tags[key] = tags
 
@@ -193,7 +193,7 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags 
 	return
 }
 
-// Puts file with given file handle into package and associate keyname "kpath" with it.
+// PackFile puts file with given file handle into package and associate keyname "kpath" with it.
 func (pack *Writer) PackFile(w io.WriteSeeker, file *os.File, kpath string) (tags Tagset, err error) {
 	var fi os.FileInfo
 	if fi, err = file.Stat(); err != nil {
@@ -203,17 +203,17 @@ func (pack *Writer) PackFile(w io.WriteSeeker, file *os.File, kpath string) (tag
 		return
 	}
 
-	tags[TID_created] = TagUint64(uint64(fi.ModTime().Unix()))
-	tags[TID_link] = TagString(ToSlash(kpath))
+	tags[TIDcreated] = TagUint64(uint64(fi.ModTime().Unix()))
+	tags[TIDlink] = TagString(ToSlash(kpath))
 	return
 }
 
-// Function called before each file or directory with its parameters
+// PackDirHook is function called before each file or directory with its parameters
 // during PackDir processing. Returns whether to process the file or directory.
 // Can be used as filter and logger.
 type PackDirHook = func(fi os.FileInfo, kpath, fpath string) bool
 
-// Puts all files of given folder and it's subfolders into package.
+// PackDir puts all files of given folder and it's subfolders into package.
 // Hook function can be nil.
 func (pack *Writer) PackDir(w io.WriteSeeker, dirname, prefix string, hook PackDirHook) (err error) {
 	var fis []os.FileInfo
@@ -271,14 +271,14 @@ func (pack *Writer) Rename(oldname, newname string) error {
 		return &ErrKey{ErrAlready, key2}
 	}
 
-	tags[TID_path] = TagString(ToSlash(newname))
+	tags[TIDpath] = TagString(ToSlash(newname))
 	delete(pack.Tags, key1)
 	pack.Tags[key2] = tags
 	return nil
 }
 
-// Clone tags set with file name 'oldname' and replace name tag in it to 'newname'.
-// Keeps link to original file name.
+// PutAlias makes clone tags set with file name 'oldname' and replace name tag
+// in it to 'newname'. Keeps link to original file name.
 func (pack *Writer) PutAlias(oldname, newname string) error {
 	var key1 = ToKey(oldname)
 	var key2 = ToKey(newname)
@@ -294,13 +294,13 @@ func (pack *Writer) PutAlias(oldname, newname string) error {
 	for k, v := range tags1 {
 		tags2[k] = v
 	}
-	tags2[TID_path] = TagString(ToSlash(newname))
+	tags2[TIDpath] = TagString(ToSlash(newname))
 	pack.Tags[key2] = tags2
 	pack.TagNumber++
 	return nil
 }
 
-// Delete tags set with specified file name. Data block is still remains.
+// DelAlias delete tags set with specified file name. Data block is still remains.
 func (pack *Writer) DelAlias(name string) bool {
 	var key = ToKey(name)
 	var _, ok = pack.Tags[key]

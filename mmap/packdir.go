@@ -15,7 +15,7 @@ import (
 // os.Getpagesize() returns incorrect value on Windows.
 const pagesize = int64(64 * 1024)
 
-// Gives access to nested into package file by memory mapping.
+// MappedFile gives access to nested into package file by memory mapping.
 // http.File interface implementation.
 type MappedFile struct {
 	wpk.File
@@ -23,6 +23,7 @@ type MappedFile struct {
 	region []byte
 }
 
+// OpenTags maps nested to package file with given tags slice.
 func (f *MappedFile) OpenTags(pack *PackDir, ts wpk.TagSlice) error {
 	// calculate paged size/offset
 	var offset, size = ts.Offset(), ts.Size()
@@ -42,12 +43,12 @@ func (f *MappedFile) OpenTags(pack *PackDir, ts wpk.TagSlice) error {
 	return nil
 }
 
-// Unmaps memory and closes mapped memory handle.
+// Close unmaps memory and closes mapped memory handle.
 func (f *MappedFile) Close() error {
 	return f.Unmap()
 }
 
-// Wrapper for package to get access to nested files as to memory mapped blocks.
+// PackDir is wrapper for package to get access to nested files as to memory mapped blocks.
 // Gives access to directory in package with prefix "pref".
 // http.FileSystem interface implementation.
 type PackDir struct {
@@ -57,13 +58,13 @@ type PackDir struct {
 	pref string
 }
 
-// Returns tags set referred by offset at TAT field.
+// NamedTags returns tags set referred by offset at TAT field.
 func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
 	var tagpos, is = pack.TAT[key]
 	return wpk.TagSlice(pack.ftag.region[tagpos-pack.TagOffset:]), is
 }
 
-// Opens WPK-file package by given file name.
+// OpenWPK opens WPK-file package by given file name.
 func (pack *PackDir) OpenWPK(fname string) (err error) {
 	if pack.Package == nil {
 		pack.Package = &wpk.Package{}
@@ -84,9 +85,9 @@ func (pack *PackDir) OpenWPK(fname string) (err error) {
 	}
 	var buf bytes.Buffer
 	var tags = wpk.Tagset{
-		wpk.TID_FID:    wpk.TagUint32(0),
-		wpk.TID_offset: wpk.TagUint64(uint64(pack.TagOffset)),
-		wpk.TID_size:   wpk.TagUint64(uint64(fi.Size()) - uint64(pack.TagOffset)),
+		wpk.TIDfid:    wpk.TagUint32(0),
+		wpk.TIDoffset: wpk.TagUint64(uint64(pack.TagOffset)),
+		wpk.TIDsize:   wpk.TagUint64(uint64(fi.Size()) - uint64(pack.TagOffset)),
 	}
 	tags.WriteTo(&buf)
 	if err = pack.ftag.OpenTags(pack, buf.Bytes()); err != nil {
@@ -95,7 +96,7 @@ func (pack *PackDir) OpenWPK(fname string) (err error) {
 	return
 }
 
-// Closes file handle. This function must be called only for root object,
+// Close file handle. This function must be called only for root object,
 // not subdirectories.
 func (pack *PackDir) Close() error {
 	var err1 = pack.ftag.Close()
@@ -109,7 +110,7 @@ func (pack *PackDir) Close() error {
 	return nil
 }
 
-// Clones object and gives access to pointed subdirectory.
+// SubDir clones object and gives access to pointed subdirectory.
 // Copies file handle, so it must be closed only once for root object.
 func (pack *PackDir) SubDir(pref string) wpk.Packager {
 	pref = wpk.ToKey(pref)
@@ -124,13 +125,13 @@ func (pack *PackDir) SubDir(pref string) wpk.Packager {
 	}
 }
 
-// Creates file object to give access to nested into package file by given tagset.
+// OpenFile creates file object to give access to nested into package file by given tagset.
 func (pack *PackDir) OpenFile(ts wpk.TagSlice) (http.File, error) {
 	var f MappedFile
 	return &f, f.OpenTags(pack, ts)
 }
 
-// Returns slice with nested into package file content.
+// Extract returns slice with nested into package file content.
 // Makes content copy to prevent ambiguous access to closed mapped memory block.
 func (pack *PackDir) Extract(key string) ([]byte, error) {
 	var ts wpk.TagSlice
@@ -150,7 +151,7 @@ func (pack *PackDir) Extract(key string) ([]byte, error) {
 	return buf, err
 }
 
-// Implements access to nested into package file or directory by keyname.
+// Open implements access to nested into package file or directory by keyname.
 func (pack *PackDir) Open(kname string) (http.File, error) {
 	var kpath = pack.pref + strings.TrimPrefix(kname, "/")
 	if kpath == "" {
@@ -162,9 +163,8 @@ func (pack *PackDir) Open(kname string) (http.File, error) {
 	var key = wpk.ToKey(kpath)
 	if ts, is := pack.NamedTags(key); is {
 		return pack.OpenFile(ts)
-	} else {
-		return wpk.OpenDir(pack, kpath)
 	}
+	return wpk.OpenDir(pack, kpath)
 }
 
 // The End.

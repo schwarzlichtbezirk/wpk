@@ -4,9 +4,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/yuin/gopher-lua"
+	lua "github.com/yuin/gopher-lua"
 )
 
+// OpenPath registers "path" namespace into Lua virtual machine.
 func OpenPath(ls *lua.LState) int {
 	var mod = ls.RegisterModule("path", pathfuncs).(*lua.LTable)
 	mod.RawSetString("sep", lua.LString(filepath.Separator))

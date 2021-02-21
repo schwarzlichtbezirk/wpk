@@ -22,7 +22,7 @@ var testpack = filepath.Join(os.TempDir(), "testpack.wpk")
 
 var memdata = map[string][]byte{
 	"sample.txt": []byte("The quick brown fox jumps over the lazy dog"),
-	"array.dat": []byte{
+	"array.dat": {
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 		100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
 		200, 201, 202, 203, 204, 205, 206, 207, 208, 209,
@@ -45,9 +45,9 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 	}
 
 	for _, tags := range pack.Tags {
-		var _, isfile = tags[TID_created]
+		var _, isfile = tags[TIDcreated]
 		var kpath = tags.Path()
-		var link, is = tags[TID_link]
+		var link, is = tags[TIDlink]
 		if isfile && !is {
 			t.Fatalf("found file without link #%d '%s'", tags.FID(), kpath)
 		}

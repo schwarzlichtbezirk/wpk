@@ -14,54 +14,59 @@ import (
 	"time"
 )
 
+// File format signatures.
 const (
 	Signature = "Whirlwind 3.2 Package   " // package is ready for use
 	Prebuild  = "Whirlwind 3.2 Prebuild  " // package is in building progress
 )
 
 type (
-	TID    uint16 // tag identifier
-	FID    uint32 // file index/identifier
-	OFFSET uint64 // data block offset
-	SIZE   uint64 // data block size
+	// TID - tag identifier.
+	TID uint16
+	// FID - file index/identifier.
+	FID uint32
+	// OFFSET - data block offset.
+	OFFSET uint64
+	// SIZE - data block size.
+	SIZE uint64
 )
 
 // List of predefined tags IDs.
 const (
-	TID_FID        TID = 0 // required, uint32
-	TID_offset     TID = 1 // required, uint64
-	TID_size       TID = 2 // required, uint64
-	TID_path       TID = 3 // required, unique, string
-	TID_created    TID = 4 // required for files, uint64
-	TID_lastwrite  TID = 5 // uint64
-	TID_lastaccess TID = 6 // uint64
-	TID_change     TID = 7 // uint64
-	TID_fileattr   TID = 8 // uint32
+	TIDfid        TID = 0 // required, uint32
+	TIDoffset     TID = 1 // required, uint64
+	TIDsize       TID = 2 // required, uint64
+	TIDpath       TID = 3 // required, unique, string
+	TIDcreated    TID = 4 // required for files, uint64
+	TIDlastwrite  TID = 5 // uint64
+	TIDlastaccess TID = 6 // uint64
+	TIDchange     TID = 7 // uint64
+	TIDfileattr   TID = 8 // uint32
 
-	TID_SYS TID = 10 // system protection marker
+	TIDsys TID = 10 // system protection marker
 
-	TID_CRC32IEEE TID = 10 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
-	TID_CRC32C    TID = 11 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1
-	TID_CRC32K    TID = 12 // uint32, (Koopman), poly = 0x741B8CD7, init = -1
-	TID_CRC64ISO  TID = 14 // uint64, poly = 0xD800000000000000, init = -1
+	TIDcrc32ieee TID = 10 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
+	TIDcrc32c    TID = 11 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1
+	TIDcrc32k    TID = 12 // uint32, (Koopman), poly = 0x741B8CD7, init = -1
+	TIDcrc64iso  TID = 14 // uint64, poly = 0xD800000000000000, init = -1
 
-	TID_MD5    TID = 20 // [16]byte
-	TID_SHA1   TID = 21 // [20]byte
-	TID_SHA224 TID = 22 // [28]byte
-	TID_SHA256 TID = 23 // [32]byte
-	TID_SHA384 TID = 24 // [48]byte
-	TID_SHA512 TID = 25 // [64]byte
+	TIDmd5    TID = 20 // [16]byte
+	TIDsha1   TID = 21 // [20]byte
+	TIDsha224 TID = 22 // [28]byte
+	TIDsha256 TID = 23 // [32]byte
+	TIDsha384 TID = 24 // [48]byte
+	TIDsha512 TID = 25 // [64]byte
 
-	TID_mime     TID = 100 // string
-	TID_link     TID = 101 // string
-	TID_keywords TID = 102 // string
-	TID_category TID = 103 // string
-	TID_version  TID = 104 // string
-	TID_author   TID = 105 // string
-	TID_comment  TID = 106 // string
+	TIDmime     TID = 100 // string
+	TIDlink     TID = 101 // string
+	TIDkeywords TID = 102 // string
+	TIDcategory TID = 103 // string
+	TIDversion  TID = 104 // string
+	TIDauthor   TID = 105 // string
+	TIDcomment  TID = 106 // string
 )
 
-// Some error with key of tags set.
+// ErrKey is some error with key of tags set.
 type ErrKey struct {
 	What error  // error message
 	Key  string // file key
@@ -75,7 +80,7 @@ func (e *ErrKey) Unwrap() error {
 	return e.What
 }
 
-// Error on some field of tags set.
+// ErrTag is error on some field of tags set.
 type ErrTag struct {
 	ErrKey
 	TID TID // tag ID
@@ -89,6 +94,7 @@ func (e *ErrTag) Unwrap() error {
 	return &e.ErrKey
 }
 
+// Errors on WPK-API.
 var (
 	ErrSignPre  = errors.New("package is not ready yet")
 	ErrSignBad  = errors.New("signature does not pass")
@@ -105,16 +111,16 @@ var (
 	ErrOutSize  = errors.New("file size is out of bounds")
 )
 
-// Tags attributes table map.
+// TATMap is tags attributes table map.
 type TATMap map[string]OFFSET
 
-// Provide tags set access.
+// Tagger provides tags set access.
 type Tagger interface {
 	Enum() TATMap
 	NamedTags(string) (TagSlice, bool)
 }
 
-// Refer to package data access management implementation.
+// Packager refers to package data access management implementation.
 type Packager interface {
 	OpenWPK(string) error
 	io.Closer
@@ -124,7 +130,7 @@ type Packager interface {
 	http.FileSystem
 }
 
-// Package header.
+// PackHdr - package header.
 type PackHdr struct {
 	Signature [0x18]byte `json:"signature"`
 	TagOffset OFFSET     `json:"tagoffset"` // tags table offset
@@ -132,7 +138,7 @@ type PackHdr struct {
 	TagNumber FID        `json:"tagnumber"` // number of tagset entries
 }
 
-// Package header length.
+// PackHdrSize - package header length.
 const PackHdrSize = 40
 
 // Tag - file description item.
@@ -143,12 +149,12 @@ func (t Tag) String() (string, bool) {
 	return string(t), true
 }
 
-// String tag constructor.
+// TagString is string tag constructor.
 func TagString(val string) Tag {
 	return Tag(val)
 }
 
-// Boolean tag converter.
+// Bool is boolean tag converter.
 func (t Tag) Bool() (bool, bool) {
 	if len(t) == 1 {
 		return t[0] > 0, true
@@ -156,7 +162,7 @@ func (t Tag) Bool() (bool, bool) {
 	return false, false
 }
 
-// Boolean tag constructor.
+// TagBool is boolean tag constructor.
 func TagBool(val bool) Tag {
 	var buf [1]byte
 	if val {
@@ -173,13 +179,13 @@ func (t Tag) Byte() (byte, bool) {
 	return 0, false
 }
 
-// Byte tag constructor.
+// TagByte is Byte tag constructor.
 func TagByte(val byte) Tag {
 	var buf = [1]byte{val}
 	return buf[:]
 }
 
-// 16-bit unsigned int tag converter.
+// Uint16 is 16-bit unsigned int tag converter.
 func (t Tag) Uint16() (TID, bool) {
 	if len(t) == 2 {
 		return TID(binary.LittleEndian.Uint16(t)), true
@@ -187,14 +193,14 @@ func (t Tag) Uint16() (TID, bool) {
 	return 0, false
 }
 
-// 16-bit unsigned int tag constructor.
+// TagUint16 is 16-bit unsigned int tag constructor.
 func TagUint16(val TID) Tag {
 	var buf [2]byte
 	binary.LittleEndian.PutUint16(buf[:], uint16(val))
 	return buf[:]
 }
 
-// 32-bit unsigned int tag converter.
+// Uint32 is 32-bit unsigned int tag converter.
 func (t Tag) Uint32() (uint32, bool) {
 	if len(t) == 4 {
 		return binary.LittleEndian.Uint32(t), true
@@ -202,14 +208,14 @@ func (t Tag) Uint32() (uint32, bool) {
 	return 0, false
 }
 
-// 32-bit unsigned int tag constructor.
+// TagUint32 is 32-bit unsigned int tag constructor.
 func TagUint32(val uint32) Tag {
 	var buf [4]byte
 	binary.LittleEndian.PutUint32(buf[:], val)
 	return buf[:]
 }
 
-// 64-bit unsigned int tag converter.
+// Uint64 is 64-bit unsigned int tag converter.
 func (t Tag) Uint64() (uint64, bool) {
 	if len(t) == 8 {
 		return binary.LittleEndian.Uint64(t), true
@@ -217,14 +223,14 @@ func (t Tag) Uint64() (uint64, bool) {
 	return 0, false
 }
 
-// 64-bit unsigned int tag constructor.
+// TagUint64 is 64-bit unsigned int tag constructor.
 func TagUint64(val uint64) Tag {
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], val)
 	return buf[:]
 }
 
-// unspecified size unsigned int tag converter.
+// Uint is unspecified size unsigned int tag converter.
 func (t Tag) Uint() (uint, bool) {
 	switch len(t) {
 	case 1:
@@ -239,7 +245,7 @@ func (t Tag) Uint() (uint, bool) {
 	return 0, false
 }
 
-// 64-bit float tag converter.
+// Number is 64-bit float tag converter.
 func (t Tag) Number() (float64, bool) {
 	if len(t) == 8 {
 		return math.Float64frombits(binary.LittleEndian.Uint64(t)), true
@@ -247,60 +253,60 @@ func (t Tag) Number() (float64, bool) {
 	return 0, false
 }
 
-// 64-bit float tag constructor.
+// TagNumber is 64-bit float tag constructor.
 func TagNumber(val float64) Tag {
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], math.Float64bits(val))
 	return buf[:]
 }
 
-// Tags set for each file in package.
+// Tagset is tags set for each file in package.
 type Tagset map[TID]Tag
 
-// Returns file ID.
+// FID returns file ID.
 func (ts Tagset) FID() FID {
-	if data, ok := ts[TID_FID]; ok {
+	if data, ok := ts[TIDfid]; ok {
 		var fid, _ = data.Uint32()
 		return FID(fid)
 	}
 	return 0
 }
 
-// Returns path of nested into package file.
+// Path returns path of nested into package file.
 func (ts Tagset) Path() string {
-	if data, ok := ts[TID_path]; ok {
+	if data, ok := ts[TIDpath]; ok {
 		return string(data)
 	}
 	return ""
 }
 
-// Returns name of nested into package file.
+// Name returns name of nested into package file.
 func (ts Tagset) Name() string {
-	if data, ok := ts[TID_path]; ok {
+	if data, ok := ts[TIDpath]; ok {
 		return filepath.Base(string(data))
 	}
 	return ""
 }
 
-// Returns size of nested into package file.
+// Size returns size of nested into package file.
 func (ts Tagset) Size() int64 {
-	if data, ok := ts[TID_size]; ok {
+	if data, ok := ts[TIDsize]; ok {
 		var size, _ = data.Uint64()
 		return int64(size)
 	}
 	return 0
 }
 
-// Returns offset of nested into package file.
+// Offset returns offset of nested into package file.
 func (ts Tagset) Offset() int64 {
-	if data, ok := ts[TID_offset]; ok {
+	if data, ok := ts[TIDoffset]; ok {
 		var offset, _ = data.Uint64()
 		return int64(offset)
 	}
 	return 0
 }
 
-// Reads tags set from stream.
+// ReadFrom reads tags set from stream.
 func (ts Tagset) ReadFrom(r io.Reader) (n int64, err error) {
 	var num, id, l TID
 	if err = binary.Read(r, binary.LittleEndian, &num); err != nil {
@@ -326,7 +332,7 @@ func (ts Tagset) ReadFrom(r io.Reader) (n int64, err error) {
 	return
 }
 
-// Writes tags set to stream.
+// WriteTo writes tags set to stream.
 func (ts Tagset) WriteTo(w io.Writer) (n int64, err error) {
 	if err = binary.Write(w, binary.LittleEndian, TID(len(ts))); err != nil {
 		return
@@ -349,13 +355,13 @@ func (ts Tagset) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-// Slice of bytes with tags set. Length of slice can be not determined
-// to record end, i.e. slice starts at record beginning
+// TagSlice is Slice of bytes with tags set. Length of slice can be
+// not determined to record end, i.e. slice starts at record beginning
 // (at number of tags), and can continues after record end.
 // os.FileInfo interface implementation.
 type TagSlice []byte
 
-// Returns number of tags in tags set.
+// Num returns number of tags in tags set.
 func (ts TagSlice) Num() int {
 	if 2 > len(ts) {
 		return 0
@@ -363,7 +369,7 @@ func (ts TagSlice) Num() int {
 	return int(binary.LittleEndian.Uint16(ts))
 }
 
-// Returns Tag with given identifier.
+// GetTag returns Tag with given identifier.
 // If tag is not found, returns ErrNoTag.
 // If slice content is broken, returns io.EOF.
 func (ts TagSlice) GetTag(tid TID) (Tag, error) {
@@ -403,7 +409,7 @@ func (ts TagSlice) String(tid TID) (string, bool) {
 	return "", false
 }
 
-// Boolean tag getter.
+// Bool is boolean tag getter.
 func (ts TagSlice) Bool(tid TID) (bool, bool) {
 	if data, err := ts.GetTag(tid); err == nil {
 		return data.Bool()
@@ -419,7 +425,8 @@ func (ts TagSlice) Byte(tid TID) (byte, bool) {
 	return 0, false
 }
 
-// 16-bit unsigned int tag getter. Conversion can be used to get signed 16-bit integers.
+// Uint16 is 16-bit unsigned int tag getter.
+// Conversion can be used to get signed 16-bit integers.
 func (ts TagSlice) Uint16(tid TID) (TID, bool) {
 	if data, err := ts.GetTag(tid); err == nil {
 		return data.Uint16()
@@ -427,7 +434,8 @@ func (ts TagSlice) Uint16(tid TID) (TID, bool) {
 	return 0, false
 }
 
-// 32-bit unsigned int tag getter. Conversion can be used to get signed 32-bit integers.
+// Uint32 is 32-bit unsigned int tag getter.
+// Conversion can be used to get signed 32-bit integers.
 func (ts TagSlice) Uint32(tid TID) (uint32, bool) {
 	if data, err := ts.GetTag(tid); err == nil {
 		return data.Uint32()
@@ -435,7 +443,8 @@ func (ts TagSlice) Uint32(tid TID) (uint32, bool) {
 	return 0, false
 }
 
-// 64-bit unsigned int tag getter. Conversion can be used to get signed 64-bit integers.
+// Uint64 is 64-bit unsigned int tag getter.
+// Conversion can be used to get signed 64-bit integers.
 func (ts TagSlice) Uint64(tid TID) (uint64, bool) {
 	if data, err := ts.GetTag(tid); err == nil {
 		return data.Uint64()
@@ -443,7 +452,7 @@ func (ts TagSlice) Uint64(tid TID) (uint64, bool) {
 	return 0, false
 }
 
-// Unspecified size unsigned int tag getter.
+// Uint is unspecified size unsigned int tag getter.
 func (ts TagSlice) Uint(tid TID) (uint, bool) {
 	if data, err := ts.GetTag(tid); err == nil {
 		return data.Uint()
@@ -451,7 +460,7 @@ func (ts TagSlice) Uint(tid TID) (uint, bool) {
 	return 0, false
 }
 
-// 64-bit float tag getter.
+// Number is 64-bit float tag getter.
 func (ts TagSlice) Number(tid TID) (float64, bool) {
 	if data, err := ts.GetTag(tid); err == nil {
 		return data.Number()
@@ -459,71 +468,71 @@ func (ts TagSlice) Number(tid TID) (float64, bool) {
 	return 0, false
 }
 
-// Returns file ID.
+// FID returns file ID.
 func (ts TagSlice) FID() FID {
-	var fid, _ = ts.Uint32(TID_FID)
+	var fid, _ = ts.Uint32(TIDfid)
 	return FID(fid)
 }
 
-// Returns path of nested into package file.
+// Path returns path of nested into package file.
 func (ts TagSlice) Path() string {
-	var kpath, _ = ts.String(TID_path)
+	var kpath, _ = ts.String(TIDpath)
 	return kpath
 }
 
-// Returns name of nested into package file.
+// Name returns name of nested into package file.
 func (ts TagSlice) Name() string {
-	var kpath, _ = ts.String(TID_path)
+	var kpath, _ = ts.String(TIDpath)
 	return filepath.Base(kpath)
 }
 
-// Returns size of nested into package file.
+// Size returns size of nested into package file.
 func (ts TagSlice) Size() int64 {
-	var size, _ = ts.Uint64(TID_size)
+	var size, _ = ts.Uint64(TIDsize)
 	return int64(size)
 }
 
-// Returns offset of nested into package file.
+// Offset returns offset of nested into package file.
 func (ts TagSlice) Offset() int64 {
-	var offset, _ = ts.Uint64(TID_offset)
+	var offset, _ = ts.Uint64(TIDoffset)
 	return int64(offset)
 }
 
-// For os.FileInfo interface compatibility.
+// Mode is for os.FileInfo interface compatibility.
 func (ts TagSlice) Mode() os.FileMode {
 	return 0444
 }
 
-// Returns file timestamp of nested into package file.
+// ModTime returns file timestamp of nested into package file.
 func (ts TagSlice) ModTime() time.Time {
-	var crt, _ = ts.Uint64(TID_created)
+	var crt, _ = ts.Uint64(TIDcreated)
 	return time.Unix(int64(crt), 0)
 }
 
-// Detects that object presents a directory. Directory can not have file ID.
+// IsDir detects that object presents a directory. Directory can not have file ID.
 func (ts TagSlice) IsDir() bool {
-	var _, ok = ts.Uint32(TID_FID) // file ID is absent for dir
+	var _, ok = ts.Uint32(TIDfid) // file ID is absent for dir
 	return !ok
 }
 
-// For os.FileInfo interface compatibility.
+// Sys is for os.FileInfo interface compatibility.
 func (ts TagSlice) Sys() interface{} {
 	return nil
 }
 
-// MakesMakes object compatible with http.File interface
+// NewDirTagset makes object compatible with http.File interface
 // to present nested into package directory.
 func NewDirTagset(dir string) TagSlice {
 	var buf bytes.Buffer
 	var tags = Tagset{
-		TID_path: TagString(ToSlash(dir)),
-		TID_size: TagUint64(0),
+		TIDpath: TagString(ToSlash(dir)),
+		TIDsize: TagUint64(0),
 	}
 	tags.WriteTo(&buf)
 	return buf.Bytes()
 }
 
-// Gives access to nested into package file.
+// File gives access to nested into package file.
 // http.File interface implementation.
 type File struct {
 	TagSlice
@@ -531,17 +540,17 @@ type File struct {
 	Pack Tagger
 }
 
-// For http.File interface compatibility.
+// Close is for http.File interface compatibility.
 func (f *File) Close() error {
 	return nil
 }
 
-// For http.File interface compatibility.
+// Stat is for http.File interface compatibility.
 func (f *File) Stat() (os.FileInfo, error) {
 	return f.TagSlice, nil
 }
 
-// Returns os.FileInfo array with nested into given package directory presentation.
+// Readdir returns os.FileInfo array with nested into given package directory presentation.
 func (f *File) Readdir(count int) (matches []os.FileInfo, err error) {
 	var pref = ToKey(f.Path())
 	if len(pref) > 0 && pref[len(pref)-1] != '/' {
@@ -574,7 +583,7 @@ func (f *File) Readdir(count int) (matches []os.FileInfo, err error) {
 	return
 }
 
-// Returns File structure associated with group of files in package pooled with
+// OpenDir returns File structure associated with group of files in package pooled with
 // common directory prefix. Usable to implement http.FileSystem interface.
 func OpenDir(pack Tagger, dir string) (http.File, error) {
 	var pref = ToKey(dir)
@@ -593,27 +602,27 @@ func OpenDir(pack Tagger, dir string) (http.File, error) {
 	return nil, &ErrKey{ErrNotFound, pref}
 }
 
-// Brings filenames to true slashes.
+// ToSlash brings filenames to true slashes.
 var ToSlash = filepath.ToSlash
 
-// Format file path to tags set key. Make argument lowercase,
+// ToKey formats file path to tags set key. Make argument lowercase,
 // change back slashes to normal slashes.
 func ToKey(kpath string) string {
 	return strings.ToLower(ToSlash(kpath))
 }
 
-// Contains all data needed for package representation.
+// Package structure contains all data needed for package representation.
 type Package struct {
 	PackHdr
 	TAT TATMap // keys - package filenames in lower case
 }
 
-// Returns map with file names of all files in package.
+// Enum returns map with file names of all files in package.
 func (pack *Package) Enum() TATMap {
 	return pack.TAT
 }
 
-// Returns the names of all files in package matching pattern or nil
+// Glob returns the names of all files in package matching pattern or nil
 // if there is no matching file.
 func (pack *Package) Glob(pattern string, found func(key string) error) (err error) {
 	pattern = ToKey(pattern)
@@ -670,34 +679,34 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 		}
 
 		// check tags fields
-		if _, ok := tags[TID_path]; !ok {
-			return &ErrTag{ErrKey{ErrNoPath, ""}, TID_path}
+		if _, ok := tags[TIDpath]; !ok {
+			return &ErrTag{ErrKey{ErrNoPath, ""}, TIDpath}
 		}
 		var key = ToKey(tags.Path())
 		if _, ok := pack.TAT[key]; ok {
-			return &ErrTag{ErrKey{ErrAlready, key}, TID_path}
+			return &ErrTag{ErrKey{ErrAlready, key}, TIDpath}
 		}
 
-		if _, ok := tags[TID_FID]; !ok {
-			return &ErrTag{ErrKey{ErrNoFID, key}, TID_FID}
+		if _, ok := tags[TIDfid]; !ok {
+			return &ErrTag{ErrKey{ErrNoFID, key}, TIDfid}
 		}
 		var fid = tags.FID()
 		if fid > pack.RecNumber {
-			return &ErrTag{ErrKey{ErrOutFID, key}, TID_FID}
+			return &ErrTag{ErrKey{ErrOutFID, key}, TIDfid}
 		}
 
-		if _, ok := tags[TID_offset]; !ok {
-			return &ErrTag{ErrKey{ErrNoOffset, key}, TID_offset}
+		if _, ok := tags[TIDoffset]; !ok {
+			return &ErrTag{ErrKey{ErrNoOffset, key}, TIDoffset}
 		}
-		if _, ok := tags[TID_size]; !ok {
-			return &ErrTag{ErrKey{ErrNoSize, key}, TID_size}
+		if _, ok := tags[TIDsize]; !ok {
+			return &ErrTag{ErrKey{ErrNoSize, key}, TIDsize}
 		}
 		var offset, size = tags.Offset(), tags.Size()
 		if offset < PackHdrSize || offset >= int64(pack.TagOffset) {
-			return &ErrTag{ErrKey{ErrOutOff, key}, TID_offset}
+			return &ErrTag{ErrKey{ErrOutOff, key}, TIDoffset}
 		}
 		if offset+size > int64(pack.TagOffset) {
-			return &ErrTag{ErrKey{ErrOutSize, key}, TID_size}
+			return &ErrTag{ErrKey{ErrOutSize, key}, TIDsize}
 		}
 
 		// insert file tags
