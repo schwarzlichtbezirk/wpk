@@ -2,8 +2,8 @@ package bulk
 
 import (
 	"bytes"
+	"io/fs"
 	"io/ioutil"
-	"net/http"
 	"strings"
 
 	"github.com/schwarzlichtbezirk/wpk"
@@ -18,9 +18,19 @@ type PackDir struct {
 	pref string
 }
 
-// NamedTags returns tags set referred by offset at TAT field.
+// OpenFile creates file object to give access to nested into package file by given tagset.
+func (pack *PackDir) OpenFile(ts wpk.TagSlice) (fs.File, error) {
+	var offset, size = ts.Offset(), ts.Size()
+	return &wpk.File{
+		TagSlice: ts,
+		Reader:   *bytes.NewReader(pack.bulk[offset : offset+size]),
+		Pack:     pack,
+	}, nil
+}
+
+// NamedTags returns tags set referred by offset at FTT field.
 func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
-	var tagpos, is = pack.TAT[key]
+	var tagpos, is = pack.FTT[key]
 	return pack.bulk[tagpos:], is
 }
 
@@ -45,57 +55,61 @@ func (pack *PackDir) OpenWPK(fname string) (err error) {
 
 // Close does nothing, there is no any opened handles.
 // Useful for interface compatibility.
+// io.Closer implementation.
 func (pack *PackDir) Close() error {
 	return nil
 }
 
-// SubDir clones object and gives access to pointed subdirectory.
-func (pack *PackDir) SubDir(pref string) wpk.Packager {
-	pref = wpk.ToKey(pref)
-	if len(pref) > 0 && pref[len(pref)-1] != '/' {
-		pref += "/"
+// Sub clones object and gives access to pointed subdirectory.
+// fs.SubFS implementation.
+func (pack *PackDir) Sub(dir string) (fs.FS, error) {
+	dir = wpk.ToKey(dir)
+	if len(dir) > 0 && dir[len(dir)-1] != '/' {
+		dir += "/"
 	}
 	return &PackDir{
 		pack.Package,
 		pack.bulk,
-		pack.pref + pref,
-	}
-}
-
-// OpenFile creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenFile(ts wpk.TagSlice) (http.File, error) {
-	var offset, size = ts.Offset(), ts.Size()
-	return &wpk.File{
-		TagSlice: ts,
-		Reader:   *bytes.NewReader(pack.bulk[offset : offset+size]),
-		Pack:     pack,
+		pack.pref + dir,
 	}, nil
 }
 
-// Extract returns slice with nested into package file content.
-func (pack *PackDir) Extract(key string) ([]byte, error) {
+// Stat returns a fs.FileInfo describing the file.
+// fs.StatFS implementation.
+func (pack *PackDir) Stat(name string) (fs.FileInfo, error) {
+	var ts wpk.TagSlice
+	var is bool
+	if ts, is = pack.NamedTags(name); !is {
+		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
+	}
+	return ts, nil
+}
+
+// ReadFile returns slice with nested into package file content.
+// fs.ReadFileFS implementation.
+func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	var offset, size int64
-	if ts, is := pack.NamedTags(key); is {
+	if ts, is := pack.NamedTags(name); is {
 		offset, size = ts.Offset(), ts.Size()
 	} else {
-		return nil, &wpk.ErrKey{What: wpk.ErrNotFound, Key: key}
+		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
 	return pack.bulk[offset : offset+size], nil
 }
 
 // Open implements access to nested into package file or directory by keyname.
-func (pack *PackDir) Open(kname string) (http.File, error) {
+// fs.FS implementation.
+func (pack *PackDir) Open(kname string) (fs.File, error) {
 	var kpath = pack.pref + strings.TrimPrefix(kname, "/")
 	if kpath == "" {
 		return wpk.OpenDir(pack, kpath)
 	} else if kpath == "wpk" {
 		var buf bytes.Buffer
-		var tags = wpk.Tagset{
+		wpk.Tagset{
 			wpk.TIDfid:    wpk.TagUint32(0),
 			wpk.TIDoffset: wpk.TagUint64(0),
 			wpk.TIDsize:   wpk.TagUint64(uint64(len(pack.bulk))),
-		}
-		tags.WriteTo(&buf)
+		}.WriteTo(&buf)
 		return &wpk.File{
 			TagSlice: buf.Bytes(),
 			Reader:   *bytes.NewReader(pack.bulk),

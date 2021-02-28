@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -550,7 +551,8 @@ func wpkfilesize(ls *lua.LState) int {
 	var tags wpk.Tagset
 	var ok bool
 	if tags, ok = pack.Tags[key]; !ok {
-		ls.RaiseError((&wpk.ErrKey{What: wpk.ErrNotFound, Key: key}).Error())
+		var err = &fs.PathError{Op: "filesize", Path: key, Err: fs.ErrNotExist}
+		ls.RaiseError(err.Error())
 		return 0
 	}
 
@@ -682,7 +684,8 @@ func wpkhastag(ls *lua.LState) int {
 	var tags wpk.Tagset
 	var ok bool
 	if tags, ok = pack.Tags[key]; !ok {
-		ls.RaiseError((&wpk.ErrKey{What: wpk.ErrNotFound, Key: key}).Error())
+		err = &fs.PathError{Op: "hastag", Path: key, Err: fs.ErrNotExist}
+		ls.RaiseError(err.Error())
 		return 0
 	}
 	_, ok = tags[tid]
@@ -708,7 +711,8 @@ func wpkgettag(ls *lua.LState) int {
 	var tags wpk.Tagset
 	var ok bool
 	if tags, ok = pack.Tags[key]; !ok {
-		ls.RaiseError((&wpk.ErrKey{What: wpk.ErrNotFound, Key: key}).Error())
+		err = &fs.PathError{Op: "gettag", Path: key, Err: fs.ErrNotExist}
+		ls.RaiseError(err.Error())
 		return 0
 	}
 
@@ -746,7 +750,7 @@ func wpksettag(ls *lua.LState) int {
 
 		var tags, ok = pack.Tags[key]
 		if !ok {
-			err = &wpk.ErrKey{What: wpk.ErrNotFound, Key: key}
+			err = &fs.PathError{Op: "settag", Path: key, Err: fs.ErrNotExist}
 			return
 		}
 		tags[tid] = tag
@@ -777,7 +781,7 @@ func wpkdeltag(ls *lua.LState) int {
 
 		var tags, ok = pack.Tags[key]
 		if !ok {
-			err = &wpk.ErrKey{What: wpk.ErrNotFound, Key: key}
+			err = &fs.PathError{Op: "deltag", Path: key, Err: fs.ErrNotExist}
 			return
 		}
 		delete(tags, tid)
@@ -795,7 +799,8 @@ func wpkgettags(ls *lua.LState) int {
 
 	var tags, ok = pack.Tags[key]
 	if !ok {
-		ls.RaiseError((&wpk.ErrKey{What: wpk.ErrNotFound, Key: key}).Error())
+		var err = &fs.PathError{Op: "gettags", Path: key, Err: fs.ErrNotExist}
+		ls.RaiseError(err.Error())
 		return 0
 	}
 
@@ -831,7 +836,7 @@ func wpksettags(ls *lua.LState) int {
 
 		var tags, ok = pack.Tags[key]
 		if !ok {
-			err = &wpk.ErrKey{What: wpk.ErrNotFound, Key: key}
+			err = &fs.PathError{Op: "settags", Path: key, Err: fs.ErrNotExist}
 			return
 		}
 
@@ -863,7 +868,8 @@ func wpkaddtags(ls *lua.LState) int {
 
 	var tags, ok = pack.Tags[key]
 	if !ok {
-		ls.RaiseError((&wpk.ErrKey{What: wpk.ErrNotFound, Key: key}).Error())
+		err = &fs.PathError{Op: "addtags", Path: key, Err: fs.ErrNotExist}
+		ls.RaiseError(err.Error())
 		return 0
 	}
 
@@ -902,7 +908,8 @@ func wpkdeltags(ls *lua.LState) int {
 
 	var tags, ok = pack.Tags[key]
 	if !ok {
-		ls.RaiseError((&wpk.ErrKey{What: wpk.ErrNotFound, Key: key}).Error())
+		err = &fs.PathError{Op: "deltags", Path: key, Err: fs.ErrNotExist}
+		ls.RaiseError(err.Error())
 		return 0
 	}
 

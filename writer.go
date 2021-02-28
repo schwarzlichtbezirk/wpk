@@ -3,6 +3,7 @@ package wpk
 import (
 	"encoding/binary"
 	"io"
+	"io/fs"
 	"os"
 )
 
@@ -54,33 +55,33 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 
 		// check tags fields
 		if _, ok := tags[TIDpath]; !ok {
-			return &ErrTag{ErrKey{ErrNoPath, ""}, TIDpath}
+			return &ErrTag{ErrNoPath, "", TIDpath}
 		}
 		var key = ToKey(tags.Path())
 		if _, ok := pack.Tags[key]; ok {
-			return &ErrTag{ErrKey{ErrAlready, key}, TIDpath}
+			return &ErrTag{fs.ErrExist, key, TIDpath}
 		}
 
 		if _, ok := tags[TIDfid]; !ok {
-			return &ErrTag{ErrKey{ErrNoFID, key}, TIDfid}
+			return &ErrTag{ErrNoFID, key, TIDfid}
 		}
 		var fid = tags.FID()
 		if fid > pack.RecNumber {
-			return &ErrTag{ErrKey{ErrOutFID, key}, TIDfid}
+			return &ErrTag{ErrOutFID, key, TIDfid}
 		}
 
 		if _, ok := tags[TIDoffset]; !ok {
-			return &ErrTag{ErrKey{ErrNoOffset, key}, TIDoffset}
+			return &ErrTag{ErrNoOffset, key, TIDoffset}
 		}
 		if _, ok := tags[TIDsize]; !ok {
-			return &ErrTag{ErrKey{ErrNoSize, key}, TIDsize}
+			return &ErrTag{ErrNoSize, key, TIDsize}
 		}
 		var offset, size = tags.Offset(), tags.Size()
 		if offset < PackHdrSize || offset >= int64(pack.TagOffset) {
-			return &ErrTag{ErrKey{ErrOutOff, key}, TIDoffset}
+			return &ErrTag{ErrOutOff, key, TIDoffset}
 		}
 		if offset+size > int64(pack.TagOffset) {
-			return &ErrTag{ErrKey{ErrOutSize, key}, TIDsize}
+			return &ErrTag{ErrOutSize, key, TIDsize}
 		}
 
 		// insert file tags
@@ -164,7 +165,7 @@ func (pack *Writer) Complete(w io.WriteSeeker) (err error) {
 func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags Tagset, err error) {
 	var key = ToKey(kpath)
 	if _, ok := pack.Tags[key]; ok {
-		err = &ErrKey{ErrAlready, key}
+		err = &fs.PathError{Op: "packdata", Path: kpath, Err: fs.ErrExist}
 		return
 	}
 
@@ -265,10 +266,10 @@ func (pack *Writer) Rename(oldname, newname string) error {
 	var key2 = ToKey(newname)
 	var tags, ok = pack.Tags[key1]
 	if !ok {
-		return &ErrKey{ErrNotFound, key1}
+		return &fs.PathError{Op: "rename", Path: oldname, Err: fs.ErrNotExist}
 	}
 	if _, ok = pack.Tags[key2]; ok {
-		return &ErrKey{ErrAlready, key2}
+		return &fs.PathError{Op: "rename", Path: newname, Err: fs.ErrExist}
 	}
 
 	tags[TIDpath] = TagString(ToSlash(newname))
@@ -284,10 +285,10 @@ func (pack *Writer) PutAlias(oldname, newname string) error {
 	var key2 = ToKey(newname)
 	var tags1, ok = pack.Tags[key1]
 	if !ok {
-		return &ErrKey{ErrNotFound, key1}
+		return &fs.PathError{Op: "putalias", Path: oldname, Err: fs.ErrNotExist}
 	}
 	if _, ok = pack.Tags[key2]; ok {
-		return &ErrKey{ErrAlready, key2}
+		return &fs.PathError{Op: "putalias", Path: newname, Err: fs.ErrExist}
 	}
 
 	var tags2 = Tagset{}

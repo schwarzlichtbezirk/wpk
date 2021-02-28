@@ -2,7 +2,7 @@ package mmap
 
 import (
 	"bytes"
-	"net/http"
+	"io/fs"
 	"os"
 	"strings"
 
@@ -58,9 +58,15 @@ type PackDir struct {
 	pref string
 }
 
-// NamedTags returns tags set referred by offset at TAT field.
+// OpenFile creates file object to give access to nested into package file by given tagset.
+func (pack *PackDir) OpenFile(ts wpk.TagSlice) (fs.File, error) {
+	var f MappedFile
+	return &f, f.OpenTags(pack, ts)
+}
+
+// NamedTags returns tags set referred by offset at FTT field.
 func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
-	var tagpos, is = pack.TAT[key]
+	var tagpos, is = pack.FTT[key]
 	return wpk.TagSlice(pack.ftag.region[tagpos-pack.TagOffset:]), is
 }
 
@@ -79,7 +85,7 @@ func (pack *PackDir) OpenWPK(fname string) (err error) {
 	}
 
 	// open tags set file
-	var fi os.FileInfo
+	var fi fs.FileInfo
 	if fi, err = pack.fwpk.Stat(); err != nil {
 		return
 	}
@@ -98,6 +104,7 @@ func (pack *PackDir) OpenWPK(fname string) (err error) {
 
 // Close file handle. This function must be called only for root object,
 // not subdirectories.
+// io.Closer implementation.
 func (pack *PackDir) Close() error {
 	var err1 = pack.ftag.Close()
 	var err2 = pack.fwpk.Close()
@@ -110,34 +117,41 @@ func (pack *PackDir) Close() error {
 	return nil
 }
 
-// SubDir clones object and gives access to pointed subdirectory.
+// Sub clones object and gives access to pointed subdirectory.
 // Copies file handle, so it must be closed only once for root object.
-func (pack *PackDir) SubDir(pref string) wpk.Packager {
-	pref = wpk.ToKey(pref)
-	if len(pref) > 0 && pref[len(pref)-1] != '/' {
-		pref += "/"
+// fs.SubFS implementation.
+func (pack *PackDir) Sub(dir string) (fs.FS, error) {
+	dir = wpk.ToKey(dir)
+	if len(dir) > 0 && dir[len(dir)-1] != '/' {
+		dir += "/"
 	}
 	return &PackDir{
 		pack.Package,
 		pack.fwpk,
 		pack.ftag,
-		pack.pref + pref,
-	}
+		pack.pref + dir,
+	}, nil
 }
 
-// OpenFile creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenFile(ts wpk.TagSlice) (http.File, error) {
-	var f MappedFile
-	return &f, f.OpenTags(pack, ts)
-}
-
-// Extract returns slice with nested into package file content.
-// Makes content copy to prevent ambiguous access to closed mapped memory block.
-func (pack *PackDir) Extract(key string) ([]byte, error) {
+// Stat returns a fs.FileInfo describing the file.
+// fs.StatFS implementation.
+func (pack *PackDir) Stat(name string) (fs.FileInfo, error) {
 	var ts wpk.TagSlice
 	var is bool
-	if ts, is = pack.NamedTags(key); !is {
-		return nil, wpk.ErrNotFound
+	if ts, is = pack.NamedTags(name); !is {
+		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
+	}
+	return ts, nil
+}
+
+// ReadFile returns slice with nested into package file content.
+// Makes content copy to prevent ambiguous access to closed mapped memory block.
+// fs.ReadFileFS implementation.
+func (pack *PackDir) ReadFile(name string) ([]byte, error) {
+	var ts wpk.TagSlice
+	var is bool
+	if ts, is = pack.NamedTags(name); !is {
+		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
 	var f, err = pack.OpenFile(ts)
 	if err != nil {
@@ -152,7 +166,8 @@ func (pack *PackDir) Extract(key string) ([]byte, error) {
 }
 
 // Open implements access to nested into package file or directory by keyname.
-func (pack *PackDir) Open(kname string) (http.File, error) {
+// fs.FS implementation.
+func (pack *PackDir) Open(kname string) (fs.File, error) {
 	var kpath = pack.pref + strings.TrimPrefix(kname, "/")
 	if kpath == "" {
 		return wpk.OpenDir(pack, kpath)
