@@ -39,7 +39,6 @@ func (f *MappedFile) OpenTags(pack *PackDir, ts wpk.TagSlice) error {
 	// init file struct
 	f.TagSlice = ts
 	f.Reader.Reset(f.region)
-	f.Pack = pack
 	return nil
 }
 
@@ -65,6 +64,7 @@ func (pack *PackDir) OpenFile(ts wpk.TagSlice) (fs.File, error) {
 }
 
 // NamedTags returns tags set referred by offset at FTT field.
+// Function receives normalized full path of file.
 func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
 	var tagpos, is = pack.FTT[key]
 	return wpk.TagSlice(pack.ftag.region[tagpos-pack.TagOffset:]), is
@@ -121,24 +121,38 @@ func (pack *PackDir) Close() error {
 // Copies file handle, so it must be closed only once for root object.
 // fs.SubFS implementation.
 func (pack *PackDir) Sub(dir string) (fs.FS, error) {
-	dir = wpk.ToKey(dir)
-	if len(dir) > 0 && dir[len(dir)-1] != '/' {
-		dir += "/"
+	if dir != "" && !fs.ValidPath(dir) {
+		return nil, &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrInvalid}
 	}
-	return &PackDir{
-		pack.Package,
-		pack.fwpk,
-		pack.ftag,
-		pack.pref + dir,
-	}, nil
+	var subpath = wpk.Normalize(dir)
+	if subpath == "." {
+		subpath = ""
+	} else if len(subpath) > 0 && subpath[len(subpath)-1] != '/' {
+		subpath += "/"
+	}
+	var rootpath = pack.pref + subpath
+	for key := range pack.Enum() {
+		if strings.HasPrefix(key, rootpath) {
+			return &PackDir{
+				pack.Package,
+				pack.fwpk,
+				pack.ftag,
+				rootpath,
+			}, nil
+		}
+	}
+	return nil, &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrNotExist}
 }
 
 // Stat returns a fs.FileInfo describing the file.
 // fs.StatFS implementation.
 func (pack *PackDir) Stat(name string) (fs.FileInfo, error) {
+	if !fs.ValidPath(name) {
+		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrInvalid}
+	}
 	var ts wpk.TagSlice
 	var is bool
-	if ts, is = pack.NamedTags(name); !is {
+	if ts, is = pack.NamedTags(wpk.Normalize(pack.pref + name)); !is {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
 	}
 	return ts, nil
@@ -148,9 +162,12 @@ func (pack *PackDir) Stat(name string) (fs.FileInfo, error) {
 // Makes content copy to prevent ambiguous access to closed mapped memory block.
 // fs.ReadFileFS implementation.
 func (pack *PackDir) ReadFile(name string) ([]byte, error) {
+	if !fs.ValidPath(name) {
+		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
+	}
 	var ts wpk.TagSlice
 	var is bool
-	if ts, is = pack.NamedTags(name); !is {
+	if ts, is = pack.NamedTags(wpk.Normalize(pack.pref + name)); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
 	var f, err = pack.OpenFile(ts)
@@ -165,21 +182,26 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	return buf, err
 }
 
+// ReadDir reads the named directory
+// and returns a list of directory entries sorted by filename.
+func (pack *PackDir) ReadDir(subpath string) ([]fs.DirEntry, error) {
+	return wpk.ReadDir(pack, pack.pref+subpath, 0)
+}
+
 // Open implements access to nested into package file or directory by keyname.
 // fs.FS implementation.
-func (pack *PackDir) Open(kname string) (fs.File, error) {
-	var kpath = pack.pref + strings.TrimPrefix(kname, "/")
-	if kpath == "" {
-		return wpk.OpenDir(pack, kpath)
-	} else if kpath == "wpk" {
+func (pack *PackDir) Open(subpath string) (fs.File, error) {
+	var rootpath = pack.pref + subpath
+	if subpath == "" || subpath == "." {
+		return wpk.OpenDir(pack, pack.pref)
+	} else if rootpath == "wpk" {
 		return pack.fwpk, nil
 	}
 
-	var key = wpk.ToKey(kpath)
-	if ts, is := pack.NamedTags(key); is {
+	if ts, is := pack.NamedTags(wpk.Normalize(rootpath)); is {
 		return pack.OpenFile(ts)
 	}
-	return wpk.OpenDir(pack, kpath)
+	return wpk.OpenDir(pack, rootpath)
 }
 
 // The End.

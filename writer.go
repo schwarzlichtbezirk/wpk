@@ -57,7 +57,7 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 		if _, ok := tags[TIDpath]; !ok {
 			return &ErrTag{ErrNoPath, "", TIDpath}
 		}
-		var key = ToKey(tags.Path())
+		var key = Normalize(tags.Path())
 		if _, ok := pack.Tags[key]; ok {
 			return &ErrTag{fs.ErrExist, key, TIDpath}
 		}
@@ -163,7 +163,7 @@ func (pack *Writer) Complete(w io.WriteSeeker) (err error) {
 
 // PackData puts data streamed by given reader into package as a file and associate keyname "kpath" with it.
 func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags Tagset, err error) {
-	var key = ToKey(kpath)
+	var key = Normalize(kpath)
 	if _, ok := pack.Tags[key]; ok {
 		err = &fs.PathError{Op: "packdata", Path: kpath, Err: fs.ErrExist}
 		return
@@ -262,8 +262,8 @@ func (pack *Writer) PackDir(w io.WriteSeeker, dirname, prefix string, hook PackD
 // Rename tags set with file name 'oldname' to 'newname'.
 // Keeps link to original file name.
 func (pack *Writer) Rename(oldname, newname string) error {
-	var key1 = ToKey(oldname)
-	var key2 = ToKey(newname)
+	var key1 = Normalize(oldname)
+	var key2 = Normalize(newname)
 	var tags, ok = pack.Tags[key1]
 	if !ok {
 		return &fs.PathError{Op: "rename", Path: oldname, Err: fs.ErrNotExist}
@@ -281,8 +281,8 @@ func (pack *Writer) Rename(oldname, newname string) error {
 // PutAlias makes clone tags set with file name 'oldname' and replace name tag
 // in it to 'newname'. Keeps link to original file name.
 func (pack *Writer) PutAlias(oldname, newname string) error {
-	var key1 = ToKey(oldname)
-	var key2 = ToKey(newname)
+	var key1 = Normalize(oldname)
+	var key2 = Normalize(newname)
 	var tags1, ok = pack.Tags[key1]
 	if !ok {
 		return &fs.PathError{Op: "putalias", Path: oldname, Err: fs.ErrNotExist}
@@ -303,7 +303,7 @@ func (pack *Writer) PutAlias(oldname, newname string) error {
 
 // DelAlias delete tags set with specified file name. Data block is still remains.
 func (pack *Writer) DelAlias(name string) bool {
-	var key = ToKey(name)
+	var key = Normalize(name)
 	var _, ok = pack.Tags[key]
 	if ok {
 		delete(pack.Tags, key)

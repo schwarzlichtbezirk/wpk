@@ -10,7 +10,7 @@ import (
 	. "github.com/schwarzlichtbezirk/wpk"
 )
 
-var scrdir = envfmt("$(GOPATH)/src/github.com/schwarzlichtbezirk/wpk/test/")
+var scrdir = envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/")
 var mediadir = scrdir + "media/"
 
 // Test package content on nested and external files equivalent.

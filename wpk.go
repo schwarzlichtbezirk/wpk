@@ -112,6 +112,7 @@ type Packager interface {
 	fs.StatFS
 	fs.GlobFS
 	fs.ReadFileFS
+	fs.ReadDirFS
 	Tagger
 }
 
@@ -509,28 +510,38 @@ func (ts TagSlice) Sys() interface{} {
 	return nil
 }
 
-// NewDirTagset makes object compatible with fs.File interface
+// DirEntry is directory representation of nested into package files.
+// No any reader for directory implementation.
+// fs.DirEntry and fs.ReadDirFile interface implementation.
+type DirEntry struct {
+	TagSlice // has fs.FileInfo interface
+}
+
+// NewDirEntry makes object compatible with fs.File interface
 // to present nested into package directory.
-func NewDirTagset(dir string) TagSlice {
+func NewDirEntry(dir string) *DirEntry {
 	var buf bytes.Buffer
 	Tagset{
 		TIDpath: TagString(ToSlash(dir)),
-		TIDsize: TagUint64(0),
 	}.WriteTo(&buf)
-	return buf.Bytes()
+	return &DirEntry{buf.Bytes()}
 }
 
-// File gives access to nested into package file.
+// Type is for fs.DirEntry interface compatibility.
+func (f *DirEntry) Type() fs.FileMode {
+	return fs.ModeDir
+}
+
+// Info returns the FileInfo for the file or subdirectory described by the entry.
+func (f *DirEntry) Info() (fs.FileInfo, error) {
+	return f.TagSlice, nil
+}
+
+// File structure gives access to nested into package file.
 // fs.File interface implementation.
 type File struct {
 	TagSlice // has fs.FileInfo interface
 	bytes.Reader
-	Pack Tagger
-}
-
-// Close is for fs.File interface compatibility.
-func (f *File) Close() error {
-	return nil
 }
 
 // Stat is for fs.File interface compatibility.
@@ -538,65 +549,35 @@ func (f *File) Stat() (fs.FileInfo, error) {
 	return f.TagSlice, nil
 }
 
-// Readdir returns fs.FileInfo array with nested into given package directory presentation.
-func (f *File) Readdir(count int) (matches []fs.FileInfo, err error) {
-	var pref = ToKey(f.Path())
-	if len(pref) > 0 && pref[len(pref)-1] != '/' {
-		pref += "/" // set terminated slash
-	}
-	var dirs = map[string]fs.FileInfo{}
-	var tat = f.Pack.Enum()
-	for key := range tat {
-		if strings.HasPrefix(key, pref) {
-			var suff = key[len(pref):]
-			var sp = strings.IndexByte(suff, '/')
-			if sp < 0 {
-				var ts, _ = f.Pack.NamedTags(key)
-				matches = append(matches, ts)
-				count--
-			} else { // dir detected
-				var dir = pref + suff[:sp+1] // with terminates slash
-				if _, ok := dirs[dir]; !ok {
-					var fi = NewDirTagset(dir)
-					dirs[dir] = fi
-					matches = append(matches, fi)
-					count--
-				}
-			}
-			if count == 0 {
-				break
-			}
-		}
-	}
-	return
+// Close is for fs.File interface compatibility.
+func (f *File) Close() error {
+	return nil
 }
 
-// OpenDir returns File structure associated with group of files in package pooled with
-// common directory prefix. Usable to implement fs.FileSystem interface.
-func OpenDir(pack Tagger, dir string) (fs.File, error) {
-	var pref = ToKey(dir)
-	if len(pref) > 0 && pref[len(pref)-1] != '/' {
-		pref += "/" // set terminated slash
-	}
-	var tat = pack.Enum()
-	for key := range tat {
-		if strings.HasPrefix(key, pref) {
-			return &File{
-				TagSlice: NewDirTagset(dir),
-				Pack:     pack,
-			}, nil
-		}
-	}
-	return nil, &fs.PathError{Op: "opendir", Path: dir, Err: fs.ErrNotExist}
+// ReadDirFile is a directory file whose entries can be read with the ReadDir method.
+type ReadDirFile struct {
+	TagSlice // has fs.FileInfo interface
+	Pack     Tagger
 }
 
-// ToSlash brings filenames to true slashes.
-var ToSlash = filepath.ToSlash
+// Stat is for fs.ReadDirFile interface compatibility.
+func (f *ReadDirFile) Stat() (fs.FileInfo, error) {
+	return f.TagSlice, nil
+}
 
-// ToKey formats file path to tags set key. Make argument lowercase,
-// change back slashes to normal slashes.
-func ToKey(kpath string) string {
-	return strings.ToLower(ToSlash(kpath))
+// Read is for fs.ReadDirFile interface compatibility.
+func (f *ReadDirFile) Read(b []byte) (n int, err error) {
+	return 0, io.EOF
+}
+
+// Close is for fs.ReadDirFile interface compatibility.
+func (f *ReadDirFile) Close() error {
+	return nil
+}
+
+// ReadDir returns fs.FileInfo array with nested into given package directory presentation.
+func (f *ReadDirFile) ReadDir(n int) (matches []fs.DirEntry, err error) {
+	return ReadDir(f.Pack, f.Path(), n)
 }
 
 // Package structure contains all data needed for package representation.
@@ -613,7 +594,7 @@ func (pack *Package) Enum() FTTMap {
 // Glob returns the names of all files in package matching pattern or nil
 // if there is no matching file.
 func (pack *Package) Glob(pattern string) (res []string, err error) {
-	pattern = ToKey(pattern)
+	pattern = Normalize(pattern)
 	var matched bool
 	for key := range pack.FTT {
 		if matched, err = filepath.Match(pattern, key); err != nil {
@@ -668,7 +649,7 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 		if _, ok := tags[TIDpath]; !ok {
 			return &ErrTag{ErrNoPath, "", TIDpath}
 		}
-		var key = ToKey(tags.Path())
+		var key = Normalize(tags.Path())
 		if _, ok := pack.FTT[key]; ok {
 			return &ErrTag{fs.ErrExist, key, TIDpath}
 		}
@@ -700,6 +681,82 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 	}
 
 	return
+}
+
+// ToSlash brings filenames to true slashes.
+var ToSlash = filepath.ToSlash
+
+// Normalize brings file path to normalized form. It makes argument lowercase,
+// change back slashes to normal slashes.
+func Normalize(kpath string) string {
+	return strings.ToLower(ToSlash(kpath))
+}
+
+// ReadDir returns fs.FileInfo array with nested into given package directory presentation.
+// It's core function for ReadDirFile and ReadDirFS structures.
+func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) {
+	if dir != "" && !fs.ValidPath(dir) {
+		return nil, &fs.PathError{Op: "readdir", Path: dir, Err: fs.ErrInvalid}
+	}
+	var prefix = Normalize(dir)
+	if prefix == "." {
+		prefix = ""
+	} else if len(prefix) > 0 && prefix[len(prefix)-1] != '/' {
+		prefix += "/" // set terminated slash
+	}
+	var dirs = map[string]struct{}{}
+	for key := range pack.Enum() {
+		if strings.HasPrefix(key, prefix) {
+			var suff = key[len(prefix):]
+			var sp = strings.IndexByte(suff, '/')
+			if sp < 0 { // file detected
+				var ts, _ = pack.NamedTags(key)
+				matches = append(matches, &DirEntry{ts})
+				n--
+			} else { // dir detected
+				var dir = prefix + suff[:sp+1] // with terminates slash
+				if _, ok := dirs[dir]; !ok {
+					dirs[dir] = struct{}{}
+					matches = append(matches, NewDirEntry(dir))
+					n--
+				}
+			}
+		}
+		if n == 0 {
+			return
+		}
+	}
+	if n > 0 {
+		err = io.EOF
+	}
+	return
+}
+
+// OpenDir returns Dir structure associated with group of files in package pooled with
+// common directory prefix. Usable to implement fs.FileSystem interface.
+func OpenDir(pack Tagger, dir string) (fs.ReadDirFile, error) {
+	if dir != "" && !fs.ValidPath(dir) {
+		return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrInvalid}
+	}
+	var prefix = Normalize(dir)
+	if prefix == "." {
+		prefix = ""
+	} else if len(prefix) > 0 && prefix[len(prefix)-1] != '/' {
+		prefix += "/" // set terminated slash
+	}
+	for key := range pack.Enum() {
+		if strings.HasPrefix(key, prefix) {
+			var buf bytes.Buffer
+			Tagset{
+				TIDpath: TagString(ToSlash(dir)),
+			}.WriteTo(&buf)
+			return &ReadDirFile{
+				TagSlice: buf.Bytes(),
+				Pack:     pack,
+			}, nil
+		}
+	}
+	return nil, &fs.PathError{Op: "opendir", Path: dir, Err: fs.ErrNotExist}
 }
 
 // The End.

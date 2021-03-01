@@ -23,6 +23,8 @@ to build wpk-packages.
 	Implements utility routines for manipulating filename paths. Brings back slashes
 	to normal slashes.
 
+	normalize(fpath) - brings file path to normalized form. It makes argument
+		lowercase, change back slashes to normal slashes.
 	toslash(fpath) - returns the result of replacing each separator character
 		in fpath with a slash ('/') character. Multiple separators are replaced
 		by multiple slashes.

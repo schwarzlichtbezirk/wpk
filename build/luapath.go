@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/schwarzlichtbezirk/wpk"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -16,18 +17,27 @@ func OpenPath(ls *lua.LState) int {
 }
 
 var pathfuncs = map[string]lua.LGFunction{
-	"toslash": pathtoslash,
-	"clean":   pathclean,
-	"volume":  pathvolume,
-	"dir":     pathdir,
-	"base":    pathbase,
-	"ext":     pathext,
-	"split":   pathsplit,
-	"match":   pathmatch,
-	"join":    pathjoin,
-	"glob":    pathglob,
-	"enum":    pathenum,
-	"envfmt":  pathenvfmt,
+	"normalize": pathnormalize,
+	"toslash":   pathtoslash,
+	"clean":     pathclean,
+	"volume":    pathvolume,
+	"dir":       pathdir,
+	"base":      pathbase,
+	"ext":       pathext,
+	"split":     pathsplit,
+	"match":     pathmatch,
+	"join":      pathjoin,
+	"glob":      pathglob,
+	"enum":      pathenum,
+	"envfmt":    pathenvfmt,
+}
+
+func pathnormalize(ls *lua.LState) int {
+	var filename = ls.CheckString(1)
+
+	var name = wpk.Normalize(filename)
+	ls.Push(lua.LString(name))
+	return 1
 }
 
 func pathtoslash(ls *lua.LState) int {

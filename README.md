@@ -24,23 +24,23 @@ Wrapper for package to hold WPK-file whole content as a slice. Actual for small 
 Wrapper for package to get access to nested files as to memory mapped blocks. Actual for large packages.
 
 # How to use
-At first, install [Golang](https://golang.org/) minimum 1.9 version, and get this package:
+At first, install [Golang](https://golang.org/) minimum 1.16 version for last version of this package, and get this package:
 
     go get github.com/schwarzlichtbezirk/wpk
 
 Then you can make simple package with files at [test/media](https://github.com/schwarzlichtbezirk/wpk/tree/master/test/media) directory by command:
 
-    go run github.com/schwarzlichtbezirk/wpk/pack --src=$(GOPATH)/src/github.com/schwarzlichtbezirk/wpk/test/media --dst=$(GOPATH)/bin/media.wpk
-It's runs utility that receives source directory full path and destination package full path. $(GOPATH) at command line directory path replaced by GOPATH environment variable value. To place any other environment variable VAR you can by $(VAR). In this sample package placed into *bin* directory with other compiled golang binary files.
+    go run github.com/schwarzlichtbezirk/wpk/pack --src=${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/media --dst=${GOPATH}/bin/media.wpk
+It's runs utility that receives source directory full path and destination package full path. ${GOPATH} at command line directory path replaced by GOPATH environment variable value. To place any other environment variable VAR you can by ${VAR}. In this sample package placed into *bin* directory with other compiled golang binary files.
 
 To extract files from this *media.wpk* package run command:
 
-    go run github.com/schwarzlichtbezirk/wpk/extract --md --src=$(GOPATH)/bin/media.wpk --dst=$(GOPATH)/bin/media
+    go run github.com/schwarzlichtbezirk/wpk/extract --md --src=${GOPATH}/bin/media.wpk --dst=${GOPATH}/bin/media
 and see files in directory *bin/media*.
 
 To build package at development workflow you can by **build** utility. It can put files into package from any different paths with given names, and bind addition tags to each file, such as MIME types, keywords, CRC, MD5, SHA256 and others. Run this command to see how its work:
 
-    go run github.com/schwarzlichtbezirk/wpk/build $(GOPATH)/src/github.com/schwarzlichtbezirk/wpk/test/build.lua
+    go run github.com/schwarzlichtbezirk/wpk/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/build.lua
 and see *build.wpk* file in wpk/test source directory near the script.
 
 # WPK-format
@@ -56,10 +56,10 @@ Existing package can be opened to append new files, in this case new files block
 
 [step1.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/step1.lua) and [step2.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/step2.lua) scripts shows sample how to create new package at *step1*:
 
-    go run github.com/schwarzlichtbezirk/wpk/build $(GOPATH)/src/github.com/schwarzlichtbezirk/wpk/test/step1.lua
+    go run github.com/schwarzlichtbezirk/wpk/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/step1.lua
 and later append to exising package new files at *step2* call:
 
-    go run github.com/schwarzlichtbezirk/wpk/build $(GOPATH)/src/github.com/schwarzlichtbezirk/wpk/test/step2.lua
+    go run github.com/schwarzlichtbezirk/wpk/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/step2.lua
 [packdir.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/packdir.lua) script has function that can be used to put to package directory with original tree hierarchy.
 
 # WPK API usage
