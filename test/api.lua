@@ -1,7 +1,7 @@
 
 --[[
 
-In addition to standard Lua 5.1 library there is registered API
+In addition to standard Lua 5.1 library, there is registered API
 to build wpk-packages.
 
 *global registration*
@@ -24,7 +24,7 @@ to build wpk-packages.
 	to normal slashes.
 
 	normalize(fpath) - brings file path to normalized form. It makes argument
-		lowercase, change back slashes to normal slashes.
+		lowercase, changes back slashes to normal slashes.
 	toslash(fpath) - returns the result of replacing each separator character
 		in fpath with a slash ('/') character. Multiple separators are replaced
 		by multiple slashes.
@@ -205,7 +205,7 @@ function wpk:safealias(fname1, fname2) -- make 2 file name aliases to 1 file
 end
 
 -- starts new package at bin directory
-local pkg = wpk.create(path.envfmt"$(GOPATH)/bin/api.wpk")
+local pkg = wpk.create(path.envfmt"${GOPATH}/bin/api.wpk")
 pkg.secret = "package-private-key" -- private key to sign cryptographic hashes for each file
 pkg.sha224 = true -- generate SHA224 hash for each file
 

@@ -2,7 +2,6 @@ package wpk
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -55,7 +54,7 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 
 		var orig []byte
 		if isfile {
-			if orig, err = ioutil.ReadFile(mediadir + string(link)); err != nil {
+			if orig, err = os.ReadFile(mediadir + string(link)); err != nil {
 				t.Fatal(err)
 			}
 		} else {

@@ -68,7 +68,7 @@ const (
 // ErrTag is error on some field of tags set.
 type ErrTag struct {
 	What error  // error message
-	Key  string // file key
+	Key  string // normalized file name
 	TID  TID    // tag ID
 }
 
@@ -687,7 +687,7 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 var ToSlash = filepath.ToSlash
 
 // Normalize brings file path to normalized form. It makes argument lowercase,
-// change back slashes to normal slashes.
+// change back slashes to normal slashes. Normalized path is the key to FTTMap.
 func Normalize(kpath string) string {
 	return strings.ToLower(ToSlash(kpath))
 }

@@ -6,14 +6,14 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/yuin/gopher-lua"
+	lua "github.com/yuin/gopher-lua"
 )
 
-var efre = regexp.MustCompile(`\$\(\w+\)`)
+var efre = regexp.MustCompile(`\$\{\w+\}`)
 
 func envfmt(p string) string {
 	return filepath.ToSlash(efre.ReplaceAllStringFunc(p, func(name string) string {
-		return os.Getenv(name[2 : len(name)-1]) // strip $(...) and replace by env value
+		return os.Getenv(name[2 : len(name)-1]) // strip ${...} and replace by env value
 	}))
 }
 

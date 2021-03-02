@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,7 +45,7 @@ func CheckPackage(t *testing.T, wpkname string) {
 		var offset, size = tags.Offset(), tags.Size()
 
 		var orig []byte
-		if orig, err = ioutil.ReadFile(mediadir + string(link)); err != nil {
+		if orig, err = os.ReadFile(mediadir + string(link)); err != nil {
 			t.Fatal(err)
 		}
 

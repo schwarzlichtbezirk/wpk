@@ -1,5 +1,5 @@
 
-local pkgpath = path.envfmt"$(GOPATH)/bin/build.wpk" -- make package full file name on temporary directory
+local pkgpath = path.envfmt"${GOPATH}/bin/build.wpk" -- make package full file name on temporary directory
 
 -- inits new package
 local pkg = wpk.new()
