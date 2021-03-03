@@ -8,9 +8,7 @@ to build wpk-packages.
 	Data and functions defined in global namespace.
 
 	bindir - string value with directory to this running binary file destination.
-		Directory is splash-terminated.
 	scrdir - string value with directory to this Lua script.
-		Directory is splash-terminated.
 	tmpdir - string value with default directory to use for temporary files.
 	log(str) - writes to log given string with current date.
 	checkfile(fpath) - checks up file existence with given full path to it.
@@ -204,7 +202,7 @@ function wpk:safealias(fname1, fname2) -- make 2 file name aliases to 1 file
 	end
 end
 
--- starts new package at bin directory
+-- starts new package at golang binary directory
 local pkg = wpk.create(path.envfmt"${GOPATH}/bin/api.wpk")
 pkg.secret = "package-private-key" -- private key to sign cryptographic hashes for each file
 pkg.sha224 = true -- generate SHA224 hash for each file

@@ -55,7 +55,7 @@ To build package at development workflow you can by **`build`** utility. It can 
 go run github.com/schwarzlichtbezirk/wpk/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/build.lua
 ```
 
-and see `build.wpk` file in `${GOPATH}/bin` directory near compiled output.
+and see `build.wpk` file in binary directory near compiled output.
 
 # WPK-format
 

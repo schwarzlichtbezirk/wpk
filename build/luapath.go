@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/schwarzlichtbezirk/wpk"
@@ -11,7 +12,7 @@ import (
 // OpenPath registers "path" namespace into Lua virtual machine.
 func OpenPath(ls *lua.LState) int {
 	var mod = ls.RegisterModule("path", pathfuncs).(*lua.LTable)
-	mod.RawSetString("sep", lua.LString(filepath.Separator))
+	mod.RawSetString("sep", lua.LString("/"))
 	ls.Push(mod)
 	return 1
 }
@@ -43,7 +44,7 @@ func pathnormalize(ls *lua.LState) int {
 func pathtoslash(ls *lua.LState) int {
 	var filename = ls.CheckString(1)
 
-	var name = filepath.ToSlash(filename)
+	var name = wpk.ToSlash(filename)
 	ls.Push(lua.LString(name))
 	return 1
 }
@@ -51,7 +52,7 @@ func pathtoslash(ls *lua.LState) int {
 func pathclean(ls *lua.LState) int {
 	var filename = ls.CheckString(1)
 
-	var path = filepath.Clean(filename)
+	var path = path.Clean(filename)
 	ls.Push(lua.LString(path))
 	return 1
 }
@@ -67,7 +68,7 @@ func pathvolume(ls *lua.LState) int {
 func pathdir(ls *lua.LState) int {
 	var filename = ls.CheckString(1)
 
-	var dir = filepath.ToSlash(filepath.Dir(filename))
+	var dir = path.Dir(filename)
 	ls.Push(lua.LString(dir))
 	return 1
 }
@@ -75,7 +76,7 @@ func pathdir(ls *lua.LState) int {
 func pathbase(ls *lua.LState) int {
 	var filename = ls.CheckString(1)
 
-	var base = filepath.Base(filename)
+	var base = path.Base(filename)
 	ls.Push(lua.LString(base))
 	return 1
 }
@@ -83,7 +84,7 @@ func pathbase(ls *lua.LState) int {
 func pathext(ls *lua.LState) int {
 	var filename = ls.CheckString(1)
 
-	var ext = filepath.Ext(filename)
+	var ext = path.Ext(filename)
 	ls.Push(lua.LString(ext))
 	return 1
 }
@@ -91,8 +92,8 @@ func pathext(ls *lua.LState) int {
 func pathsplit(ls *lua.LState) int {
 	var filename = ls.CheckString(1)
 
-	var dir, file = filepath.Split(filename)
-	ls.Push(lua.LString(filepath.ToSlash(dir)))
+	var dir, file = path.Split(filename)
+	ls.Push(lua.LString(dir))
 	ls.Push(lua.LString(file))
 	return 2
 }
@@ -101,7 +102,7 @@ func pathmatch(ls *lua.LState) int {
 	var name = ls.CheckString(1)
 	var pattern = ls.CheckString(2)
 
-	var matched, err = filepath.Match(name, pattern)
+	var matched, err = path.Match(name, pattern)
 	if err != nil {
 		ls.RaiseError(err.Error())
 		return 0
@@ -116,7 +117,7 @@ func pathjoin(ls *lua.LState) int {
 		elem[i] = ls.CheckString(i + 1)
 	}
 
-	var dir = filepath.ToSlash(filepath.Join(elem...))
+	var dir = path.Join(elem...)
 	ls.Push(lua.LString(dir))
 	return 1
 }
@@ -130,7 +131,7 @@ func pathglob(ls *lua.LState) int {
 		return 0
 	}
 	for _, dir := range matches {
-		ls.Push(lua.LString(filepath.ToSlash(dir)))
+		ls.Push(lua.LString(wpk.ToSlash(dir)))
 	}
 	return len(matches)
 }

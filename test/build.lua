@@ -1,5 +1,5 @@
 
-local pkgpath = path.envfmt"${GOPATH}/bin/build.wpk" -- make package full file name on temporary directory
+local pkgpath = path.join(bindir, "build.wpk") -- make package full file name on temporary directory
 
 -- inits new package
 local pkg = wpk.new()
@@ -19,7 +19,7 @@ local function packfile(kpath, fpath, keywords)
 end
 
 -- put images with keywords and author addition tags
-local mediadir = scrdir.."media/"
+local mediadir = path.join(scrdir, "media").."/"
 packfile("bounty.jpg", mediadir.."bounty.jpg", "beach")
 packfile("qarataslar.jpg", mediadir.."img1/qarataslar.jpg", "beach;rock")
 packfile("claustral.jpg", mediadir.."img1/claustral.jpg", "beach;rock")

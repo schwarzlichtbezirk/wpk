@@ -3,7 +3,7 @@
 local pkgpath = path.join(tmpdir, "steps.wpk") -- make package full file name on temporary directory
 if not checkfile(pkgpath) then
 	log "package file 'steps.wpk' to append data is not found, performs previous step"
-	dofile(scrdir.."step1.lua")
+	dofile(path.join(scrdir, "step1.lua"))
 end
 
 print ""

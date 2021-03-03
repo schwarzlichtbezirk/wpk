@@ -4,18 +4,19 @@ import (
 	"bytes"
 	"io/fs"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
 // PackDir is wrapper for package to hold WPK-file whole content as a slice.
-// Gives access to directory in package with prefix "pref".
-// http.FileSystem interface implementation.
+// Gives access to pointed directory in package.
+// fs.FS interface implementation.
 type PackDir struct {
 	*wpk.Package
 	bulk []byte
-	pref string
+	root string // root directory in package
 }
 
 // OpenFile creates file object to give access to nested into package file by given tagset.
@@ -45,7 +46,7 @@ func (pack *PackDir) OpenWPK(fname string) (err error) {
 		pack.Package = &wpk.Package{}
 	}
 	pack.bulk = bulk
-	pack.pref = ""
+	pack.root = "."
 
 	if err = pack.Read(bytes.NewReader(bulk)); err != nil {
 		return
@@ -63,22 +64,20 @@ func (pack *PackDir) Close() error {
 // Sub clones object and gives access to pointed subdirectory.
 // fs.SubFS implementation.
 func (pack *PackDir) Sub(dir string) (fs.FS, error) {
-	if dir != "" && !fs.ValidPath(dir) {
+	if !fs.ValidPath(dir) {
 		return nil, &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrInvalid}
 	}
-	var subpath = wpk.Normalize(dir)
-	if subpath == "." {
-		subpath = ""
-	} else if len(subpath) > 0 && subpath[len(subpath)-1] != '/' {
-		subpath += "/"
+	var rootdir = path.Join(pack.root, dir)
+	var rootcmp string
+	if rootdir != "." {
+		rootcmp = rootdir + "/" // make prefix slash-terminated
 	}
-	var rootpath = pack.pref + subpath
 	for key := range pack.Enum() {
-		if strings.HasPrefix(key, rootpath) {
+		if strings.HasPrefix(key, rootcmp) {
 			return &PackDir{
 				pack.Package,
 				pack.bulk,
-				rootpath,
+				rootdir,
 			}, nil
 		}
 	}
@@ -93,7 +92,7 @@ func (pack *PackDir) Stat(name string) (fs.FileInfo, error) {
 	}
 	var ts wpk.TagSlice
 	var is bool
-	if ts, is = pack.NamedTags(wpk.Normalize(pack.pref + name)); !is {
+	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.root, name))); !is {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
 	}
 	return ts, nil
@@ -106,27 +105,25 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
 	}
 	var offset, size int64
-	if ts, is := pack.NamedTags(wpk.Normalize(pack.pref + name)); is {
-		offset, size = ts.Offset(), ts.Size()
-	} else {
+	var ts wpk.TagSlice
+	var is bool
+	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.root, name))); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
+	offset, size = ts.Offset(), ts.Size()
 	return pack.bulk[offset : offset+size], nil
 }
 
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
-func (pack *PackDir) ReadDir(subpath string) ([]fs.DirEntry, error) {
-	return wpk.ReadDir(pack, pack.pref+subpath, 0)
+func (pack *PackDir) ReadDir(dir string) ([]fs.DirEntry, error) {
+	return wpk.ReadDir(pack, path.Join(pack.root, dir), -1)
 }
 
 // Open implements access to nested into package file or directory by keyname.
 // fs.FS implementation.
-func (pack *PackDir) Open(subpath string) (fs.File, error) {
-	var rootpath = pack.pref + subpath
-	if subpath == "" || subpath == "." {
-		return wpk.OpenDir(pack, pack.pref)
-	} else if rootpath == "wpk" {
+func (pack *PackDir) Open(dir string) (fs.File, error) {
+	if dir == "wpk" && pack.root == "." {
 		var buf bytes.Buffer
 		wpk.Tagset{
 			wpk.TIDfid:    wpk.TagUint32(0),
@@ -139,10 +136,11 @@ func (pack *PackDir) Open(subpath string) (fs.File, error) {
 		}, nil
 	}
 
-	if ts, is := pack.NamedTags(wpk.Normalize(rootpath)); is {
+	var rootdir = path.Join(pack.root, dir)
+	if ts, is := pack.NamedTags(wpk.Normalize(rootdir)); is {
 		return pack.OpenFile(ts)
 	}
-	return wpk.OpenDir(pack, rootpath)
+	return wpk.OpenDir(pack, rootdir)
 }
 
 // The End.

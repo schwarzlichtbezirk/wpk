@@ -51,8 +51,8 @@ func mainluavm(fpath string) (err error) {
 	RegTag(ls)
 	RegPack(ls)
 
-	var bindir = filepath.ToSlash(filepath.Dir(os.Args[0])) + "/"
-	var scrdir = filepath.ToSlash(filepath.Dir(fpath)) + "/"
+	var bindir = filepath.ToSlash(filepath.Dir(os.Args[0]))
+	var scrdir = filepath.ToSlash(filepath.Dir(fpath))
 	ls.SetGlobal("bindir", lua.LString(bindir))
 	ls.SetGlobal("scrdir", lua.LString(scrdir))
 	ls.SetGlobal("tmpdir", lua.LString(filepath.ToSlash(os.TempDir())))

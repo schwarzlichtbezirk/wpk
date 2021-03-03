@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"math"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -488,7 +489,10 @@ func (ts TagSlice) Offset() int64 {
 
 // Mode is for fs.FileInfo interface compatibility.
 func (ts TagSlice) Mode() fs.FileMode {
-	return 0444
+	if _, ok := ts.Uint32(TIDfid); ok { // file ID is absent for dir
+		return 0444
+	}
+	return fs.ModeDir
 }
 
 // ModTime returns file timestamp of nested into package file.
@@ -512,23 +516,16 @@ func (ts TagSlice) Sys() interface{} {
 
 // DirEntry is directory representation of nested into package files.
 // No any reader for directory implementation.
-// fs.DirEntry and fs.ReadDirFile interface implementation.
+// fs.DirEntry interface implementation.
 type DirEntry struct {
 	TagSlice // has fs.FileInfo interface
 }
 
-// NewDirEntry makes object compatible with fs.File interface
-// to present nested into package directory.
-func NewDirEntry(dir string) *DirEntry {
-	var buf bytes.Buffer
-	Tagset{
-		TIDpath: TagString(ToSlash(dir)),
-	}.WriteTo(&buf)
-	return &DirEntry{buf.Bytes()}
-}
-
 // Type is for fs.DirEntry interface compatibility.
 func (f *DirEntry) Type() fs.FileMode {
+	if _, ok := f.Uint32(TIDfid); ok { // file ID is absent for dir
+		return 0444
+	}
 	return fs.ModeDir
 }
 
@@ -555,6 +552,7 @@ func (f *File) Close() error {
 }
 
 // ReadDirFile is a directory file whose entries can be read with the ReadDir method.
+// fs.ReadDirFile interface implementation.
 type ReadDirFile struct {
 	TagSlice // has fs.FileInfo interface
 	Pack     Tagger
@@ -577,7 +575,7 @@ func (f *ReadDirFile) Close() error {
 
 // ReadDir returns fs.FileInfo array with nested into given package directory presentation.
 func (f *ReadDirFile) ReadDir(n int) (matches []fs.DirEntry, err error) {
-	return ReadDir(f.Pack, f.Path(), n)
+	return ReadDir(f.Pack, strings.TrimSuffix(f.Path(), "/"), n)
 }
 
 // Package structure contains all data needed for package representation.
@@ -695,29 +693,33 @@ func Normalize(kpath string) string {
 // ReadDir returns fs.FileInfo array with nested into given package directory presentation.
 // It's core function for ReadDirFile and ReadDirFS structures.
 func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) {
-	if dir != "" && !fs.ValidPath(dir) {
+	if !fs.ValidPath(dir) {
 		return nil, &fs.PathError{Op: "readdir", Path: dir, Err: fs.ErrInvalid}
 	}
-	var prefix = Normalize(dir)
-	if prefix == "." {
-		prefix = ""
-	} else if len(prefix) > 0 && prefix[len(prefix)-1] != '/' {
-		prefix += "/" // set terminated slash
+	var prefix string
+	if dir != "." {
+		prefix = Normalize(dir) + "/" // set terminated slash
 	}
 	var dirs = map[string]struct{}{}
 	for key := range pack.Enum() {
 		if strings.HasPrefix(key, prefix) {
-			var suff = key[len(prefix):]
-			var sp = strings.IndexByte(suff, '/')
+			var suffix = key[len(prefix):]
+			var sp = strings.IndexByte(suffix, '/')
 			if sp < 0 { // file detected
 				var ts, _ = pack.NamedTags(key)
 				matches = append(matches, &DirEntry{ts})
 				n--
 			} else { // dir detected
-				var dir = prefix + suff[:sp+1] // with terminates slash
-				if _, ok := dirs[dir]; !ok {
-					dirs[dir] = struct{}{}
-					matches = append(matches, NewDirEntry(dir))
+				var subdir = path.Join(prefix, suffix[:sp])
+				if _, ok := dirs[subdir]; !ok {
+					dirs[subdir] = struct{}{}
+					var ts, _ = pack.NamedTags(key)
+					var fp = ts.Path() // extract not normalized path
+					var buf bytes.Buffer
+					Tagset{
+						TIDpath: TagString(fp[:len(subdir)]),
+					}.WriteTo(&buf)
+					matches = append(matches, &DirEntry{buf.Bytes()})
 					n--
 				}
 			}
@@ -732,17 +734,15 @@ func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) 
 	return
 }
 
-// OpenDir returns Dir structure associated with group of files in package pooled with
-// common directory prefix. Usable to implement fs.FileSystem interface.
+// OpenDir returns ReadDirFile structure associated with group of files in package
+// pooled with common directory prefix. Usable to implement fs.FileSystem interface.
 func OpenDir(pack Tagger, dir string) (fs.ReadDirFile, error) {
-	if dir != "" && !fs.ValidPath(dir) {
+	if !fs.ValidPath(dir) {
 		return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrInvalid}
 	}
-	var prefix = Normalize(dir)
-	if prefix == "." {
-		prefix = ""
-	} else if len(prefix) > 0 && prefix[len(prefix)-1] != '/' {
-		prefix += "/" // set terminated slash
+	var prefix string
+	if dir != "." {
+		prefix = Normalize(dir) + "/" // set terminated slash
 	}
 	for key := range pack.Enum() {
 		if strings.HasPrefix(key, prefix) {
