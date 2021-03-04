@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/schwarzlichtbezirk/wpk"
@@ -22,25 +21,6 @@ var (
 	DstFile string
 	PutMIME bool
 )
-
-var efre = regexp.MustCompile(`\$\{\w+\}`)
-
-func envfmt(p string) string {
-	return filepath.ToSlash(efre.ReplaceAllStringFunc(p, func(name string) string {
-		return os.Getenv(name[2 : len(name)-1]) // strip ${...} and replace by env value
-	}))
-}
-
-func pathexists(path string) (bool, error) {
-	var err error
-	if _, err = os.Stat(path); err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return true, err
-}
 
 func parseargs() {
 	flag.StringVar(&srcpath, "src", "", "full path to folder with source files to be packaged, or list of folders divided by ';'")
@@ -61,11 +41,11 @@ func checkargs() int {
 		if path == "" {
 			continue
 		}
-		path = envfmt(path)
+		path = wpk.Envfmt(path)
 		if !strings.HasSuffix(path, "/") {
 			path += "/"
 		}
-		if ok, _ := pathexists(path); !ok {
+		if ok, _ := wpk.PathExists(path); !ok {
 			log.Printf("source path #%d '%s' does not exist", i+1, path)
 			ec++
 			continue
@@ -73,11 +53,11 @@ func checkargs() int {
 		SrcList = append(SrcList, path)
 	}
 
-	DstFile = envfmt(DstFile)
+	DstFile = wpk.Envfmt(DstFile)
 	if DstFile == "" {
 		log.Println("destination file does not specified")
 		ec++
-	} else if ok, _ := pathexists(filepath.Dir(DstFile)); !ok {
+	} else if ok, _ := wpk.PathExists(filepath.Dir(DstFile)); !ok {
 		log.Println("destination path does not exist")
 		ec++
 	}

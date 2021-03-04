@@ -1,4 +1,4 @@
-package main
+package luawpk
 
 import (
 	"os"
@@ -164,7 +164,7 @@ func pathenum(ls *lua.LState) int {
 
 func pathenvfmt(ls *lua.LState) int {
 	var fpath = ls.CheckString(1)
-	ls.Push(lua.LString(envfmt(fpath)))
+	ls.Push(lua.LString(wpk.Envfmt(fpath)))
 	return 1
 }
 

@@ -1,21 +1,13 @@
-package main
+package luawpk
 
 import (
 	"log"
 	"os"
-	"path/filepath"
-	"regexp"
+	"path"
 
+	"github.com/schwarzlichtbezirk/wpk"
 	lua "github.com/yuin/gopher-lua"
 )
-
-var efre = regexp.MustCompile(`\$\{\w+\}`)
-
-func envfmt(p string) string {
-	return filepath.ToSlash(efre.ReplaceAllStringFunc(p, func(name string) string {
-		return os.Getenv(name[2 : len(name)-1]) // strip ${...} and replace by env value
-	}))
-}
 
 func lualog(ls *lua.LState) int {
 	var s = ls.CheckString(1)
@@ -43,7 +35,8 @@ func luacheckfile(ls *lua.LState) int {
 	return 2
 }
 
-func mainluavm(fpath string) (err error) {
+// RunLuaVM runs specified Lua-script with Lua WPK API.
+func RunLuaVM(fpath string) (err error) {
 	var ls = lua.NewState()
 	defer ls.Close()
 
@@ -51,11 +44,11 @@ func mainluavm(fpath string) (err error) {
 	RegTag(ls)
 	RegPack(ls)
 
-	var bindir = filepath.ToSlash(filepath.Dir(os.Args[0]))
-	var scrdir = filepath.ToSlash(filepath.Dir(fpath))
+	var bindir = wpk.ToSlash(path.Dir(os.Args[0]))
+	var scrdir = wpk.ToSlash(path.Dir(fpath))
 	ls.SetGlobal("bindir", lua.LString(bindir))
 	ls.SetGlobal("scrdir", lua.LString(scrdir))
-	ls.SetGlobal("tmpdir", lua.LString(filepath.ToSlash(os.TempDir())))
+	ls.SetGlobal("tmpdir", lua.LString(wpk.ToSlash(os.TempDir())))
 	ls.SetGlobal("log", ls.NewFunction(lualog))
 	ls.SetGlobal("checkfile", ls.NewFunction(luacheckfile))
 
@@ -63,15 +56,6 @@ func mainluavm(fpath string) (err error) {
 		return
 	}
 	return
-}
-
-func main() {
-	for _, path := range os.Args[1:] {
-		if err := mainluavm(envfmt(path)); err != nil {
-			log.Println(err.Error())
-			return
-		}
-	}
 }
 
 // The End.

@@ -1,4 +1,4 @@
-package main
+package luawpk_test
 
 import (
 	"bytes"
@@ -6,16 +6,17 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/schwarzlichtbezirk/wpk"
+	"github.com/schwarzlichtbezirk/wpk"
+	lw "github.com/schwarzlichtbezirk/wpk/luawpk"
 )
 
-var scrdir = envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/")
+var scrdir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/")
 var mediadir = scrdir + "media/"
 
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, wpkname string) {
 	var err error
-	var pack Writer
+	var pack wpk.Writer
 	var fwpk *os.File
 
 	// open temporary file for read/write
@@ -33,12 +34,12 @@ func CheckPackage(t *testing.T, wpkname string) {
 
 	for _, tags := range pack.Tags {
 		var kpath = tags.Path()
-		if _, is := tags[TIDcreated]; !is {
+		if _, is := tags[wpk.TIDcreated]; !is {
 			t.Logf("found packed data #%d '%s'", tags.FID(), kpath)
 			continue // skip packed data
 		}
 
-		var link, is = tags[TIDlink]
+		var link, is = tags[wpk.TIDlink]
 		if !is {
 			t.Fatalf("found file without link #%d '%s'", tags.FID(), kpath)
 		}
@@ -79,7 +80,7 @@ func TestPackdir(t *testing.T) {
 	var wpkname = filepath.Join(os.TempDir(), "packdir.wpk")
 	defer os.Remove(wpkname)
 
-	if err := mainluavm(scrdir + "packdir.lua"); err != nil {
+	if err := lw.RunLuaVM(scrdir + "packdir.lua"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -92,14 +93,14 @@ func TestSteps(t *testing.T) {
 	var wpkname = filepath.Join(os.TempDir(), "steps.wpk")
 	defer os.Remove(wpkname)
 
-	if err := mainluavm(scrdir + "step1.lua"); err != nil {
+	if err := lw.RunLuaVM(scrdir + "step1.lua"); err != nil {
 		t.Fatal(err)
 	}
 
 	// make package file check up
 	CheckPackage(t, wpkname)
 
-	if err := mainluavm(scrdir + "step2.lua"); err != nil {
+	if err := lw.RunLuaVM(scrdir + "step2.lua"); err != nil {
 		t.Fatal(err)
 	}
 

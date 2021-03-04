@@ -1,4 +1,4 @@
-package main
+package luawpk
 
 const (
 	jsoncontent = "application/json;charset=utf-8"

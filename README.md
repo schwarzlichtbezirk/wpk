@@ -16,10 +16,10 @@ Places data files into single package, extracts them, and gives API for access t
 Small simple utility designed to pack a directory, or a list of directories into an package.
  - **wpk/extract**
 Small simple utility designed to extract all packed files from package, or list of packages to given directory.
- - **wpk/build**
-Utility for programmable building of the packages. Uses [Lua 5.1]([https://www.lua.org/manual/5.1/](https://www.lua.org/manual/5.1/)) to script package building process.
+ - **wpk/luawpk/cmd**
+Utility for the packages programmable building. Uses [Lua 5.1]([https://www.lua.org/manual/5.1/](https://www.lua.org/manual/5.1/)) to script package building process.
  - **wpk/test**
-Contains some Lua-scripts to test **`wpk/build`** utility and learn scripting API opportunities.
+Contains some Lua-scripts to test **`wpk/luawpk`** utility and learn scripting API opportunities.
  - **wpk/bulk**
 Wrapper for package to hold WPK-file whole content as a slice. Actual for small packages.
  - **wpk/mmap**
@@ -49,10 +49,10 @@ go run github.com/schwarzlichtbezirk/wpk/extract --md --src=${GOPATH}/bin/media.
 
 and see files in directory `${GOPATH}/bin/media`.
 
-To build package at development workflow you can by **`build`** utility. It can put files into package from any different paths with given names, and bind addition tags to each file, such as MIME types, keywords, CRC, MD5, SHA256 and others. Run this command to see how its work:
+To build package at development workflow you can by **`luawpk`** utility. It can put files into package from any different paths with given names, and bind addition tags to each file, such as MIME types, keywords, CRC, MD5, SHA256 and others. Run this command to see how its work:
 
 ```batch
-go run github.com/schwarzlichtbezirk/wpk/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/build.lua
+go run github.com/schwarzlichtbezirk/wpk/luawpk/cmd ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/build.lua
 ```
 
 and see `build.wpk` file in binary directory near compiled output.
@@ -68,18 +68,18 @@ Existing package can be opened to append new files, in this case new files block
 
 # Script API
 
-**`build`** utility receives one or more Lua-scripts that maneges package building workflow. Typical sequence is to create new package, setup common properties, put files and add aliases with some tags if it necessary, and complete package building. See whole script API documentation in header comment of [api.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/api.lua) script, and sample package building algorithm below.
+**`luawpk`** utility receives one or more Lua-scripts that maneges package building workflow. Typical sequence is to create new package, setup common properties, put files and add aliases with some tags if it necessary, and complete package building. See whole script API documentation in header comment of [api.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/api.lua) script, and sample package building algorithm below.
 
 [step1.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/step1.lua) and [step2.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/step2.lua) scripts shows sample how to create new package at *step1*:
 
 ```batch
-go run github.com/schwarzlichtbezirk/wpk/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/step1.lua
+go run github.com/schwarzlichtbezirk/wpk/luawpk/cmd ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/step1.lua
 ```
 
 and later append to exising package new files at *step2* call:
 
 ```batch
-go run github.com/schwarzlichtbezirk/wpk/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/step2.lua
+go run github.com/schwarzlichtbezirk/wpk/luawpk/cmd ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/step2.lua
 ```
 
 [packdir.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/packdir.lua) script has function that can be used to put to package directory with original tree hierarchy.

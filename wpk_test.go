@@ -1,22 +1,15 @@
-package wpk
+package wpk_test
 
 import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"regexp"
 	"testing"
+
+	"github.com/schwarzlichtbezirk/wpk"
 )
 
-var efre = regexp.MustCompile(`\$\(\w+\)`)
-
-func envfmt(p string) string {
-	return ToSlash(efre.ReplaceAllStringFunc(p, func(name string) string {
-		return os.Getenv(name[2 : len(name)-1]) // strip $(...) and replace by env value
-	}))
-}
-
-var mediadir = envfmt("$(GOPATH)/src/github.com/schwarzlichtbezirk/wpk/test/media/")
+var mediadir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/media/")
 var testpack = filepath.Join(os.TempDir(), "testpack.wpk")
 
 var memdata = map[string][]byte{
@@ -31,7 +24,7 @@ var memdata = map[string][]byte{
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 	var err error
-	var pack Writer
+	var pack wpk.Writer
 
 	if err = pack.Read(fwpk); err != nil {
 		t.Fatal(err)
@@ -44,9 +37,9 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 	}
 
 	for _, tags := range pack.Tags {
-		var _, isfile = tags[TIDcreated]
+		var _, isfile = tags[wpk.TIDcreated]
 		var kpath = tags.Path()
-		var link, is = tags[TIDlink]
+		var link, is = tags[wpk.TIDlink]
 		if isfile && !is {
 			t.Fatalf("found file without link #%d '%s'", tags.FID(), kpath)
 		}
@@ -96,7 +89,7 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 // Test PackDir function work.
 func TestPackDir(t *testing.T) {
 	var err error
-	var pack Writer
+	var pack wpk.Writer
 	var fwpk *os.File
 	var tagsnum = 0
 
@@ -134,7 +127,7 @@ func TestPackDir(t *testing.T) {
 // Test ability of files sequence packing, and make alias.
 func TestPutFiles(t *testing.T) {
 	var err error
-	var pack Writer
+	var pack wpk.Writer
 	var fwpk *os.File
 	var tagsnum = 0
 
@@ -148,7 +141,7 @@ func TestPutFiles(t *testing.T) {
 		}
 		defer file.Close()
 
-		var tags Tagset
+		var tags wpk.Tagset
 		if tags, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
@@ -159,7 +152,7 @@ func TestPutFiles(t *testing.T) {
 	var putdata = func(name string, data []byte) {
 		var r = bytes.NewReader(data)
 
-		var tags Tagset
+		var tags wpk.Tagset
 		if tags, err = pack.PackData(fwpk, r, name); err != nil {
 			t.Fatal(err)
 		}
@@ -226,7 +219,7 @@ func TestPutFiles(t *testing.T) {
 // then append new files to existing package.
 func TestAppendContinues(t *testing.T) {
 	var err error
-	var pack Writer
+	var pack wpk.Writer
 	var fwpk *os.File
 	var tagsnum = 0
 
@@ -240,7 +233,7 @@ func TestAppendContinues(t *testing.T) {
 		}
 		defer file.Close()
 
-		var tags Tagset
+		var tags wpk.Tagset
 		if tags, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
@@ -296,7 +289,7 @@ func TestAppendContinues(t *testing.T) {
 // then open package file again and append new files.
 func TestAppendDiscrete(t *testing.T) {
 	var err error
-	var pack Writer
+	var pack wpk.Writer
 	var fwpk *os.File
 	var tagsnum = 0
 
@@ -310,7 +303,7 @@ func TestAppendDiscrete(t *testing.T) {
 		}
 		defer file.Close()
 
-		var tags Tagset
+		var tags wpk.Tagset
 		if tags, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
