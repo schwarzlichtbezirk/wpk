@@ -24,7 +24,7 @@ func ExamplePackage_Read() {
 	}
 	// How many records at package
 	log.Printf("records: %d, aliases: %d, datasize: %d\n",
-		pack.RecNumber, pack.TagNumber, pack.TagOffset-wpk.PackHdrSize)
+		pack.RecNumber(), len(pack.Enum()), pack.DataSize())
 
 	// Print not more than 5 file names from package
 	var i = 0

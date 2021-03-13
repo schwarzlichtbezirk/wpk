@@ -29,9 +29,6 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 	if err = pack.Read(fwpk); err != nil {
 		t.Fatal(err)
 	}
-	if int(pack.TagNumber) != len(pack.Tags) {
-		t.Fatalf("stored at header %d entries, realy got %d entries", pack.TagNumber, len(pack.Tags))
-	}
 	if len(pack.Tags) != tagsnum {
 		t.Fatalf("expected %d entries in package, realy got %d entries", tagsnum, len(pack.Tags))
 	}
@@ -109,14 +106,14 @@ func TestPackDir(t *testing.T) {
 	if err = pack.PackDir(fwpk, mediadir, "", func(fi os.FileInfo, fname, fpath string) bool {
 		if !fi.IsDir() {
 			tagsnum++
-			t.Logf("put file #%d '%s', %d bytes", pack.RecNumber+1, fname, fi.Size())
+			t.Logf("put file #%d '%s', %d bytes", pack.RecNumber()+1, fname, fi.Size())
 		}
 		return true
 	}); err != nil {
 		t.Fatal(err)
 	}
 	// finalize
-	if err = pack.Complete(fwpk); err != nil {
+	if err = pack.Finalize(fwpk); err != nil {
 		t.Fatal(err)
 	}
 
@@ -147,7 +144,7 @@ func TestPutFiles(t *testing.T) {
 		}
 
 		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.RecNumber, name, tags.Size())
+		t.Logf("put file #%d '%s', %d bytes", pack.RecNumber(), name, tags.Size())
 	}
 	var putdata = func(name string, data []byte) {
 		var r = bytes.NewReader(data)
@@ -158,7 +155,7 @@ func TestPutFiles(t *testing.T) {
 		}
 
 		tagsnum++
-		t.Logf("put data #%d '%s', %d bytes", pack.RecNumber, name, tags.Size())
+		t.Logf("put data #%d '%s', %d bytes", pack.RecNumber(), name, tags.Size())
 	}
 	var putalias = func(oldname, newname string) {
 		if err = pack.PutAlias(oldname, newname); err != nil {
@@ -198,7 +195,7 @@ func TestPutFiles(t *testing.T) {
 	putalias("img1/claustral.jpg", "jasper.jpg")
 	delalias("basaltbay.jpg")
 	// finalize
-	if err = pack.Complete(fwpk); err != nil {
+	if err = pack.Finalize(fwpk); err != nil {
 		t.Fatal(err)
 	}
 
@@ -239,7 +236,7 @@ func TestAppendContinues(t *testing.T) {
 		}
 
 		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.RecNumber, name, tags.Size())
+		t.Logf("put file #%d '%s', %d bytes", pack.RecNumber(), name, tags.Size())
 	}
 
 	// open temporary file for read/write
@@ -257,7 +254,7 @@ func TestAppendContinues(t *testing.T) {
 	putfile("img1/claustral.jpg")
 	putfile("img1/qarataslar.jpg")
 	// finalize
-	if err = pack.Complete(fwpk); err != nil {
+	if err = pack.Finalize(fwpk); err != nil {
 		t.Fatal(err)
 	}
 
@@ -276,7 +273,7 @@ func TestAppendContinues(t *testing.T) {
 	putfile("img2/marble.jpg")
 	putfile("img2/uzunji.jpg")
 	// finalize
-	if err = pack.Complete(fwpk); err != nil {
+	if err = pack.Finalize(fwpk); err != nil {
 		t.Fatal(err)
 	}
 
@@ -309,7 +306,7 @@ func TestAppendDiscrete(t *testing.T) {
 		}
 
 		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.RecNumber, name, tags.Size())
+		t.Logf("put file #%d '%s', %d bytes", pack.RecNumber(), name, tags.Size())
 	}
 
 	t.Run("step1", func(t *testing.T) {
@@ -328,7 +325,7 @@ func TestAppendDiscrete(t *testing.T) {
 		putfile("img1/claustral.jpg")
 		putfile("img1/qarataslar.jpg")
 		// finalize
-		if err = pack.Complete(fwpk); err != nil {
+		if err = pack.Finalize(fwpk); err != nil {
 			t.Fatal(err)
 		}
 
@@ -363,7 +360,7 @@ func TestAppendDiscrete(t *testing.T) {
 		putfile("img2/marble.jpg")
 		putfile("img2/uzunji.jpg")
 		// finalize
-		if err = pack.Complete(fwpk); err != nil {
+		if err = pack.Finalize(fwpk); err != nil {
 			t.Fatal(err)
 		}
 

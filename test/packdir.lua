@@ -70,6 +70,6 @@ packdir("", path.join(scrdir, "media").."/")
 log(tostring(pkg))
 
 -- write records table, tags table and finalize wpk-file
-pkg:complete()
+pkg:finalize()
 
 log "done."

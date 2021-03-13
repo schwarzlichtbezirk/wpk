@@ -32,6 +32,6 @@ packfile("img1/claustral.jpg", "beach;rock")
 log(string.format("packaged %d files on sum %d bytes", pkg.recnum, pkg.datasize))
 
 -- write records table, tags table and finalize wpk-file
-pkg:complete()
+pkg:finalize()
 
 log "done step 1."

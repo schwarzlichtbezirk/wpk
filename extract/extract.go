@@ -78,7 +78,7 @@ func readpackage() (err error) {
 		if func() {
 			var pack mmap.PackDir
 			var sum int64
-			if err = pack.OpenWPK(pkgpath); err != nil {
+			if err = pack.OpenImage(pkgpath); err != nil {
 				return
 			}
 

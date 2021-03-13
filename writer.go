@@ -28,16 +28,16 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 	if err = binary.Read(r, binary.LittleEndian, &pack.PackHdr); err != nil {
 		return
 	}
-	if string(pack.Signature[:]) == Prebuild {
+	if string(pack.signature[:]) == Prebuild {
 		return ErrSignPre
 	}
-	if string(pack.Signature[:]) != Signature {
+	if string(pack.signature[:]) != Signature {
 		return ErrSignBad
 	}
-	pack.Tags = make(TagsMap, pack.TagNumber)
+	pack.Tags = make(TagsMap)
 
 	// read file tags set table
-	if _, err = r.Seek(int64(pack.TagOffset), io.SeekStart); err != nil {
+	if _, err = r.Seek(int64(pack.tagoffset), io.SeekStart); err != nil {
 		return
 	}
 	var n int64
@@ -66,7 +66,7 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 			return &ErrTag{ErrNoFID, key, TIDfid}
 		}
 		var fid = tags.FID()
-		if fid > pack.RecNumber {
+		if fid > pack.recnumber {
 			return &ErrTag{ErrOutFID, key, TIDfid}
 		}
 
@@ -77,10 +77,10 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 			return &ErrTag{ErrNoSize, key, TIDsize}
 		}
 		var offset, size = tags.Offset(), tags.Size()
-		if offset < PackHdrSize || offset >= int64(pack.TagOffset) {
+		if offset < PackHdrSize || offset >= int64(pack.tagoffset) {
 			return &ErrTag{ErrOutOff, key, TIDoffset}
 		}
-		if offset+size > int64(pack.TagOffset) {
+		if offset+size > int64(pack.tagoffset) {
 			return &ErrTag{ErrOutSize, key, TIDsize}
 		}
 
@@ -91,15 +91,19 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 	return
 }
 
-// Begin writes prebuild header for new empty package.
-func (pack *Writer) Begin(w io.WriteSeeker) (err error) {
+// Reset initializes fields with zero values and sets prebuild signature.
+func (pack *Writer) Reset() {
 	// reset header
-	copy(pack.Signature[:], Prebuild)
-	pack.TagOffset = PackHdrSize
-	pack.RecNumber = 0
-	pack.TagNumber = 0
+	copy(pack.signature[:], Prebuild)
+	pack.tagoffset = PackHdrSize
+	pack.recnumber = 0
 	// setup empty tags table
 	pack.Tags = TagsMap{}
+}
+
+// Begin writes prebuild header for new empty package.
+func (pack *Writer) Begin(w io.WriteSeeker) (err error) {
+	pack.Reset()
 	// go to file start
 	if _, err = w.Seek(0, io.SeekStart); err != nil {
 		return
@@ -114,7 +118,7 @@ func (pack *Writer) Begin(w io.WriteSeeker) (err error) {
 // Append writes prebuild header for previously opened package to append new files.
 func (pack *Writer) Append(w io.WriteSeeker) (err error) {
 	// partially reset header
-	copy(pack.Signature[:], Prebuild)
+	copy(pack.signature[:], Prebuild)
 	// go to file start
 	if _, err = w.Seek(0, io.SeekStart); err != nil {
 		return
@@ -124,21 +128,20 @@ func (pack *Writer) Append(w io.WriteSeeker) (err error) {
 		return
 	}
 	// go to tags table start to replace it by new data
-	if _, err = w.Seek(int64(pack.TagOffset), io.SeekStart); err != nil {
+	if _, err = w.Seek(int64(pack.tagoffset), io.SeekStart); err != nil {
 		return
 	}
 	return
 }
 
-// Complete finalizes package writing. Writes true signature and header settings.
-func (pack *Writer) Complete(w io.WriteSeeker) (err error) {
+// Finalize finalizes package writing. Writes true signature and header settings.
+func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 	// get tags table offset as actual end of file
 	var tagoffset int64
 	if tagoffset, err = w.Seek(0, io.SeekEnd); err != nil {
 		return
 	}
-	pack.TagOffset = OFFSET(tagoffset)
-	pack.TagNumber = FID(len(pack.Tags))
+	pack.tagoffset = OFFSET(tagoffset)
 	// write files tags table
 	for _, tags := range pack.Tags {
 		if _, err = tags.WriteTo(w); err != nil {
@@ -154,7 +157,7 @@ func (pack *Writer) Complete(w io.WriteSeeker) (err error) {
 	if _, err = w.Seek(0, io.SeekStart); err != nil {
 		return
 	}
-	copy(pack.Signature[:], Signature)
+	copy(pack.signature[:], Signature)
 	if err = binary.Write(w, binary.LittleEndian, &pack.PackHdr); err != nil {
 		return
 	}
@@ -180,7 +183,7 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags 
 
 	// insert new entry to tags table
 	tags = Tagset{
-		TIDfid:    TagUint32(uint32(pack.RecNumber + 1)),
+		TIDfid:    TagUint32(uint32(pack.recnumber + 1)),
 		TIDoffset: TagUint64(uint64(offset)),
 		TIDsize:   TagUint64(uint64(size)),
 		TIDpath:   TagString(ToSlash(kpath)),
@@ -188,9 +191,8 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags 
 	pack.Tags[key] = tags
 
 	// update header
-	pack.TagOffset = OFFSET(offset + size)
-	pack.RecNumber++
-	pack.TagNumber++
+	pack.tagoffset = OFFSET(offset + size)
+	pack.recnumber++
 	return
 }
 
@@ -297,7 +299,6 @@ func (pack *Writer) PutAlias(oldname, newname string) error {
 	}
 	tags2[TIDpath] = TagString(ToSlash(newname))
 	pack.Tags[key2] = tags2
-	pack.TagNumber++
 	return nil
 }
 
@@ -307,7 +308,6 @@ func (pack *Writer) DelAlias(name string) bool {
 	var _, ok = pack.Tags[key]
 	if ok {
 		delete(pack.Tags, key)
-		pack.TagNumber--
 	}
 	return ok
 }

@@ -68,11 +68,11 @@ func (pack *PackDir) OpenFile(ts wpk.TagSlice) (fs.File, error) {
 // Function receives normalized full path of file.
 func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
 	var tagpos, is = pack.FTT[key]
-	return wpk.TagSlice(pack.ftag.region[tagpos-pack.TagOffset:]), is
+	return wpk.TagSlice(pack.ftag.region[tagpos-wpk.OFFSET(pack.TagOffset()):]), is
 }
 
-// OpenWPK opens WPK-file package by given file name.
-func (pack *PackDir) OpenWPK(fname string) (err error) {
+// OpenImage opens WPK-file package by given file name.
+func (pack *PackDir) OpenImage(fname string) (err error) {
 	if pack.Package == nil {
 		pack.Package = &wpk.Package{}
 	}
@@ -93,8 +93,8 @@ func (pack *PackDir) OpenWPK(fname string) (err error) {
 	var buf bytes.Buffer
 	var tags = wpk.Tagset{
 		wpk.TIDfid:    wpk.TagUint32(0),
-		wpk.TIDoffset: wpk.TagUint64(uint64(pack.TagOffset)),
-		wpk.TIDsize:   wpk.TagUint64(uint64(fi.Size()) - uint64(pack.TagOffset)),
+		wpk.TIDoffset: wpk.TagUint64(uint64(pack.TagOffset())),
+		wpk.TIDsize:   wpk.TagUint64(uint64(fi.Size()) - uint64(pack.TagOffset())),
 	}
 	tags.WriteTo(&buf)
 	if err = pack.ftag.OpenTags(pack, buf.Bytes()); err != nil {

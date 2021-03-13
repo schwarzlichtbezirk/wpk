@@ -79,13 +79,7 @@ func PushPack(ls *lua.LState, v *LuaPackage) {
 // NewPack is LuaPackage constructor.
 func NewPack(ls *lua.LState) int {
 	var pack LuaPackage
-
-	copy(pack.Signature[:], wpk.Prebuild)
-	pack.Tags = wpk.TagsMap{}
-	pack.TagOffset = wpk.PackHdrSize
-	pack.RecNumber = 0
-	pack.TagNumber = 0
-
+	pack.Reset()
 	PushPack(ls, &pack)
 	return 1
 }
@@ -145,7 +139,7 @@ func setterPack(ls *lua.LState) int {
 func tostringPack(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	var s = fmt.Sprintf("records: %d, aliases: %d, datasize: %d", pack.RecNumber, pack.TagNumber, pack.TagOffset-wpk.PackHdrSize)
+	var s = fmt.Sprintf("records: %d, aliases: %d, datasize: %d", pack.RecNumber(), len(pack.Tags), pack.DataSize())
 	ls.Push(lua.LString(s))
 	return 1
 }
@@ -176,7 +170,7 @@ var methodsPack = map[string]lua.LGFunction{
 	"load":     wpkload,
 	"begin":    wpkbegin,
 	"append":   wpkappend,
-	"complete": wpkcomplete,
+	"finalize": wpkfinalize,
 	"sumsize":  wpksumsize,
 	"glob":     wpkglob,
 	"hasfile":  wpkhasfile,
@@ -210,19 +204,19 @@ func getpath(ls *lua.LState) int {
 
 func getrecnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LNumber(pack.RecNumber))
+	ls.Push(lua.LNumber(pack.RecNumber()))
 	return 1
 }
 
 func gettagnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LNumber(pack.TagNumber))
+	ls.Push(lua.LNumber(len(pack.Tags)))
 	return 1
 }
 
 func getdatasize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LNumber(pack.TagOffset - wpk.PackHdrSize))
+	ls.Push(lua.LNumber(pack.DataSize()))
 	return 1
 }
 
@@ -473,7 +467,7 @@ func wpkappend(ls *lua.LState) int {
 	return 0
 }
 
-func wpkcomplete(ls *lua.LState) int {
+func wpkfinalize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
 	var err error
@@ -484,7 +478,7 @@ func wpkcomplete(ls *lua.LState) int {
 		}
 
 		// finalize
-		if err = pack.Complete(pack.w); err != nil {
+		if err = pack.Finalize(pack.w); err != nil {
 			return
 		}
 		// close package file

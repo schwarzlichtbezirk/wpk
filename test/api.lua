@@ -118,11 +118,11 @@ to build wpk-packages.
 	load(fpath) - read allocation table and tags table by specified wpk-file path.
 		File descriptor is closed after this function call.
 	begin(fpath) - start to write new empty package with given path.
-		Package can not be used until writing will be 'complete'. If package with
+		Package can not be used until writing will be 'finalize'. If package with
 		given path is already exist, it will be rewritten.
 	append() - start to append new files to already existing package, opened by
-		previous call to 'load'. Package can not be used until writing will be 'complete'.
-	complete() - write allocation table and tags table, and finalize package writing.
+		previous call to 'load'. Package can not be used until writing will be 'finalize'.
+	finalize() - write allocation table and tags table, and finalize package writing.
 	sumsize() - return size sum of all data records. Some files may refer to shared
 		data, so sumsize can be more then datasize.
 	glob(pattern) - returns the names of all files in package matching pattern or nil
@@ -228,5 +228,5 @@ logfmt("total package data size: %d bytes", pkg.datasize)
 logfmt("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum)
 
 -- write records table, tags table and finalize wpk-file
-pkg:complete()
+pkg:finalize()
 log "done."

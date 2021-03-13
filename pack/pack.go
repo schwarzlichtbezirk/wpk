@@ -86,7 +86,7 @@ func writepackage() (err error) {
 		log.Printf("source folder #%d: %s", i+1, path)
 		if err = pack.PackDir(fwpk, path, "", func(fi os.FileInfo, fname, fpath string) bool {
 			if !fi.IsDir() {
-				log.Printf("#%-4d %7d bytes   %s", pack.RecNumber+1, fi.Size(), fname)
+				log.Printf("#%-4d %7d bytes   %s", pack.RecNumber()+1, fi.Size(), fname)
 			}
 			return true
 		}); err != nil {
@@ -120,7 +120,7 @@ func writepackage() (err error) {
 
 	// finalize
 	log.Printf("write tags table")
-	if err = pack.Complete(fwpk); err != nil {
+	if err = pack.Finalize(fwpk); err != nil {
 		return
 	}
 

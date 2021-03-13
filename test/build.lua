@@ -38,6 +38,6 @@ log(string.format("total files size sum: %d bytes", pkg:sumsize()))
 log(string.format("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum))
 
 -- write records table, tags table and finalize wpk-file
-pkg:complete()
+pkg:finalize()
 
 log "done."

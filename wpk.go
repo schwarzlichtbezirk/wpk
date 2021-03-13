@@ -106,7 +106,9 @@ type Tagger interface {
 
 // Packager refers to package data access management implementation.
 type Packager interface {
-	OpenWPK(string) error
+	OpenImage(string) error
+	RecNumber() int
+	DataSize() int64
 	io.Closer
 	fs.SubFS
 	fs.StatFS
@@ -118,14 +120,31 @@ type Packager interface {
 
 // PackHdr - package header.
 type PackHdr struct {
-	Signature [0x18]byte `json:"signature"`
-	TagOffset OFFSET     `json:"tagoffset"` // tags table offset
-	RecNumber FID        `json:"recnumber"` // number of records
-	TagNumber FID        `json:"tagnumber"` // number of tagset entries
+	signature [0x18]byte
+	tagoffset OFFSET // tags table offset
+	recnumber FID    // number of records
 }
 
 // PackHdrSize - package header length.
 const PackHdrSize = 40
+
+// TagOffset returns tags table offset in the package.
+func (pack *PackHdr) TagOffset() int64 {
+	return int64(pack.tagoffset)
+}
+
+// RecNumber returns number of real stored records in package without aliases counting.
+func (pack *PackHdr) RecNumber() int {
+	return int(pack.recnumber)
+}
+
+// DataSize returns sum size of all real stored records in package.
+func (pack *PackHdr) DataSize() int64 {
+	if pack.tagoffset > PackHdrSize {
+		return int64(pack.tagoffset - PackHdrSize)
+	}
+	return 0
+}
 
 // Tag - file description item.
 type Tag []byte
@@ -616,16 +635,16 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 	if err = binary.Read(r, binary.LittleEndian, &pack.PackHdr); err != nil {
 		return
 	}
-	if string(pack.Signature[:]) == Prebuild {
+	if string(pack.signature[:]) == Prebuild {
 		return ErrSignPre
 	}
-	if string(pack.Signature[:]) != Signature {
+	if string(pack.signature[:]) != Signature {
 		return ErrSignBad
 	}
-	pack.FTT = make(FTTMap, pack.TagNumber)
+	pack.FTT = make(FTTMap)
 
 	// read file tags set table
-	if _, err = r.Seek(int64(pack.TagOffset), io.SeekStart); err != nil {
+	if _, err = r.Seek(int64(pack.tagoffset), io.SeekStart); err != nil {
 		return
 	}
 	var n int64
@@ -655,7 +674,7 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 			return &ErrTag{ErrNoFID, key, TIDfid}
 		}
 		var fid = tags.FID()
-		if fid > pack.RecNumber {
+		if fid > pack.recnumber {
 			return &ErrTag{ErrOutFID, key, TIDfid}
 		}
 
@@ -666,10 +685,10 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 			return &ErrTag{ErrNoSize, key, TIDsize}
 		}
 		var offset, size = tags.Offset(), tags.Size()
-		if offset < PackHdrSize || offset >= int64(pack.TagOffset) {
+		if offset < PackHdrSize || offset >= int64(pack.tagoffset) {
 			return &ErrTag{ErrOutOff, key, TIDoffset}
 		}
-		if offset+size > int64(pack.TagOffset) {
+		if offset+size > int64(pack.tagoffset) {
 			return &ErrTag{ErrOutSize, key, TIDsize}
 		}
 

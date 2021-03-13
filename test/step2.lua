@@ -72,6 +72,6 @@ packdata("sample.txt", "The quick brown fox jumps over the lazy dog", "fox;dog")
 logfmt("packaged %d files on sum %d bytes", pkg.recnum, pkg.datasize)
 
 -- write records table, tags table and finalize wpk-file
-pkg:complete()
+pkg:finalize()
 
 log "done step 2."

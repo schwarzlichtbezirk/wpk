@@ -28,9 +28,6 @@ func CheckPackage(t *testing.T, wpkname string) {
 	if err = pack.Read(fwpk); err != nil {
 		t.Fatal(err)
 	}
-	if int(pack.TagNumber) != len(pack.Tags) {
-		t.Fatalf("stored at header %d entries, realy got %d entries", pack.TagNumber, len(pack.Tags))
-	}
 
 	for _, tags := range pack.Tags {
 		var kpath = tags.Path()
