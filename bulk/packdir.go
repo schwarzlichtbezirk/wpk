@@ -36,7 +36,9 @@ func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
 }
 
 // OpenImage opens WPK-file package by given file name.
-func (pack *PackDir) OpenImage(fname string) (err error) {
+func OpenImage(fname string) (pack *PackDir, err error) {
+	pack = &PackDir{Package: &wpk.Package{}}
+
 	var bulk []byte
 	if bulk, err = os.ReadFile(fname); err != nil {
 		return

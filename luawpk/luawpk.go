@@ -149,6 +149,7 @@ var propertiesPack = []struct {
 	getter lua.LGFunction // getters always must return 1 value
 	setter lua.LGFunction // setters always must return no values
 }{
+	{"label", getlabel, setlabel},
 	{"path", getpath, nil},
 	{"recnum", getrecnum, nil},
 	{"tagnum", gettagnum, nil},
@@ -191,6 +192,19 @@ var methodsPack = map[string]lua.LGFunction{
 }
 
 // properties section
+
+func getlabel(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	ls.Push(lua.LString(pack.Label()))
+	return 1
+}
+
+func setlabel(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var label = ls.CheckString(2)
+	pack.SetLabel(label)
+	return 0
+}
 
 func getpath(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)

@@ -89,6 +89,7 @@ to build wpk-packages.
 	new() - creates new empty object.
 
 	properties:
+	label - getter/setter for package label.
 	path - getter only, returns path to opened wpk-file.
 	recnum - getter only, returns number of records in file allocation table.
 	tagnum - getter only, returns number of records in tags table.
@@ -204,6 +205,7 @@ end
 
 -- starts new package at golang binary directory
 local pkg = wpk.create(path.envfmt"${GOPATH}/bin/api.wpk")
+pkg.label = "api-sample" -- image label
 pkg.secret = "package-private-key" -- private key to sign cryptographic hashes for each file
 pkg.sha224 = true -- generate SHA224 hash for each file
 

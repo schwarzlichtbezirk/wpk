@@ -3,6 +3,7 @@ local pkgpath = path.join(bindir, "build.wpk") -- make package full file name on
 
 -- inits new package
 local pkg = wpk.new()
+pkg.label = "build" -- image label
 pkg.automime = true -- put MIME type for each file if it is not given explicit
 pkg.secret = "package-private-key" -- private key to sign cryptographic hashes for each file
 pkg.crc64 = true -- generate CRC64 ISO code for each file

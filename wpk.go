@@ -15,8 +15,8 @@ import (
 
 // File format signatures.
 const (
-	Signature = "Whirlwind 3.2 Package   " // package is ready for use
-	Prebuild  = "Whirlwind 3.2 Prebuild  " // package is in building progress
+	Signature = "Whirlwind 3.3 Package   " // package is ready for use
+	Prebuild  = "Whirlwind 3.3 Prebuild  " // package is in building progress
 )
 
 type (
@@ -106,27 +106,45 @@ type Tagger interface {
 
 // Packager refers to package data access management implementation.
 type Packager interface {
-	OpenImage(string) error
 	RecNumber() int
 	DataSize() int64
+	Tagger
+
 	io.Closer
 	fs.SubFS
 	fs.StatFS
 	fs.GlobFS
 	fs.ReadFileFS
 	fs.ReadDirFS
-	Tagger
 }
 
 // PackHdr - package header.
 type PackHdr struct {
 	signature [0x18]byte
+	disklabel [0x18]byte
 	tagoffset OFFSET // tags table offset
 	recnumber FID    // number of records
 }
 
 // PackHdrSize - package header length.
-const PackHdrSize = 40
+const PackHdrSize = 60
+
+// Label returns string with disk label, copied from header fixed field.
+// Maximum length of label is 24 bytes.
+func (pack *PackHdr) Label() string {
+	var i int
+	for ; i < 0x18 && pack.disklabel[i] > 0; i++ {
+	}
+	return string(pack.disklabel[:i])
+}
+
+// SetLabel setups header fixed label field to given string.
+// Maximum length of label is 24 bytes.
+func (pack *PackHdr) SetLabel(label string) {
+	for i := copy(pack.disklabel[:], []byte(label)); i < 0x18; i++ {
+		pack.disklabel[i] = 0 // make label zero-terminated
+	}
+}
 
 // TagOffset returns tags table offset in the package.
 func (pack *PackHdr) TagOffset() int64 {

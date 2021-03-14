@@ -76,12 +76,12 @@ func readpackage() (err error) {
 	for _, pkgpath := range SrcList {
 		log.Printf("source package: %s", pkgpath)
 		if func() {
-			var pack mmap.PackDir
-			var sum int64
-			if err = pack.OpenImage(pkgpath); err != nil {
+			var pack *mmap.PackDir
+			if pack, err = mmap.OpenImage(pkgpath); err != nil {
 				return
 			}
 
+			var sum int64
 			var tat = pack.Enum()
 			for key := range tat {
 				if func() {
