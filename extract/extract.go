@@ -82,7 +82,7 @@ func readpackage() (err error) {
 			}
 
 			var sum int64
-			var tat = pack.Enum()
+			var tat = pack.NFTO()
 			for key := range tat {
 				if func() {
 					var ts, _ = pack.NamedTags(key)

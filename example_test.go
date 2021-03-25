@@ -24,11 +24,11 @@ func ExamplePackage_Read() {
 	}
 	// How many records at package
 	log.Printf("records: %d, aliases: %d, datasize: %d\n",
-		pack.RecNumber(), len(pack.Enum()), pack.DataSize())
+		pack.RecNumber(), len(pack.NFTO()), pack.DataSize())
 
 	// Print not more than 5 file names from package
 	var i = 0
-	for key := range pack.FTT {
+	for key := range pack.Tags {
 		log.Println(key)
 		i++
 		if i == 5 {

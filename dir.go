@@ -53,7 +53,7 @@ func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) 
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
 	var dirs = map[string]struct{}{}
-	for key := range pack.Enum() {
+	for key := range pack.NFTO() {
 		if strings.HasPrefix(key, prefix) {
 			var suffix = key[len(prefix):]
 			var sp = strings.IndexByte(suffix, '/')
@@ -96,7 +96,7 @@ func OpenDir(pack Tagger, dir string) (fs.ReadDirFile, error) {
 	if dir != "." {
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
-	for key := range pack.Enum() {
+	for key := range pack.NFTO() {
 		if strings.HasPrefix(key, prefix) {
 			var buf bytes.Buffer
 			Tagset{

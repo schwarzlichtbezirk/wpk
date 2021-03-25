@@ -95,12 +95,12 @@ var (
 	ErrOutSize  = errors.New("file size is out of bounds")
 )
 
-// FTTMap is tags files tags table map.
-type FTTMap map[string]OFFSET
+// NFTOMap is named file tags offset map.
+type NFTOMap map[string]OFFSET
 
-// Tagger provides tags set access.
+// Tagger provides file tags access.
 type Tagger interface {
-	Enum() FTTMap
+	NFTO() NFTOMap
 	NamedTags(string) (TagSlice, bool)
 }
 
@@ -118,50 +118,98 @@ type Packager interface {
 	fs.ReadDirFS
 }
 
-// PackHdr - package header.
-type PackHdr struct {
-	signature [0x18]byte
-	disklabel [0x18]byte
-	tagoffset OFFSET // tags table offset
+const (
+	// HeaderSize - package header size in bytes.
+	HeaderSize = 60
+	// SignSize - signature field size.
+	SignSize = 0x18
+	// LabelSize - disk label field size.
+	LabelSize = 0x18
+)
+
+// Header - package header.
+type Header struct {
+	signature [SignSize]byte
+	disklabel [LabelSize]byte
+	fttoffset OFFSET // file tags table offset
 	recnumber FID    // number of records
 }
 
-// PackHdrSize - package header length.
-const PackHdrSize = 60
-
 // Label returns string with disk label, copied from header fixed field.
 // Maximum length of label is 24 bytes.
-func (pack *PackHdr) Label() string {
+func (pack *Header) Label() string {
 	var i int
-	for ; i < 0x18 && pack.disklabel[i] > 0; i++ {
+	for ; i < LabelSize && pack.disklabel[i] > 0; i++ {
 	}
 	return string(pack.disklabel[:i])
 }
 
 // SetLabel setups header fixed label field to given string.
 // Maximum length of label is 24 bytes.
-func (pack *PackHdr) SetLabel(label string) {
-	for i := copy(pack.disklabel[:], []byte(label)); i < 0x18; i++ {
+func (pack *Header) SetLabel(label string) {
+	for i := copy(pack.disklabel[:], []byte(label)); i < LabelSize; i++ {
 		pack.disklabel[i] = 0 // make label zero-terminated
 	}
 }
 
-// TagOffset returns tags table offset in the package.
-func (pack *PackHdr) TagOffset() int64 {
-	return int64(pack.tagoffset)
+// FTTOffset returns file tags table offset in the package.
+func (pack *Header) FTTOffset() int64 {
+	return int64(pack.fttoffset)
 }
 
 // RecNumber returns number of real stored records in package without aliases counting.
-func (pack *PackHdr) RecNumber() int {
+func (pack *Header) RecNumber() int {
 	return int(pack.recnumber)
 }
 
 // DataSize returns sum size of all real stored records in package.
-func (pack *PackHdr) DataSize() int64 {
-	if pack.tagoffset > PackHdrSize {
-		return int64(pack.tagoffset - PackHdrSize)
+func (pack *Header) DataSize() int64 {
+	if pack.fttoffset > HeaderSize {
+		return int64(pack.fttoffset - HeaderSize)
 	}
 	return 0
+}
+
+// ReadFrom reads header from stream as binary data of constant length in little endian order.
+func (pack *Header) ReadFrom(r io.Reader) (n int64, err error) {
+	if err = binary.Read(r, binary.LittleEndian, pack.signature[:]); err != nil {
+		return
+	}
+	n += SignSize
+	if err = binary.Read(r, binary.LittleEndian, pack.disklabel[:]); err != nil {
+		return
+	}
+	n += LabelSize
+	if err = binary.Read(r, binary.LittleEndian, &pack.fttoffset); err != nil {
+		return
+	}
+	n += 8
+	if err = binary.Read(r, binary.LittleEndian, &pack.recnumber); err != nil {
+		return
+	}
+	n += 4
+	return
+}
+
+// WriteTo writes header to stream as binary data of constant length in little endian order.
+func (pack *Header) WriteTo(w io.Writer) (n int64, err error) {
+	if err = binary.Write(w, binary.LittleEndian, pack.signature[:]); err != nil {
+		return
+	}
+	n += SignSize
+	if err = binary.Write(w, binary.LittleEndian, pack.disklabel[:]); err != nil {
+		return
+	}
+	n += LabelSize
+	if err = binary.Write(w, binary.LittleEndian, &pack.fttoffset); err != nil {
+		return
+	}
+	n += 8
+	if err = binary.Write(w, binary.LittleEndian, &pack.recnumber); err != nil {
+		return
+	}
+	n += 4
+	return
 }
 
 // Tag - file description item.
@@ -616,13 +664,13 @@ func (f *ReadDirFile) ReadDir(n int) (matches []fs.DirEntry, err error) {
 
 // Package structure contains all data needed for package representation.
 type Package struct {
-	PackHdr
-	FTT FTTMap // keys - package filenames in lower case, values - tags slices.
+	Header
+	Tags NFTOMap // keys - package filenames in lower case, values - tags slices offsets.
 }
 
-// Enum returns map with file names of all files in package.
-func (pack *Package) Enum() FTTMap {
-	return pack.FTT
+// NFTO returns package named file tags offset map.
+func (pack *Package) NFTO() NFTOMap {
+	return pack.Tags
 }
 
 // Glob returns the names of all files in package matching pattern or nil
@@ -630,7 +678,7 @@ func (pack *Package) Enum() FTTMap {
 func (pack *Package) Glob(pattern string) (res []string, err error) {
 	pattern = Normalize(pattern)
 	var matched bool
-	for key := range pack.FTT {
+	for key := range pack.Tags {
 		if matched, err = filepath.Match(pattern, key); err != nil {
 			return
 		}
@@ -650,7 +698,7 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 		return
 	}
 	// read header
-	if err = binary.Read(r, binary.LittleEndian, &pack.PackHdr); err != nil {
+	if _, err = pack.Header.ReadFrom(r); err != nil {
 		return
 	}
 	if string(pack.signature[:]) == Prebuild {
@@ -659,10 +707,10 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 	if string(pack.signature[:]) != Signature {
 		return ErrSignBad
 	}
-	pack.FTT = make(FTTMap)
+	pack.Tags = make(NFTOMap)
 
 	// read file tags set table
-	if _, err = r.Seek(int64(pack.tagoffset), io.SeekStart); err != nil {
+	if _, err = r.Seek(int64(pack.fttoffset), io.SeekStart); err != nil {
 		return
 	}
 	var n int64
@@ -684,7 +732,7 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 			return &ErrTag{ErrNoPath, "", TIDpath}
 		}
 		var key = Normalize(tags.Path())
-		if _, ok := pack.FTT[key]; ok {
+		if _, ok := pack.Tags[key]; ok {
 			return &ErrTag{fs.ErrExist, key, TIDpath}
 		}
 
@@ -703,15 +751,15 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 			return &ErrTag{ErrNoSize, key, TIDsize}
 		}
 		var offset, size = tags.Offset(), tags.Size()
-		if offset < PackHdrSize || offset >= int64(pack.tagoffset) {
+		if offset < HeaderSize || offset >= int64(pack.fttoffset) {
 			return &ErrTag{ErrOutOff, key, TIDoffset}
 		}
-		if offset+size > int64(pack.tagoffset) {
+		if offset+size > int64(pack.fttoffset) {
 			return &ErrTag{ErrOutSize, key, TIDsize}
 		}
 
 		// insert file tags
-		pack.FTT[key] = OFFSET(tagpos)
+		pack.Tags[key] = OFFSET(tagpos)
 	}
 
 	return

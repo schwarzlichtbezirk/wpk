@@ -33,7 +33,7 @@ func (f *MappedFile) OpenTags(pack *PackDir, ts wpk.TagSlice) error {
 	var sizex = size + pgoff
 	// create mapped memory block
 	var err error
-	if f.MMap, err = mm.MapRegion(pack.fwpk, offsetx, sizex, mm.RDONLY, 0); err != nil {
+	if f.MMap, err = mm.MapRegion(pack.filewpk, offsetx, sizex, mm.RDONLY, 0); err != nil {
 		return err
 	}
 	f.region = f.MMap[pgoff : pgoff+size]
@@ -53,9 +53,9 @@ func (f *MappedFile) Close() error {
 // fs.FS interface implementation.
 type PackDir struct {
 	*wpk.Package
-	fwpk *os.File
-	ftag MappedFile
-	root string // root directory in package
+	filewpk   *os.File
+	filetag   MappedFile
+	workspace string // workspace directory in package
 }
 
 // OpenFile creates file object to give access to nested into package file by given tagset.
@@ -64,11 +64,11 @@ func (pack *PackDir) OpenFile(ts wpk.TagSlice) (fs.File, error) {
 	return &f, f.OpenTags(pack, ts)
 }
 
-// NamedTags returns tags set referred by offset at FTT field.
+// NamedTags returns tags set referred by offset at named file tags map field.
 // Function receives normalized full path of file.
 func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
-	var tagpos, is = pack.FTT[key]
-	return wpk.TagSlice(pack.ftag.region[tagpos-wpk.OFFSET(pack.TagOffset()):]), is
+	var tagpos, is = pack.Tags[key]
+	return wpk.TagSlice(pack.filetag.region[tagpos-wpk.OFFSET(pack.FTTOffset()):]), is
 }
 
 // OpenImage opens WPK-file package by given file name.
@@ -78,28 +78,28 @@ func OpenImage(fname string) (pack *PackDir, err error) {
 	if pack.Package == nil {
 		pack.Package = &wpk.Package{}
 	}
-	if pack.fwpk, err = os.Open(fname); err != nil {
+	if pack.filewpk, err = os.Open(fname); err != nil {
 		return
 	}
-	pack.root = "."
+	pack.workspace = "."
 
-	if err = pack.Read(pack.fwpk); err != nil {
+	if err = pack.Read(pack.filewpk); err != nil {
 		return
 	}
 
 	// open tags set file
 	var fi fs.FileInfo
-	if fi, err = pack.fwpk.Stat(); err != nil {
+	if fi, err = pack.filewpk.Stat(); err != nil {
 		return
 	}
 	var buf bytes.Buffer
 	var tags = wpk.Tagset{
 		wpk.TIDfid:    wpk.TagUint32(0),
-		wpk.TIDoffset: wpk.TagUint64(uint64(pack.TagOffset())),
-		wpk.TIDsize:   wpk.TagUint64(uint64(fi.Size()) - uint64(pack.TagOffset())),
+		wpk.TIDoffset: wpk.TagUint64(uint64(pack.FTTOffset())),
+		wpk.TIDsize:   wpk.TagUint64(uint64(fi.Size()) - uint64(pack.FTTOffset())),
 	}
 	tags.WriteTo(&buf)
-	if err = pack.ftag.OpenTags(pack, buf.Bytes()); err != nil {
+	if err = pack.filetag.OpenTags(pack, buf.Bytes()); err != nil {
 		return
 	}
 	return
@@ -109,8 +109,8 @@ func OpenImage(fname string) (pack *PackDir, err error) {
 // not subdirectories.
 // io.Closer implementation.
 func (pack *PackDir) Close() error {
-	var err1 = pack.ftag.Close()
-	var err2 = pack.fwpk.Close()
+	var err1 = pack.filetag.Close()
+	var err2 = pack.filewpk.Close()
 	if err1 != nil {
 		return err1
 	}
@@ -127,17 +127,17 @@ func (pack *PackDir) Sub(dir string) (fs.FS, error) {
 	if !fs.ValidPath(dir) {
 		return nil, &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrInvalid}
 	}
-	var rootdir = path.Join(pack.root, dir)
+	var rootdir = path.Join(pack.workspace, dir)
 	var rootcmp string
 	if rootdir != "." {
 		rootcmp = rootdir + "/" // make prefix slash-terminated
 	}
-	for key := range pack.Enum() {
+	for key := range pack.NFTO() {
 		if strings.HasPrefix(key, rootcmp) {
 			return &PackDir{
 				pack.Package,
-				pack.fwpk,
-				pack.ftag,
+				pack.filewpk,
+				pack.filetag,
 				rootdir,
 			}, nil
 		}
@@ -153,7 +153,7 @@ func (pack *PackDir) Stat(name string) (fs.FileInfo, error) {
 	}
 	var ts wpk.TagSlice
 	var is bool
-	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.root, name))); !is {
+	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.workspace, name))); !is {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
 	}
 	return ts, nil
@@ -168,7 +168,7 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	}
 	var ts wpk.TagSlice
 	var is bool
-	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.root, name))); !is {
+	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.workspace, name))); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
 	var f, err = pack.OpenFile(ts)
@@ -186,17 +186,17 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
 func (pack *PackDir) ReadDir(dir string) ([]fs.DirEntry, error) {
-	return wpk.ReadDir(pack, path.Join(pack.root, dir), -1)
+	return wpk.ReadDir(pack, path.Join(pack.workspace, dir), -1)
 }
 
 // Open implements access to nested into package file or directory by keyname.
 // fs.FS implementation.
 func (pack *PackDir) Open(dir string) (fs.File, error) {
-	if dir == "wpk" && pack.root == "." {
-		return pack.fwpk, nil
+	if dir == "wpk" && pack.workspace == "." {
+		return pack.filewpk, nil
 	}
 
-	var rootdir = path.Join(pack.root, dir)
+	var rootdir = path.Join(pack.workspace, dir)
 	if ts, is := pack.NamedTags(wpk.Normalize(rootdir)); is {
 		return pack.OpenFile(ts)
 	}

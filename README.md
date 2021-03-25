@@ -25,6 +25,8 @@ Wrapper for package to hold WPK-file whole content as a slice. Actual for small 
  - **wpk/mmap**
 Wrapper for package to get access to nested files as to memory mapped blocks. Actual for large packages.
 
+Compiled binaries of utilities can be downloaded in [Releases](https://github.com/schwarzlichtbezirk/wpk/releases) section.
+
 # How to use
 
 At first, install [Golang](https://golang.org/) minimum 1.16 version for last version of this package, and get this package:
