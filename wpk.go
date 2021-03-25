@@ -709,7 +709,7 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 	}
 	pack.Tags = make(NFTOMap)
 
-	// read file tags set table
+	// read file tags table
 	if _, err = r.Seek(int64(pack.fttoffset), io.SeekStart); err != nil {
 		return
 	}
