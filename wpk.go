@@ -1,7 +1,6 @@
 package wpk
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -95,6 +94,20 @@ var (
 	ErrOutSize  = errors.New("file size is out of bounds")
 )
 
+// FileReader is interface for nested package files access.
+type FileReader interface {
+	io.Reader
+	io.ReaderAt
+	io.Seeker
+	Size() int64
+}
+
+// NestedFile is interface for access to nested into package files.
+type NestedFile interface {
+	fs.File
+	FileReader
+}
+
 // NFTOMap is named file tags offset map.
 type NFTOMap map[string]OFFSET
 
@@ -110,6 +123,7 @@ type Packager interface {
 	DataSize() int64
 	Tagger
 
+	OpenTags(TagSlice) (NestedFile, error)
 	io.Closer
 	fs.SubFS
 	fs.StatFS
@@ -616,23 +630,6 @@ func (f *DirEntry) Type() fs.FileMode {
 // Info returns the FileInfo for the file or subdirectory described by the entry.
 func (f *DirEntry) Info() (fs.FileInfo, error) {
 	return f.TagSlice, nil
-}
-
-// File structure gives access to nested into package file.
-// fs.File interface implementation.
-type File struct {
-	TagSlice // has fs.FileInfo interface
-	bytes.Reader
-}
-
-// Stat is for fs.File interface compatibility.
-func (f *File) Stat() (fs.FileInfo, error) {
-	return f.TagSlice, nil
-}
-
-// Close is for fs.File interface compatibility.
-func (f *File) Close() error {
-	return nil
 }
 
 // ReadDirFile is a directory file whose entries can be read with the ReadDir method.

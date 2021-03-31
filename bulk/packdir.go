@@ -10,46 +10,67 @@ import (
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
+// SliceFile structure gives access to nested into package file.
+// wpk.NestedFile interface implementation.
+type SliceFile struct {
+	wpk.FileReader
+	tags wpk.TagSlice // has fs.FileInfo interface
+}
+
+// NewSliceFile creates SliceFile file structure based on given tags slice.
+func NewSliceFile(pack *PackDir, ts wpk.TagSlice) (f *SliceFile, err error) {
+	var offset, size = ts.Offset(), ts.Size()
+	f = &SliceFile{
+		tags:       ts,
+		FileReader: bytes.NewReader(pack.bulk[offset : offset+size]),
+	}
+	return
+}
+
+// Stat is for fs.File interface compatibility.
+func (f *SliceFile) Stat() (fs.FileInfo, error) {
+	return f.tags, nil
+}
+
+// Close is for fs.File interface compatibility.
+func (f *SliceFile) Close() error {
+	return nil
+}
+
 // PackDir is wrapper for package to hold WPK-file whole content as a slice.
 // Gives access to pointed directory in package.
 // fs.FS interface implementation.
 type PackDir struct {
 	*wpk.Package
-	bulk      []byte
 	workspace string // workspace directory in package
+	bulk      []byte
 }
 
-// OpenFile creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenFile(ts wpk.TagSlice) (fs.File, error) {
-	var offset, size = ts.Offset(), ts.Size()
-	return &wpk.File{
-		TagSlice: ts,
-		Reader:   *bytes.NewReader(pack.bulk[offset : offset+size]),
-	}, nil
+// OpenTags creates file object to give access to nested into package file by given tagset.
+func (pack *PackDir) OpenTags(ts wpk.TagSlice) (wpk.NestedFile, error) {
+	return NewSliceFile(pack, ts)
 }
 
 // NamedTags returns tags set referred by offset at named file tags map field.
 // Function receives normalized full path of file.
 func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
-	var tagpos, is = pack.Tags[key]
-	return pack.bulk[tagpos:], is
+	if tagpos, is := pack.Tags[key]; is {
+		return pack.bulk[tagpos:], true
+	} else {
+		return nil, false
+	}
 }
 
 // OpenImage opens WPK-file package by given file name.
 func OpenImage(fname string) (pack *PackDir, err error) {
 	pack = &PackDir{Package: &wpk.Package{}}
+	pack.workspace = "."
 
 	var bulk []byte
 	if bulk, err = os.ReadFile(fname); err != nil {
 		return
 	}
-
-	if pack.Package == nil {
-		pack.Package = &wpk.Package{}
-	}
 	pack.bulk = bulk
-	pack.workspace = "."
-
 	if err = pack.Read(bytes.NewReader(bulk)); err != nil {
 		return
 	}
@@ -69,17 +90,17 @@ func (pack *PackDir) Sub(dir string) (fs.FS, error) {
 	if !fs.ValidPath(dir) {
 		return nil, &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrInvalid}
 	}
-	var rootdir = path.Join(pack.workspace, dir)
-	var rootcmp string
-	if rootdir != "." {
-		rootcmp = rootdir + "/" // make prefix slash-terminated
+	var workspace = path.Join(pack.workspace, dir)
+	var prefixdir string
+	if workspace != "." {
+		prefixdir = workspace + "/" // make prefix slash-terminated
 	}
 	for key := range pack.NFTO() {
-		if strings.HasPrefix(key, rootcmp) {
+		if strings.HasPrefix(key, prefixdir) {
 			return &PackDir{
 				pack.Package,
+				workspace,
 				pack.bulk,
-				rootdir,
 			}, nil
 		}
 	}
@@ -132,17 +153,14 @@ func (pack *PackDir) Open(dir string) (fs.File, error) {
 			wpk.TIDoffset: wpk.TagUint64(0),
 			wpk.TIDsize:   wpk.TagUint64(uint64(len(pack.bulk))),
 		}.WriteTo(&buf)
-		return &wpk.File{
-			TagSlice: buf.Bytes(),
-			Reader:   *bytes.NewReader(pack.bulk),
-		}, nil
+		return NewSliceFile(pack, buf.Bytes())
 	}
 
-	var rootdir = path.Join(pack.workspace, dir)
-	if ts, is := pack.NamedTags(wpk.Normalize(rootdir)); is {
-		return pack.OpenFile(ts)
+	var fullname = path.Join(pack.workspace, dir)
+	if ts, is := pack.NamedTags(wpk.Normalize(fullname)); is {
+		return NewSliceFile(pack, ts)
 	}
-	return wpk.OpenDir(pack, rootdir)
+	return wpk.OpenDir(pack, fullname)
 }
 
 // The End.

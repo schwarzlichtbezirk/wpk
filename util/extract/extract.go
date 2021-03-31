@@ -5,10 +5,13 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/schwarzlichtbezirk/wpk"
+	"github.com/schwarzlichtbezirk/wpk/bulk"
+	"github.com/schwarzlichtbezirk/wpk/fsys"
 	"github.com/schwarzlichtbezirk/wpk/mmap"
 )
 
@@ -18,12 +21,20 @@ var (
 	SrcList []string
 	DstPath string
 	MkDst   bool
+	ShowLog bool
+	PkgMode string
+)
+
+var (
+	pack wpk.Packager
 )
 
 func parseargs() {
 	flag.StringVar(&srcfile, "src", "", "package full file name, or list of files divided by ';'")
 	flag.StringVar(&DstPath, "dst", "", "full destination path for output extracted files")
 	flag.BoolVar(&MkDst, "md", false, "create destination path if it does not exist")
+	flag.BoolVar(&ShowLog, "sl", true, "show process log for each extracting file")
+	flag.StringVar(&PkgMode, "pm", "mmap", "package opening mode, can be \"bulk\", \"mmap\" and \"fsys\"")
 	flag.Parse()
 }
 
@@ -52,8 +63,6 @@ func checkargs() int {
 	if DstPath == "" {
 		log.Println("destination path does not specified")
 		ec++
-	} else if !strings.HasSuffix(DstPath, "/") {
-		DstPath += "/"
 	}
 	if ok, _ := wpk.PathExists(DstPath); !ok {
 		if MkDst {
@@ -67,6 +76,11 @@ func checkargs() int {
 		}
 	}
 
+	if PkgMode != "bulk" && PkgMode != "mmap" && PkgMode != "fsys" {
+		log.Println("given package opening type does not supported")
+		ec++
+	}
+
 	return ec
 }
 
@@ -76,24 +90,37 @@ func readpackage() (err error) {
 	for _, pkgpath := range SrcList {
 		log.Printf("source package: %s", pkgpath)
 		if func() {
-			var pack *mmap.PackDir
-			if pack, err = mmap.OpenImage(pkgpath); err != nil {
-				return
+			switch PkgMode {
+			case "bulk":
+				if pack, err = bulk.OpenImage(pkgpath); err != nil {
+					return
+				}
+			case "mmap":
+				if pack, err = mmap.OpenImage(pkgpath); err != nil {
+					return
+				}
+			case "fsys":
+				if pack, err = fsys.OpenImage(pkgpath); err != nil {
+					return
+				}
+			default:
+				panic("no way to here")
 			}
+			defer pack.Close()
 
 			var sum int64
-			var tat = pack.NFTO()
-			for key := range tat {
+			var ftt = pack.NFTO()
+			for key := range ftt {
 				if func() {
 					var ts, _ = pack.NamedTags(key)
 					var kpath = ts.Path()
 
-					var fpath = DstPath + kpath
+					var fpath = path.Join(DstPath, kpath)
 					if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
 						return
 					}
 
-					var src, err = pack.OpenFile(ts)
+					var src, err = pack.OpenTags(ts)
 					if err != nil {
 						return
 					}
@@ -111,12 +138,14 @@ func readpackage() (err error) {
 					}
 					sum += n
 
-					log.Printf("#%-3d %6d bytes   %s", ts.FID(), n, kpath)
+					if ShowLog {
+						log.Printf("#%-3d %6d bytes   %s", ts.FID(), n, kpath)
+					}
 				}(); err != nil {
 					return
 				}
 			}
-			log.Printf("unpacked: %d files on %d bytes", len(tat), sum)
+			log.Printf("unpacked: %d files on %d bytes", len(ftt), sum)
 		}(); err != nil {
 			return
 		}

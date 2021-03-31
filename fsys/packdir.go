@@ -1,59 +1,45 @@
-package mmap
+package fsys
 
 import (
-	"bytes"
+	"io"
 	"io/fs"
 	"os"
 	"path"
 	"strings"
 
-	mm "github.com/schwarzlichtbezirk/mmap-go"
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
-// System pages granulation for memory mapping system calls.
-// The page size on most Unixes is 4KB, but on Windows it's 64KB.
-// os.Getpagesize() returns incorrect value on Windows.
-const pagesize = int64(64 * 1024)
-
-// MappedFile structure gives access to nested into package file by memory mapping.
+// ChunkFile structure gives access to nested into package file.
 // wpk.NestedFile interface implementation.
-type MappedFile struct {
+type ChunkFile struct {
 	wpk.FileReader
-	tags   wpk.TagSlice // has fs.FileInfo interface
-	region []byte
-	mm.MMap
+	tags wpk.TagSlice // has fs.FileInfo interface
+	wpkf *os.File
 }
 
-// NewMappedFile maps nested to package file based on given tags slice.
-func NewMappedFile(pack *PackDir, ts wpk.TagSlice) (f *MappedFile, err error) {
-	// calculate paged size/offset
-	var offset, size = ts.Offset(), ts.Size()
-	var pgoff = offset % pagesize
-	var offsetx = offset - pgoff
-	var sizex = size + pgoff
-	// create mapped memory block
-	var mmap mm.MMap
-	if mmap, err = mm.MapRegion(pack.filewpk, offsetx, sizex, mm.RDONLY, 0); err != nil {
+// NewChunkFile creates ChunkFile file structure based on given tags slice.
+func NewChunkFile(fname string, ts wpk.TagSlice) (f *ChunkFile, err error) {
+	var wpkf *os.File
+	if wpkf, err = os.Open(fname); err != nil {
 		return
 	}
-	f = &MappedFile{
+	f = &ChunkFile{
 		tags:       ts,
-		FileReader: bytes.NewReader(mmap[pgoff : pgoff+size]),
-		region:     mmap[pgoff : pgoff+size],
-		MMap:       mmap,
+		FileReader: io.NewSectionReader(wpkf, ts.Offset(), ts.Size()),
+		wpkf:       wpkf,
 	}
 	return
 }
 
 // Stat is for fs.File interface compatibility.
-func (f *MappedFile) Stat() (fs.FileInfo, error) {
+func (f *ChunkFile) Stat() (fs.FileInfo, error) {
 	return f.tags, nil
 }
 
-// Close unmaps memory and closes mapped memory handle.
-func (f *MappedFile) Close() error {
-	return f.Unmap()
+// Close closes associated wpk-file handle.
+func (f *ChunkFile) Close() error {
+	return f.wpkf.Close()
 }
 
 // PackDir is wrapper for package to get access to nested files as to memory mapped blocks.
@@ -61,21 +47,21 @@ func (f *MappedFile) Close() error {
 // fs.FS interface implementation.
 type PackDir struct {
 	*wpk.Package
+	ftt       []byte
+	fname     string
 	workspace string // workspace directory in package
-	filewpk   *os.File
-	ftt       *MappedFile
 }
 
 // OpenTags creates file object to give access to nested into package file by given tagset.
 func (pack *PackDir) OpenTags(ts wpk.TagSlice) (wpk.NestedFile, error) {
-	return NewMappedFile(pack, ts)
+	return NewChunkFile(pack.fname, ts)
 }
 
 // NamedTags returns tags set referred by offset at named file tags map field.
 // Function receives normalized full path of file.
 func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
 	if tagpos, is := pack.Tags[key]; is {
-		return pack.ftt.region[tagpos-wpk.OFFSET(pack.FTTOffset()):], true
+		return pack.ftt[tagpos-wpk.OFFSET(pack.FTTOffset()):], true
 	} else {
 		return nil, false
 	}
@@ -85,26 +71,28 @@ func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
 func OpenImage(fname string) (pack *PackDir, err error) {
 	pack = &PackDir{Package: &wpk.Package{}}
 	pack.workspace = "."
+	pack.fname = fname
 
-	if pack.filewpk, err = os.Open(fname); err != nil {
+	var filewpk *os.File
+	if filewpk, err = os.Open(fname); err != nil {
 		return
 	}
-	if err = pack.Read(pack.filewpk); err != nil {
+	defer filewpk.Close()
+
+	if err = pack.Read(filewpk); err != nil {
 		return
 	}
 
-	// open tags set file
+	// read file tags table
 	var fi fs.FileInfo
-	if fi, err = pack.filewpk.Stat(); err != nil {
+	if fi, err = filewpk.Stat(); err != nil {
 		return
 	}
-	var buf bytes.Buffer
-	wpk.Tagset{
-		wpk.TIDfid:    wpk.TagUint32(0),
-		wpk.TIDoffset: wpk.TagUint64(uint64(pack.FTTOffset())),
-		wpk.TIDsize:   wpk.TagUint64(uint64(fi.Size()) - uint64(pack.FTTOffset())),
-	}.WriteTo(&buf)
-	if pack.ftt, err = NewMappedFile(pack, buf.Bytes()); err != nil {
+	pack.ftt = make([]byte, fi.Size()-pack.FTTOffset())
+	if _, err = filewpk.Seek(pack.FTTOffset(), io.SeekStart); err != nil {
+		return
+	}
+	if _, err = filewpk.Read(pack.ftt); err != nil {
 		return
 	}
 	return
@@ -114,14 +102,6 @@ func OpenImage(fname string) (pack *PackDir, err error) {
 // not subdirectories.
 // io.Closer implementation.
 func (pack *PackDir) Close() error {
-	var err1 = pack.ftt.Close()
-	var err2 = pack.filewpk.Close()
-	if err1 != nil {
-		return err1
-	}
-	if err2 != nil {
-		return err2
-	}
 	return nil
 }
 
@@ -141,9 +121,9 @@ func (pack *PackDir) Sub(dir string) (fs.FS, error) {
 		if strings.HasPrefix(key, prefixdir) {
 			return &PackDir{
 				pack.Package,
-				workspace,
-				pack.filewpk,
 				pack.ftt,
+				pack.fname,
+				workspace,
 			}, nil
 		}
 	}
@@ -176,7 +156,7 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.workspace, name))); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
-	var f, err = NewMappedFile(pack, ts)
+	var f, err = NewChunkFile(pack.fname, ts)
 	if err != nil {
 		return nil, err
 	}
@@ -198,12 +178,12 @@ func (pack *PackDir) ReadDir(dir string) ([]fs.DirEntry, error) {
 // fs.FS implementation.
 func (pack *PackDir) Open(dir string) (fs.File, error) {
 	if dir == "wpk" && pack.workspace == "." {
-		return pack.filewpk, nil
+		return os.Open(pack.fname)
 	}
 
 	var fullname = path.Join(pack.workspace, dir)
 	if ts, is := pack.NamedTags(wpk.Normalize(fullname)); is {
-		return NewMappedFile(pack, ts)
+		return NewChunkFile(pack.fname, ts)
 	}
 	return wpk.OpenDir(pack, fullname)
 }

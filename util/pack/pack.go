@@ -20,12 +20,14 @@ var (
 	SrcList []string
 	DstFile string
 	PutMIME bool
+	ShowLog bool
 )
 
 func parseargs() {
 	flag.StringVar(&srcpath, "src", "", "full path to folder with source files to be packaged, or list of folders divided by ';'")
 	flag.StringVar(&DstFile, "dst", "", "full path to output package file")
 	flag.BoolVar(&PutMIME, "mime", false, "put content MIME type defined by file extension")
+	flag.BoolVar(&ShowLog, "sl", true, "show process log for each extracting file")
 	flag.Parse()
 }
 
@@ -84,14 +86,18 @@ func writepackage() (err error) {
 	// write all source folders
 	for i, path := range SrcList {
 		log.Printf("source folder #%d: %s", i+1, path)
+		var sum int64
 		if err = pack.PackDir(fwpk, path, "", func(fi os.FileInfo, fname, fpath string) bool {
-			if !fi.IsDir() {
-				log.Printf("#%-4d %7d bytes   %s", pack.RecNumber()+1, fi.Size(), fname)
+			var size = fi.Size()
+			if ShowLog && !fi.IsDir() {
+				log.Printf("#%-4d %7d bytes   %s", pack.RecNumber()+1, size, fname)
 			}
+			sum += size
 			return true
 		}); err != nil {
 			return
 		}
+		log.Printf("packed: %d files on %d bytes", pack.RecNumber(), sum)
 	}
 
 	// adjust tags
