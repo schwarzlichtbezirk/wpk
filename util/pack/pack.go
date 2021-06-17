@@ -90,14 +90,14 @@ func writepackage() (err error) {
 		if err = pack.PackDir(fwpk, path, "", func(fi os.FileInfo, fname, fpath string) bool {
 			var size = fi.Size()
 			if ShowLog && !fi.IsDir() {
-				log.Printf("#%-4d %7d bytes   %s", pack.RecNumber()+1, size, fname)
+				log.Printf("#%-4d %7d bytes   %s", pack.LastFID, size, fname)
 			}
 			sum += size
 			return true
 		}); err != nil {
 			return
 		}
-		log.Printf("packed: %d files on %d bytes", pack.RecNumber(), sum)
+		log.Printf("packed: %d files on %d bytes", pack.LastFID, sum)
 	}
 
 	// adjust tags

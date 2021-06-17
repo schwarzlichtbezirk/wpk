@@ -94,15 +94,11 @@ func OpenImage(fname string) (pack *PackDir, err error) {
 	}
 
 	// open tags set file
-	var fi fs.FileInfo
-	if fi, err = pack.filewpk.Stat(); err != nil {
-		return
-	}
 	var buf bytes.Buffer
 	wpk.Tagset{
 		wpk.TIDfid:    wpk.TagUint32(0),
 		wpk.TIDoffset: wpk.TagUint64(uint64(pack.FTTOffset())),
-		wpk.TIDsize:   wpk.TagUint64(uint64(fi.Size()) - uint64(pack.FTTOffset())),
+		wpk.TIDsize:   wpk.TagUint64(uint64(pack.FTTSize())),
 	}.WriteTo(&buf)
 	if pack.ftt, err = NewMappedFile(pack, buf.Bytes()); err != nil {
 		return

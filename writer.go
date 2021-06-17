@@ -13,7 +13,8 @@ type TagsMap map[string]Tagset
 // Writer is package writer structure.
 type Writer struct {
 	Header
-	Tags TagsMap
+	Tags    TagsMap
+	LastFID FID
 }
 
 // Opens package for reading. At first its checkup file signature, then
@@ -66,8 +67,8 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 			return &ErrTag{ErrNoFID, key, TIDfid}
 		}
 		var fid = tags.FID()
-		if fid > pack.recnumber {
-			return &ErrTag{ErrOutFID, key, TIDfid}
+		if fid > pack.LastFID {
+			pack.LastFID = fid
 		}
 
 		if _, ok := tags[TIDoffset]; !ok {
@@ -96,7 +97,7 @@ func (pack *Writer) Reset() {
 	// reset header
 	copy(pack.signature[:], Prebuild)
 	pack.fttoffset = HeaderSize
-	pack.recnumber = 0
+	pack.fttsize = 0
 	// setup empty tags table
 	pack.Tags = TagsMap{}
 }
@@ -172,7 +173,7 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags 
 		return
 	}
 
-	// get offset and put data ckage
+	// get offset and put provided data
 	var offset, size int64
 	if offset, err = w.Seek(0, io.SeekCurrent); err != nil {
 		return
@@ -182,8 +183,9 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags 
 	}
 
 	// insert new entry to tags table
+	pack.LastFID++
 	tags = Tagset{
-		TIDfid:    TagUint32(uint32(pack.recnumber + 1)),
+		TIDfid:    TagUint32(uint32(pack.LastFID)),
 		TIDoffset: TagUint64(uint64(offset)),
 		TIDsize:   TagUint64(uint64(size)),
 		TIDpath:   TagString(ToSlash(kpath)),
@@ -192,7 +194,6 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags 
 
 	// update header
 	pack.fttoffset = OFFSET(offset + size)
-	pack.recnumber++
 	return
 }
 

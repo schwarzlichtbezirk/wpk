@@ -84,11 +84,7 @@ func OpenImage(fname string) (pack *PackDir, err error) {
 	}
 
 	// read file tags table
-	var fi fs.FileInfo
-	if fi, err = filewpk.Stat(); err != nil {
-		return
-	}
-	pack.ftt = make([]byte, fi.Size()-pack.FTTOffset())
+	pack.ftt = make([]byte, pack.FTTSize())
 	if _, err = filewpk.Seek(pack.FTTOffset(), io.SeekStart); err != nil {
 		return
 	}

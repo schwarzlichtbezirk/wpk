@@ -139,7 +139,7 @@ func setterPack(ls *lua.LState) int {
 func tostringPack(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	var s = fmt.Sprintf("records: %d, aliases: %d, datasize: %d", pack.RecNumber(), len(pack.Tags), pack.DataSize())
+	var s = fmt.Sprintf("records: %d, aliases: %d, datasize: %d", pack.LastFID, len(pack.Tags), pack.DataSize())
 	ls.Push(lua.LString(s))
 	return 1
 }
@@ -218,7 +218,7 @@ func getpath(ls *lua.LState) int {
 
 func getrecnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LNumber(pack.RecNumber()))
+	ls.Push(lua.LNumber(pack.LastFID))
 	return 1
 }
 

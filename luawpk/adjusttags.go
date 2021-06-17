@@ -24,7 +24,7 @@ func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err erro
 		var ctype = mime.TypeByExtension(kext)
 		if ctype == "" {
 			var ok bool
-			if ctype, ok = mimeext[kext]; !ok {
+			if ctype, ok = MimeExt[kext]; !ok {
 				// rewind to file start
 				if _, err = r.Seek(0, io.SeekStart); err != nil {
 					return

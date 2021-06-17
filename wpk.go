@@ -87,7 +87,6 @@ var (
 	ErrNoTag    = errors.New("tag with given ID not found")
 	ErrNoPath   = errors.New("file name is absent")
 	ErrNoFID    = errors.New("file ID is absent")
-	ErrOutFID   = errors.New("file ID is out of range")
 	ErrNoOffset = errors.New("file offset is absent")
 	ErrOutOff   = errors.New("file offset is out of bounds")
 	ErrNoSize   = errors.New("file size is absent")
@@ -119,7 +118,6 @@ type Tagger interface {
 
 // Packager refers to package data access management implementation.
 type Packager interface {
-	RecNumber() int
 	DataSize() int64
 	Tagger
 
@@ -134,7 +132,7 @@ type Packager interface {
 
 const (
 	// HeaderSize - package header size in bytes.
-	HeaderSize = 60
+	HeaderSize = 64
 	// SignSize - signature field size.
 	SignSize = 0x18
 	// LabelSize - disk label field size.
@@ -146,7 +144,7 @@ type Header struct {
 	signature [SignSize]byte
 	disklabel [LabelSize]byte
 	fttoffset OFFSET // file tags table offset
-	recnumber FID    // number of records
+	fttsize   SIZE   // file tags table size
 }
 
 // Label returns string with disk label, copied from header fixed field.
@@ -171,9 +169,9 @@ func (pack *Header) FTTOffset() int64 {
 	return int64(pack.fttoffset)
 }
 
-// RecNumber returns number of real stored records in package without aliases counting.
-func (pack *Header) RecNumber() int {
-	return int(pack.recnumber)
+// FTTSize returns file tags table size in the package.
+func (pack *Header) FTTSize() int64 {
+	return int64(pack.fttsize)
 }
 
 // DataSize returns sum size of all real stored records in package.
@@ -198,10 +196,10 @@ func (pack *Header) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 	n += 8
-	if err = binary.Read(r, binary.LittleEndian, &pack.recnumber); err != nil {
+	if err = binary.Read(r, binary.LittleEndian, &pack.fttsize); err != nil {
 		return
 	}
-	n += 4
+	n += 8
 	return
 }
 
@@ -219,10 +217,10 @@ func (pack *Header) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 	n += 8
-	if err = binary.Write(w, binary.LittleEndian, &pack.recnumber); err != nil {
+	if err = binary.Write(w, binary.LittleEndian, &pack.fttsize); err != nil {
 		return
 	}
-	n += 4
+	n += 8
 	return
 }
 
@@ -735,10 +733,6 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 
 		if _, ok := tags[TIDfid]; !ok {
 			return &ErrTag{ErrNoFID, key, TIDfid}
-		}
-		var fid = tags.FID()
-		if fid > pack.recnumber {
-			return &ErrTag{ErrOutFID, key, TIDfid}
 		}
 
 		if _, ok := tags[TIDoffset]; !ok {

@@ -106,7 +106,7 @@ func TestPackDir(t *testing.T) {
 	if err = pack.PackDir(fwpk, mediadir, "", func(fi os.FileInfo, fname, fpath string) bool {
 		if !fi.IsDir() {
 			tagsnum++
-			t.Logf("put file #%d '%s', %d bytes", pack.RecNumber()+1, fname, fi.Size())
+			t.Logf("put file #%d '%s', %d bytes", pack.LastFID, fname, fi.Size())
 		}
 		return true
 	}); err != nil {
@@ -144,7 +144,7 @@ func TestPutFiles(t *testing.T) {
 		}
 
 		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.RecNumber(), name, tags.Size())
+		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, tags.Size())
 	}
 	var putdata = func(name string, data []byte) {
 		var r = bytes.NewReader(data)
@@ -155,7 +155,7 @@ func TestPutFiles(t *testing.T) {
 		}
 
 		tagsnum++
-		t.Logf("put data #%d '%s', %d bytes", pack.RecNumber(), name, tags.Size())
+		t.Logf("put data #%d '%s', %d bytes", pack.LastFID, name, tags.Size())
 	}
 	var putalias = func(oldname, newname string) {
 		if err = pack.PutAlias(oldname, newname); err != nil {
@@ -236,7 +236,7 @@ func TestAppendContinues(t *testing.T) {
 		}
 
 		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.RecNumber(), name, tags.Size())
+		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, tags.Size())
 	}
 
 	// open temporary file for read/write
@@ -306,7 +306,7 @@ func TestAppendDiscrete(t *testing.T) {
 		}
 
 		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.RecNumber(), name, tags.Size())
+		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, tags.Size())
 	}
 
 	t.Run("step1", func(t *testing.T) {
