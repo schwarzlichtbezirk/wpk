@@ -124,6 +124,7 @@ var MimeExt = map[string]string{
 	".bz2": "application/x-bzip2",
 	".rar": "application/vnd.rar",
 	".jar": "application/java-archive",
+	".apk": "application/vnd.android.package-archive",
 	".7z":  "application/x-7z-compressed",
 	".arc": "application/x-freearc",
 	// Fonts types

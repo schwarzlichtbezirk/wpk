@@ -1,6 +1,8 @@
 package luawpk
 
 import (
+	"errors"
+	"io/fs"
 	"log"
 	"os"
 	"path"
@@ -26,7 +28,7 @@ func luacheckfile(ls *lua.LState) int {
 		ls.Push(lua.LBool(fi.IsDir()))
 		return 2
 	}
-	if os.IsNotExist(err) {
+	if errors.Is(err, fs.ErrNotExist) {
 		ls.Push(lua.LBool(false))
 		return 1
 	}

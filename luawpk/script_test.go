@@ -52,7 +52,7 @@ func CheckPackage(t *testing.T, wpkname string) {
 				kpath, size, len(orig))
 		}
 
-		var extr = make([]byte, size, size)
+		var extr = make([]byte, size)
 		var n int
 		if n, err = fwpk.ReadAt(extr, offset); err != nil {
 			t.Fatal(err)

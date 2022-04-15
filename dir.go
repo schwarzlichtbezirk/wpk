@@ -2,6 +2,7 @@ package wpk
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -11,14 +12,37 @@ import (
 	"strings"
 )
 
-var efre = regexp.MustCompile(`\$\{\w+\}`)
+var (
+	evlre = regexp.MustCompile(`\$\w+`)     // env var with linux-like syntax
+	evure = regexp.MustCompile(`\$\{\w+\}`) // env var with unix-like syntax
+	evwre = regexp.MustCompile(`\%\w+\%`)   // env var with windows-like syntax
+)
 
 // Envfmt replaces environment variables entries in file path to there values.
 // Environment variables must be enclosed as ${...} in string.
 func Envfmt(p string) string {
-	return filepath.ToSlash(efre.ReplaceAllStringFunc(p, func(name string) string {
-		return os.Getenv(name[2 : len(name)-1]) // strip ${...} and replace by env value
-	}))
+	return evwre.ReplaceAllStringFunc(evure.ReplaceAllStringFunc(evlre.ReplaceAllStringFunc(p, func(name string) string {
+		// strip $VAR and replace by environment value
+		if val, ok := os.LookupEnv(name[1:]); ok {
+			return val
+		} else {
+			return name
+		}
+	}), func(name string) string {
+		// strip ${VAR} and replace by environment value
+		if val, ok := os.LookupEnv(name[2 : len(name)-1]); ok {
+			return val
+		} else {
+			return name
+		}
+	}), func(name string) string {
+		// strip %VAR% and replace by environment value
+		if val, ok := os.LookupEnv(name[1 : len(name)-1]); ok {
+			return val
+		} else {
+			return name
+		}
+	})
 }
 
 // PathExists check up file or directory existence.
@@ -27,7 +51,7 @@ func PathExists(path string) (bool, error) {
 	if _, err = os.Stat(path); err == nil {
 		return true, nil
 	}
-	if os.IsNotExist(err) {
+	if errors.Is(err, fs.ErrNotExist) {
 		return false, nil
 	}
 	return true, err
