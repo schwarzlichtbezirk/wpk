@@ -23,7 +23,7 @@ func ExamplePackage_Read() {
 		log.Fatal(err)
 	}
 	// How many records at package
-	log.Printf("files: %d, datasize: %d\n", len(pack.NFTO()), pack.DataSize())
+	log.Printf("files: %d, datasize: %d\n", len(pack.TOM()), pack.DataSize())
 
 	// Print not more than 5 file names from package
 	var i = 0

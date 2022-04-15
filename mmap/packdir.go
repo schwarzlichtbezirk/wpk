@@ -20,13 +20,13 @@ const pagesize = int64(64 * 1024)
 // wpk.NestedFile interface implementation.
 type MappedFile struct {
 	wpk.FileReader
-	tags   wpk.TagSlice // has fs.FileInfo interface
+	tags   wpk.Tagset_t // has fs.FileInfo interface
 	region []byte
 	mm.MMap
 }
 
 // NewMappedFile maps nested to package file based on given tags slice.
-func NewMappedFile(pack *PackDir, ts wpk.TagSlice) (f *MappedFile, err error) {
+func NewMappedFile(pack *PackDir, ts wpk.Tagset_t) (f *MappedFile, err error) {
 	// calculate paged size/offset
 	var offset, size = ts.Offset(), ts.Size()
 	var pgoff = offset % pagesize
@@ -48,7 +48,7 @@ func NewMappedFile(pack *PackDir, ts wpk.TagSlice) (f *MappedFile, err error) {
 
 // Stat is for fs.File interface compatibility.
 func (f *MappedFile) Stat() (fs.FileInfo, error) {
-	return f.tags, nil
+	return &f.tags, nil
 }
 
 // Close unmaps memory and closes mapped memory handle.
@@ -67,17 +67,19 @@ type PackDir struct {
 }
 
 // OpenTags creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenTags(ts wpk.TagSlice) (wpk.NestedFile, error) {
+func (pack *PackDir) OpenTags(ts wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewMappedFile(pack, ts)
 }
 
 // NamedTags returns tags set referred by offset at named file tags map field.
 // Function receives normalized full path of file.
-func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
+func (pack *PackDir) NamedTags(key string) (wpk.Tagset_t, bool) {
 	if tagpos, is := pack.Tags[key]; is {
-		return pack.ftt.region[tagpos-wpk.OFFSET(pack.FTTOffset()):], true
+		return wpk.Tagset_t{
+			Data: pack.ftt.region[tagpos-wpk.Offset_t(pack.FTTOffset()):],
+		}, true
 	} else {
-		return nil, false
+		return wpk.Tagset_t{}, false
 	}
 }
 
@@ -94,13 +96,11 @@ func OpenImage(fname string) (pack *PackDir, err error) {
 	}
 
 	// open tags set file
-	var buf bytes.Buffer
-	wpk.Tagset{
-		wpk.TIDfid:    wpk.TagUint32(0),
-		wpk.TIDoffset: wpk.TagUint64(uint64(pack.FTTOffset())),
-		wpk.TIDsize:   wpk.TagUint64(uint64(pack.FTTSize())),
-	}.WriteTo(&buf)
-	if pack.ftt, err = NewMappedFile(pack, buf.Bytes()); err != nil {
+	var ts wpk.Tagset_t
+	ts.PutTag(wpk.TIDfid, wpk.TagUint32(0))
+	ts.PutTag(wpk.TIDoffset, wpk.TagUint64(uint64(pack.FTTOffset())))
+	ts.PutTag(wpk.TIDsize, wpk.TagUint64(uint64(pack.FTTSize())))
+	if pack.ftt, err = NewMappedFile(pack, ts); err != nil {
 		return
 	}
 	return
@@ -133,7 +133,7 @@ func (pack *PackDir) Sub(dir string) (fs.FS, error) {
 	if workspace != "." {
 		prefixdir = workspace + "/" // make prefix slash-terminated
 	}
-	for key := range pack.NFTO() {
+	for key := range pack.TOM() {
 		if strings.HasPrefix(key, prefixdir) {
 			return &PackDir{
 				pack.Package,
@@ -152,12 +152,12 @@ func (pack *PackDir) Stat(name string) (fs.FileInfo, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrInvalid}
 	}
-	var ts wpk.TagSlice
+	var ts wpk.Tagset_t
 	var is bool
 	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.workspace, name))); !is {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
 	}
-	return ts, nil
+	return &ts, nil
 }
 
 // ReadFile returns slice with nested into package file content.
@@ -167,7 +167,7 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
 	}
-	var ts wpk.TagSlice
+	var ts wpk.Tagset_t
 	var is bool
 	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.workspace, name))); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}

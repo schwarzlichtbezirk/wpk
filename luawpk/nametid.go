@@ -8,8 +8,8 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-// NameTid helps convert Lua-table string keys to associated TID values.
-var NameTid = map[string]wpk.TID{
+// NameTid helps convert Lua-table string keys to associated TID_t values.
+var NameTid = map[string]wpk.TID_t{
 	"fid":     wpk.TIDfid,
 	"offset":  wpk.TIDoffset,
 	"size":    wpk.TIDsize,
@@ -60,9 +60,9 @@ var (
 // ValueToAid converts LValue to uint16 tag identifier. Numbers converts explicitly,
 // strings converts to uint16 values wich they presents.
 // Error returns on any other case.
-func ValueToAid(k lua.LValue) (tid wpk.TID, err error) {
+func ValueToAid(k lua.LValue) (tid wpk.TID_t, err error) {
 	if n, ok := k.(lua.LNumber); ok {
-		tid = wpk.TID(n)
+		tid = wpk.TID_t(n)
 	} else if name, ok := k.(lua.LString); ok {
 		if n, ok := NameTid[string(name)]; ok {
 			tid = n
@@ -77,17 +77,17 @@ func ValueToAid(k lua.LValue) (tid wpk.TID, err error) {
 	return
 }
 
-// ValueToTag converts LValue to Tag. Strings converts explicitly to byte sequence,
+// ValueToTag converts LValue to Tag_t. Strings converts explicitly to byte sequence,
 // boolen converts to 1 byte slice with 1 for 'true' and 0 for 'false'.
-// Otherwise if it is not 'tag' uservalue with Tag, returns error.
-func ValueToTag(v lua.LValue) (tag wpk.Tag, err error) {
+// Otherwise if it is not 'tag' uservalue with Tag_t, returns error.
+func ValueToTag(v lua.LValue) (tag wpk.Tag_t, err error) {
 	if val, ok := v.(lua.LString); ok {
 		tag = wpk.TagString(string(val))
 	} else if val, ok := v.(lua.LBool); ok {
 		tag = wpk.TagBool(bool(val))
 	} else if ud, ok := v.(*lua.LUserData); ok {
 		if val, ok := ud.Value.(*LuaTag); ok {
-			tag = val.Tag
+			tag = val.Tag_t
 		} else {
 			err = ErrBadTagVal
 			return
@@ -99,16 +99,16 @@ func ValueToTag(v lua.LValue) (tag wpk.Tag, err error) {
 	return
 }
 
-// TableToTagset converts Lua-table to Tagset. Lua-table keys can be number identifiers
+// TableToTagset converts Lua-table to Tagmap_t. Lua-table keys can be number identifiers
 // or string names associated ID values. Lua-table values can be strings,
 // boolean or "tag" userdata values. Numbers can not be passed to table
 // to prevent ambiguous type representation.
-func TableToTagset(lt *lua.LTable) (ts wpk.Tagset, err error) {
-	ts = wpk.Tagset{}
+func TableToTagset(lt *lua.LTable) (tm wpk.Tagmap_t, err error) {
+	tm = wpk.Tagmap_t{}
 	lt.ForEach(func(k lua.LValue, v lua.LValue) {
 		var (
-			tid wpk.TID
-			tag wpk.Tag
+			tid wpk.TID_t
+			tag wpk.Tag_t
 		)
 
 		if tid, err = ValueToAid(k); err != nil {
@@ -118,7 +118,7 @@ func TableToTagset(lt *lua.LTable) (ts wpk.Tagset, err error) {
 			return
 		}
 
-		ts[tid] = tag
+		tm[tid] = tag
 	})
 	return
 }

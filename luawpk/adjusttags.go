@@ -18,7 +18,7 @@ import (
 
 const sniffLen = 512
 
-func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagset) (err error) {
+func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, tags wpk.Tagmap_t) (err error) {
 	if _, ok := tags[wpk.TIDmime]; !ok && pack.automime {
 		var kext = filepath.Ext(tags.Path())
 		var ctype = mime.TypeByExtension(kext)

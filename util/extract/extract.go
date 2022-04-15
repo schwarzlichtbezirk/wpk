@@ -109,7 +109,7 @@ func readpackage() (err error) {
 			defer pack.Close()
 
 			var sum int64
-			var ftt = pack.NFTO()
+			var ftt = pack.TOM()
 			for key := range ftt {
 				if func() {
 					var ts, _ = pack.NamedTags(key)

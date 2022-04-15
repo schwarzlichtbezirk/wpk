@@ -14,12 +14,12 @@ import (
 // wpk.NestedFile interface implementation.
 type ChunkFile struct {
 	wpk.FileReader
-	tags wpk.TagSlice // has fs.FileInfo interface
+	tags wpk.Tagset_t // has fs.FileInfo interface
 	wpkf *os.File
 }
 
 // NewChunkFile creates ChunkFile file structure based on given tags slice.
-func NewChunkFile(fname string, ts wpk.TagSlice) (f *ChunkFile, err error) {
+func NewChunkFile(fname string, ts wpk.Tagset_t) (f *ChunkFile, err error) {
 	var wpkf *os.File
 	if wpkf, err = os.Open(fname); err != nil {
 		return
@@ -34,7 +34,7 @@ func NewChunkFile(fname string, ts wpk.TagSlice) (f *ChunkFile, err error) {
 
 // Stat is for fs.File interface compatibility.
 func (f *ChunkFile) Stat() (fs.FileInfo, error) {
-	return f.tags, nil
+	return &f.tags, nil
 }
 
 // Close closes associated wpk-file handle.
@@ -53,17 +53,19 @@ type PackDir struct {
 }
 
 // OpenTags creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenTags(ts wpk.TagSlice) (wpk.NestedFile, error) {
+func (pack *PackDir) OpenTags(ts wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewChunkFile(pack.fname, ts)
 }
 
 // NamedTags returns tags set referred by offset at named file tags map field.
 // Function receives normalized full path of file.
-func (pack *PackDir) NamedTags(key string) (wpk.TagSlice, bool) {
+func (pack *PackDir) NamedTags(key string) (wpk.Tagset_t, bool) {
 	if tagpos, is := pack.Tags[key]; is {
-		return pack.ftt[tagpos-wpk.OFFSET(pack.FTTOffset()):], true
+		return wpk.Tagset_t{
+			Data: pack.ftt[tagpos-wpk.Offset_t(pack.FTTOffset()):],
+		}, true
 	} else {
-		return nil, false
+		return wpk.Tagset_t{}, false
 	}
 }
 
@@ -113,7 +115,7 @@ func (pack *PackDir) Sub(dir string) (fs.FS, error) {
 	if workspace != "." {
 		prefixdir = workspace + "/" // make prefix slash-terminated
 	}
-	for key := range pack.NFTO() {
+	for key := range pack.TOM() {
 		if strings.HasPrefix(key, prefixdir) {
 			return &PackDir{
 				pack.Package,
@@ -132,12 +134,12 @@ func (pack *PackDir) Stat(name string) (fs.FileInfo, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrInvalid}
 	}
-	var ts wpk.TagSlice
+	var ts wpk.Tagset_t
 	var is bool
 	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.workspace, name))); !is {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
 	}
-	return ts, nil
+	return &ts, nil
 }
 
 // ReadFile returns slice with nested into package file content.
@@ -147,7 +149,7 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
 	}
-	var ts wpk.TagSlice
+	var ts wpk.Tagset_t
 	var is bool
 	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.workspace, name))); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}

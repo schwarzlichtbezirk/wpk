@@ -8,13 +8,13 @@ import (
 )
 
 // TagsMap is tags sets map.
-type TagsMap map[string]Tagset
+type TagsMap map[string]Tagmap_t
 
 // Writer is package writer structure.
 type Writer struct {
 	Header
 	Tags    TagsMap
-	LastFID FID
+	LastFID FID_t
 }
 
 // Opens package for reading. At first its checkup file signature, then
@@ -46,7 +46,7 @@ func (pack *Writer) Read(r io.ReadSeeker) (err error) {
 		if _, err = r.Seek(0, io.SeekCurrent); err != nil {
 			return
 		}
-		var tags = Tagset{}
+		var tags = Tagmap_t{}
 		if n, err = tags.ReadFrom(r); err != nil {
 			return
 		}
@@ -142,7 +142,7 @@ func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 	if fttoffset, err = w.Seek(0, io.SeekEnd); err != nil {
 		return
 	}
-	pack.fttoffset = OFFSET(fttoffset)
+	pack.fttoffset = Offset_t(fttoffset)
 	// write files tags table
 	for _, tags := range pack.Tags {
 		if _, err = tags.WriteTo(w); err != nil {
@@ -150,7 +150,7 @@ func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 		}
 	}
 	// write tags table end marker
-	if err = binary.Write(w, binary.LittleEndian, TID(0)); err != nil {
+	if err = binary.Write(w, binary.LittleEndian, TID_t(0)); err != nil {
 		return
 	}
 
@@ -166,7 +166,7 @@ func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 }
 
 // PackData puts data streamed by given reader into package as a file and associate keyname "kpath" with it.
-func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags Tagset, err error) {
+func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags Tagmap_t, err error) {
 	var key = Normalize(kpath)
 	if _, ok := pack.Tags[key]; ok {
 		err = &fs.PathError{Op: "packdata", Path: kpath, Err: fs.ErrExist}
@@ -184,7 +184,7 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags 
 
 	// insert new entry to tags table
 	pack.LastFID++
-	tags = Tagset{
+	tags = Tagmap_t{
 		TIDfid:    TagUint32(uint32(pack.LastFID)),
 		TIDoffset: TagUint64(uint64(offset)),
 		TIDsize:   TagUint64(uint64(size)),
@@ -193,12 +193,12 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags 
 	pack.Tags[key] = tags
 
 	// update header
-	pack.fttoffset = OFFSET(offset + size)
+	pack.fttoffset = Offset_t(offset + size)
 	return
 }
 
 // PackFile puts file with given file handle into package and associate keyname "kpath" with it.
-func (pack *Writer) PackFile(w io.WriteSeeker, file *os.File, kpath string) (tags Tagset, err error) {
+func (pack *Writer) PackFile(w io.WriteSeeker, file *os.File, kpath string) (tags Tagmap_t, err error) {
 	var fi os.FileInfo
 	if fi, err = file.Stat(); err != nil {
 		return
@@ -294,7 +294,7 @@ func (pack *Writer) PutAlias(oldname, newname string) error {
 		return &fs.PathError{Op: "putalias", Path: newname, Err: fs.ErrExist}
 	}
 
-	var tags2 = Tagset{}
+	var tags2 = Tagmap_t{}
 	for k, v := range tags1 {
 		tags2[k] = v
 	}

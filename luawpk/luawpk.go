@@ -15,7 +15,7 @@ import (
 // ErrProtected is "protected tag" error.
 type ErrProtected struct {
 	key string
-	tid wpk.TID
+	tid wpk.TID_t
 }
 
 func (e *ErrProtected) Error() string {
@@ -556,7 +556,7 @@ func wpkfilesize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var key = wpk.Normalize(ls.CheckString(2))
 
-	var tags wpk.Tagset
+	var tags wpk.Tagmap_t
 	var ok bool
 	if tags, ok = pack.Tags[key]; !ok {
 		var err = &fs.PathError{Op: "filesize", Path: key, Err: fs.ErrNotExist}
@@ -583,7 +583,7 @@ func wpkputdata(ls *lua.LState) int {
 
 		var r = strings.NewReader(data)
 
-		var tags wpk.Tagset
+		var tags wpk.Tagmap_t
 		if tags, err = pack.PackData(pack.w, r, kpath); err != nil {
 			return
 		}
@@ -617,7 +617,7 @@ func wpkputfile(ls *lua.LState) int {
 		}
 		defer file.Close()
 
-		var tags wpk.Tagset
+		var tags wpk.Tagmap_t
 		if tags, err = pack.PackFile(pack.w, file, kpath); err != nil {
 			return
 		}
@@ -683,13 +683,13 @@ func wpkhastag(ls *lua.LState) int {
 	var k = ls.Get(3)
 
 	var err error
-	var tid wpk.TID
+	var tid wpk.TID_t
 	if tid, err = ValueToAid(k); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
 
-	var tags wpk.Tagset
+	var tags wpk.Tagmap_t
 	var ok bool
 	if tags, ok = pack.Tags[key]; !ok {
 		err = &fs.PathError{Op: "hastag", Path: key, Err: fs.ErrNotExist}
@@ -710,13 +710,13 @@ func wpkgettag(ls *lua.LState) int {
 
 	var err error
 
-	var tid wpk.TID
+	var tid wpk.TID_t
 	if tid, err = ValueToAid(k); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
 
-	var tags wpk.Tagset
+	var tags wpk.Tagmap_t
 	var ok bool
 	if tags, ok = pack.Tags[key]; !ok {
 		err = &fs.PathError{Op: "gettag", Path: key, Err: fs.ErrNotExist}
@@ -724,7 +724,7 @@ func wpkgettag(ls *lua.LState) int {
 		return 0
 	}
 
-	var tag wpk.Tag
+	var tag wpk.Tag_t
 	if tag, ok = tags[tid]; !ok {
 		return 0
 	}
@@ -742,7 +742,7 @@ func wpksettag(ls *lua.LState) int {
 
 	var err error
 	if func() {
-		var tid wpk.TID
+		var tid wpk.TID_t
 		if tid, err = ValueToAid(k); err != nil {
 			return
 		}
@@ -751,7 +751,7 @@ func wpksettag(ls *lua.LState) int {
 			return
 		}
 
-		var tag wpk.Tag
+		var tag wpk.Tag_t
 		if tag, err = ValueToTag(v); err != nil {
 			return
 		}
@@ -778,7 +778,7 @@ func wpkdeltag(ls *lua.LState) int {
 
 	var err error
 	if func() {
-		var tid wpk.TID
+		var tid wpk.TID_t
 		if tid, err = ValueToAid(k); err != nil {
 			return
 		}
@@ -831,7 +831,7 @@ func wpksettags(ls *lua.LState) int {
 
 	var err error
 	if func() {
-		var addt wpk.Tagset
+		var addt wpk.Tagmap_t
 		if addt, err = TableToTagset(lt); err != nil {
 			return
 		}
@@ -868,7 +868,7 @@ func wpkaddtags(ls *lua.LState) int {
 
 	var err error
 
-	var addt wpk.Tagset
+	var addt wpk.Tagmap_t
 	if addt, err = TableToTagset(lt); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
@@ -902,7 +902,7 @@ func wpkdeltags(ls *lua.LState) int {
 
 	var err error
 
-	var addt wpk.Tagset
+	var addt wpk.Tagmap_t
 	if addt, err = TableToTagset(lt); err != nil {
 		ls.RaiseError(err.Error())
 		return 0

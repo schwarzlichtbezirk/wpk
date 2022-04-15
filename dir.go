@@ -1,7 +1,6 @@
 package wpk
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"io/fs"
@@ -77,7 +76,7 @@ func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) 
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
 	var dirs = map[string]struct{}{}
-	for key := range pack.NFTO() {
+	for key := range pack.TOM() {
 		if strings.HasPrefix(key, prefix) {
 			var suffix = key[len(prefix):]
 			var sp = strings.IndexByte(suffix, '/')
@@ -91,11 +90,9 @@ func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) 
 					dirs[subdir] = struct{}{}
 					var ts, _ = pack.NamedTags(key)
 					var fp = ts.Path() // extract not normalized path
-					var buf bytes.Buffer
-					Tagset{
-						TIDpath: TagString(fp[:len(subdir)]),
-					}.WriteTo(&buf)
-					matches = append(matches, &DirEntry{buf.Bytes()})
+					var de DirEntry
+					de.PutTag(TIDpath, TagString(fp[:len(subdir)]))
+					matches = append(matches, &de)
 					n--
 				}
 			}
@@ -120,14 +117,12 @@ func OpenDir(pack Tagger, dir string) (fs.ReadDirFile, error) {
 	if dir != "." {
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
-	for key := range pack.NFTO() {
+	for key := range pack.TOM() {
 		if strings.HasPrefix(key, prefix) {
-			var buf bytes.Buffer
-			Tagset{
-				TIDpath: TagString(ToSlash(dir)),
-			}.WriteTo(&buf)
+			var ts Tagset_t
+			ts.PutTag(TIDpath, TagString(ToSlash(dir)))
 			return &ReadDirFile{
-				TagSlice: buf.Bytes(),
+				Tagset_t: ts,
 				Pack:     pack,
 			}, nil
 		}

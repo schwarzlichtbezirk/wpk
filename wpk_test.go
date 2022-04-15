@@ -138,7 +138,7 @@ func TestPutFiles(t *testing.T) {
 		}
 		defer file.Close()
 
-		var tags wpk.Tagset
+		var tags wpk.Tagmap_t
 		if tags, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
@@ -149,7 +149,7 @@ func TestPutFiles(t *testing.T) {
 	var putdata = func(name string, data []byte) {
 		var r = bytes.NewReader(data)
 
-		var tags wpk.Tagset
+		var tags wpk.Tagmap_t
 		if tags, err = pack.PackData(fwpk, r, name); err != nil {
 			t.Fatal(err)
 		}
@@ -230,7 +230,7 @@ func TestAppendContinues(t *testing.T) {
 		}
 		defer file.Close()
 
-		var tags wpk.Tagset
+		var tags wpk.Tagmap_t
 		if tags, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
@@ -300,7 +300,7 @@ func TestAppendDiscrete(t *testing.T) {
 		}
 		defer file.Close()
 
-		var tags wpk.Tagset
+		var tags wpk.Tagmap_t
 		if tags, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
