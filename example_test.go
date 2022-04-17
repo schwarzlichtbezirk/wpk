@@ -23,17 +23,16 @@ func ExamplePackage_Read() {
 		log.Fatal(err)
 	}
 	// How many records at package
-	log.Printf("files: %d, datasize: %d\n", len(pack.TOM()), pack.DataSize())
-
-	// Print not more than 5 file names from package
-	var i = 0
-	for key := range pack.Tags {
-		log.Println(key)
-		i++
-		if i == 5 {
-			break
+	var n = 0
+	pack.Enum(func(key string, offset wpk.Offset_t) bool {
+		if n < 5 {
+			// Print not more than 5 file names from package
+			log.Println(key)
 		}
-	}
+		n++
+		return true
+	})
+	log.Printf("files: %d, datasize: %d\n", n, pack.DataSize())
 }
 
 func ExamplePackage_Glob() {

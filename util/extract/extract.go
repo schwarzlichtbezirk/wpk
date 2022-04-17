@@ -108,44 +108,44 @@ func readpackage() (err error) {
 			}
 			defer pack.Close()
 
-			var sum int64
-			var ftt = pack.TOM()
-			for key := range ftt {
-				if func() {
-					var ts, _ = pack.NamedTags(key)
-					var kpath = ts.Path()
+			var num, sum int64
+			pack.Enum(func(key string, offset wpk.Offset_t) (next bool) {
+				defer func() {
+					next = err == nil
+				}()
+				var ts, _ = pack.NamedTags(key)
+				var kpath = ts.Path()
 
-					var fpath = path.Join(DstPath, kpath)
-					if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
-						return
-					}
-
-					var src, err = pack.OpenTags(ts)
-					if err != nil {
-						return
-					}
-					defer src.Close()
-
-					var dst *os.File
-					if dst, err = os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
-						return
-					}
-					defer dst.Close()
-
-					var n int64
-					if n, err = io.Copy(dst, src); err != nil {
-						return
-					}
-					sum += n
-
-					if ShowLog {
-						log.Printf("#%-3d %6d bytes   %s", ts.FID(), n, kpath)
-					}
-				}(); err != nil {
+				var fpath = path.Join(DstPath, kpath)
+				if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
 					return
 				}
-			}
-			log.Printf("unpacked: %d files on %d bytes", len(ftt), sum)
+
+				var src wpk.NestedFile
+				if src, err = pack.OpenTags(ts); err != nil {
+					return
+				}
+				defer src.Close()
+
+				var dst *os.File
+				if dst, err = os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+					return
+				}
+				defer dst.Close()
+
+				var n int64
+				if n, err = io.Copy(dst, src); err != nil {
+					return
+				}
+				num++
+				sum += n
+
+				if ShowLog {
+					log.Printf("#%-3d %6d bytes   %s", ts.FID(), n, kpath)
+				}
+				return
+			})
+			log.Printf("unpacked: %d files on %d bytes", num, sum)
 		}(); err != nil {
 			return
 		}

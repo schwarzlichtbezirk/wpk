@@ -108,18 +108,16 @@ type NestedFile interface {
 	FileReader
 }
 
-// TOM_t is named file tags offset map.
-type TOM_t map[string]Offset_t
-
 // Tagger provides file tags access.
 type Tagger interface {
-	TOM() TOM_t
+	Offset(string) (Offset_t, bool)
+	Enum(func(string, Offset_t) bool)
 	NamedTags(string) (Tagset_t, bool)
 }
 
 // Packager refers to package data access management implementation.
 type Packager interface {
-	DataSize() int64
+	DataSize() Size_t
 	Tagger
 
 	OpenTags(Tagset_t) (NestedFile, error)
@@ -174,28 +172,28 @@ func (pack *Header) SetLabel(label string) {
 }
 
 // FTTOffset returns file tags table offset in the package.
-func (pack *Header) FTTOffset() int64 {
+func (pack *Header) FTTOffset() Offset_t {
 	pack.mux.RLock()
 	defer pack.mux.RUnlock()
 
-	return int64(pack.fttoffset)
+	return pack.fttoffset
 }
 
 // FTTSize returns file tags table size in the package.
-func (pack *Header) FTTSize() int64 {
+func (pack *Header) FTTSize() Size_t {
 	pack.mux.RLock()
 	defer pack.mux.RUnlock()
 
-	return int64(pack.fttsize)
+	return pack.fttsize
 }
 
 // DataSize returns sum size of all real stored records in package.
-func (pack *Header) DataSize() int64 {
+func (pack *Header) DataSize() Size_t {
 	pack.mux.RLock()
 	defer pack.mux.RUnlock()
 
 	if pack.fttoffset > HeaderSize {
-		return int64(pack.fttoffset - HeaderSize)
+		return Size_t(pack.fttoffset - HeaderSize)
 	}
 	return 0
 }
@@ -761,30 +759,36 @@ func (f *ReadDirFile) ReadDir(n int) (matches []fs.DirEntry, err error) {
 // Package structure contains all data needed for package representation.
 type Package struct {
 	Header
-	Tags TOM_t // keys - package filenames in lower case, values - tags slices offsets.
+	tom sync.Map // keys - package filenames in lower case, values - tags slices offsets.
 }
 
-// TOM returns package named file tags offset map.
-func (pack *Package) TOM() TOM_t {
-	pack.mux.RLock()
-	defer pack.mux.RUnlock()
+// Offset returns offset in package of file with given filename.
+func (pack *Package) Offset(fname string) (Offset_t, bool) {
+	var val, ok = pack.tom.Load(fname)
+	var ret = val.(Offset_t)
+	return ret, ok
+}
 
-	return pack.Tags
+// Enum calls given closure for each file in package.
+func (pack *Package) Enum(f func(string, Offset_t) bool) {
+	pack.tom.Range(func(key, value interface{}) bool {
+		return f(key.(string), value.(Offset_t))
+	})
 }
 
 // Glob returns the names of all files in package matching pattern or nil
 // if there is no matching file.
 func (pack *Package) Glob(pattern string) (res []string, err error) {
 	pattern = Normalize(pattern)
-	var matched bool
-	for key := range pack.Tags {
-		if matched, err = filepath.Match(pattern, key); err != nil {
-			return
-		}
-		if matched {
+	if _, err = filepath.Match(pattern, ""); err != nil {
+		return
+	}
+	pack.Enum(func(key string, offset Offset_t) bool {
+		if matched, _ := filepath.Match(pattern, key); matched {
 			res = append(res, key)
 		}
-	}
+		return true
+	})
 	return
 }
 
@@ -803,7 +807,6 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 	if err = pack.Header.IsReady(); err != nil {
 		return
 	}
-	var tom = make(TOM_t)
 
 	// read file tags table
 	if _, err = r.Seek(int64(pack.fttoffset), io.SeekStart); err != nil {
@@ -828,7 +831,7 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 			return &ErrTag{ErrNoPath, "", TIDpath}
 		}
 		var key = Normalize(tm.Path())
-		if _, ok := pack.Tags[key]; ok {
+		if _, ok := pack.tom.Load(key); ok {
 			return &ErrTag{fs.ErrExist, key, TIDpath}
 		}
 
@@ -851,12 +854,8 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 		}
 
 		// insert file tags
-		tom[key] = Offset_t(tagpos)
+		pack.tom.Store(key, Offset_t(tagpos))
 	}
-
-	pack.mux.Lock()
-	defer pack.mux.Unlock()
-	pack.Tags = tom
 	return
 }
 

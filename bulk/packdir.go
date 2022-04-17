@@ -43,7 +43,7 @@ func (f *SliceFile) Close() error {
 type PackDir struct {
 	*wpk.Package
 	workspace string // workspace directory in package
-	bulk      []byte
+	bulk      []byte // slice with whole package content
 }
 
 // OpenTags creates file object to give access to nested into package file by given tagset.
@@ -54,7 +54,7 @@ func (pack *PackDir) OpenTags(ts wpk.Tagset_t) (wpk.NestedFile, error) {
 // NamedTags returns tags set referred by offset at named file tags map field.
 // Function receives normalized full path of file.
 func (pack *PackDir) NamedTags(key string) (wpk.Tagset_t, bool) {
-	if tagpos, is := pack.Tags[key]; is {
+	if tagpos, is := pack.Offset(key); is {
 		return wpk.Tagset_t{
 			Data: pack.bulk[tagpos:],
 		}, true
@@ -88,25 +88,31 @@ func (pack *PackDir) Close() error {
 
 // Sub clones object and gives access to pointed subdirectory.
 // fs.SubFS implementation.
-func (pack *PackDir) Sub(dir string) (fs.FS, error) {
+func (pack *PackDir) Sub(dir string) (df fs.FS, err error) {
 	if !fs.ValidPath(dir) {
-		return nil, &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrInvalid}
+		err = &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrInvalid}
+		return
 	}
 	var workspace = path.Join(pack.workspace, dir)
 	var prefixdir string
 	if workspace != "." {
 		prefixdir = workspace + "/" // make prefix slash-terminated
 	}
-	for key := range pack.TOM() {
+	pack.Enum(func(key string, offset wpk.Offset_t) bool {
 		if strings.HasPrefix(key, prefixdir) {
-			return &PackDir{
+			df, err = &PackDir{
 				pack.Package,
 				workspace,
 				pack.bulk,
 			}, nil
+			return false
 		}
+		return true
+	})
+	if df == nil { // on case if not found
+		err = &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrNotExist}
 	}
-	return nil, &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrNotExist}
+	return
 }
 
 // Stat returns a fs.FileInfo describing the file.

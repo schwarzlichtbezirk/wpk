@@ -76,7 +76,7 @@ func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) 
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
 	var dirs = map[string]struct{}{}
-	for key := range pack.TOM() {
+	pack.Enum(func(key string, offset Offset_t) bool {
 		if strings.HasPrefix(key, prefix) {
 			var suffix = key[len(prefix):]
 			var sp = strings.IndexByte(suffix, '/')
@@ -98,9 +98,10 @@ func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) 
 			}
 		}
 		if n == 0 {
-			return
+			return false
 		}
-	}
+		return true
+	})
 	if n > 0 {
 		err = io.EOF
 	}
@@ -109,7 +110,7 @@ func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) 
 
 // OpenDir returns ReadDirFile structure associated with group of files in package
 // pooled with common directory prefix. Usable to implement fs.FileSystem interface.
-func OpenDir(pack Tagger, dir string) (fs.ReadDirFile, error) {
+func OpenDir(pack Tagger, dir string) (df fs.ReadDirFile, err error) {
 	if !fs.ValidPath(dir) {
 		return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrInvalid}
 	}
@@ -117,17 +118,22 @@ func OpenDir(pack Tagger, dir string) (fs.ReadDirFile, error) {
 	if dir != "." {
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
-	for key := range pack.TOM() {
+	pack.Enum(func(key string, offset Offset_t) bool {
 		if strings.HasPrefix(key, prefix) {
 			var ts Tagset_t
 			ts.PutTag(TIDpath, TagString(ToSlash(dir)))
-			return &ReadDirFile{
+			df, err = &ReadDirFile{
 				Tagset_t: ts,
 				Pack:     pack,
 			}, nil
+			return false
 		}
+		return true
+	})
+	if df == nil { // on case if not found
+		err = &fs.PathError{Op: "opendir", Path: dir, Err: fs.ErrNotExist}
 	}
-	return nil, &fs.PathError{Op: "opendir", Path: dir, Err: fs.ErrNotExist}
+	return
 }
 
 // The End.
