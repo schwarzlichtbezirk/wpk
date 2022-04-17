@@ -91,7 +91,7 @@ func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) 
 					var ts, _ = pack.NamedTags(key)
 					var fp = ts.Path() // extract not normalized path
 					var de DirEntry
-					de.PutTag(TIDpath, TagString(fp[:len(subdir)]))
+					de.Put(TIDpath, TagString(fp[:len(subdir)]))
 					matches = append(matches, &de)
 					n--
 				}
@@ -121,7 +121,7 @@ func OpenDir(pack Tagger, dir string) (df fs.ReadDirFile, err error) {
 	pack.Enum(func(key string, offset Offset_t) bool {
 		if strings.HasPrefix(key, prefix) {
 			var ts Tagset_t
-			ts.PutTag(TIDpath, TagString(ToSlash(dir)))
+			ts.Put(TIDpath, TagString(ToSlash(dir)))
 			df, err = &ReadDirFile{
 				Tagset_t: ts,
 				Pack:     pack,

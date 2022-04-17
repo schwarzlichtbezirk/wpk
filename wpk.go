@@ -483,50 +483,53 @@ type Tagset_t struct {
 }
 
 // Num returns number of tags in tags set.
-func (ts *Tagset_t) Num() int {
-	if 2 >= len(ts.Data) {
+func (ts *Tagset_t) Num() uint16 {
+	if len(ts.Data) < 2 {
 		return 0
 	}
-	return int(binary.LittleEndian.Uint16(ts.Data))
+	return binary.LittleEndian.Uint16(ts.Data[:2])
 }
 
 // GetPos returns position of tag with given identifier.
 // If tag is not found, returns ErrNoTag.
 // If slice content is broken, returns io.EOF.
-func (ts *Tagset_t) GetPos(tid TID_t) (uint16, uint16, error) {
-	var n, tsl uint16 = 0, uint16(len(ts.Data))
-	if n+2 > tsl {
-		return n, 0, io.EOF
+func (ts *Tagset_t) Pos(tid TID_t) (pos uint16, size uint16, err error) {
+	var tsl = uint16(len(ts.Data))
+	err = io.EOF
+	if pos+2 > tsl {
+		return
 	}
-	var num = binary.LittleEndian.Uint16(ts.Data[n:])
-	n += 2
+	var num = binary.LittleEndian.Uint16(ts.Data[pos : pos+2])
+	pos += 2
 	for i := uint16(0); i < num; i++ {
-		if n+2 > tsl {
-			return n, 0, io.EOF
+		if pos+2 > tsl {
+			return
 		}
-		var id = TID_t(binary.LittleEndian.Uint16(ts.Data[n:]))
-		n += 2
-		if n+2 > tsl {
-			return n, 0, io.EOF
+		var id = TID_t(binary.LittleEndian.Uint16(ts.Data[pos : pos+2]))
+		pos += 2
+		if pos+2 > tsl {
+			return
 		}
-		var l = binary.LittleEndian.Uint16(ts.Data[n:])
-		n += 2
-		if n+l > tsl {
-			return n, 0, io.EOF
+		size = binary.LittleEndian.Uint16(ts.Data[pos : pos+2])
+		pos += 2
+		if pos+size > tsl {
+			return
 		}
 		if id == tid {
-			return n, l, nil
+			err = nil
+			return
 		}
-		n += l
+		pos += size
 	}
-	return n, 0, ErrNoTag
+	err = ErrNoTag
+	return
 }
 
 // GetTag returns Tag_t with given identifier.
 // If tag is not found, returns ErrNoTag.
 // If slice content is broken, returns io.EOF.
-func (ts *Tagset_t) GetTag(tid TID_t) (Tag_t, error) {
-	var pos, size, err = ts.GetPos(tid)
+func (ts *Tagset_t) Get(tid TID_t) (Tag_t, error) {
+	var pos, size, err = ts.Pos(tid)
 	if err != nil {
 		return nil, err
 	}
@@ -534,7 +537,7 @@ func (ts *Tagset_t) GetTag(tid TID_t) (Tag_t, error) {
 }
 
 // Put appends new tag to tags set.
-func (ts *Tagset_t) PutTag(tid TID_t, tag Tag_t) {
+func (ts *Tagset_t) Put(tid TID_t, tag Tag_t) {
 	var num uint16
 	if len(ts.Data) >= 2 {
 		num = binary.LittleEndian.Uint16(ts.Data[:2])
@@ -549,15 +552,15 @@ func (ts *Tagset_t) PutTag(tid TID_t, tag Tag_t) {
 	ts.Data = append(ts.Data, tag...)
 }
 
-// SetTag replaces tag with given ID and equal size,
+// Set replaces tag with given ID and equal size,
 // or appends it to tags set.
-func (ts *Tagset_t) SetTag(tid TID_t, tag Tag_t) (err error) {
+func (ts *Tagset_t) Set(tid TID_t, tag Tag_t) (err error) {
 	var pos, size uint16
-	if pos, size, err = ts.GetPos(tid); err != nil {
+	if pos, size, err = ts.Pos(tid); err != nil {
 		if err != ErrNoTag {
 			return
 		}
-		ts.PutTag(tid, tag)
+		ts.Put(tid, tag)
 		err = nil
 		return
 	}
@@ -573,10 +576,10 @@ func (ts *Tagset_t) SetTag(tid TID_t, tag Tag_t) (err error) {
 	return
 }
 
-// DelTag deletes tag with given ID.
-func (ts *Tagset_t) DelTag(tid TID_t) (err error) {
+// Del deletes tag with given ID.
+func (ts *Tagset_t) Del(tid TID_t) (err error) {
 	var pos, size uint16
-	if pos, size, err = ts.GetPos(tid); err != nil {
+	if pos, size, err = ts.Pos(tid); err != nil {
 		return
 	}
 	ts.Data = append(ts.Data[:pos-2], ts.Data[pos+size:]...)
@@ -585,7 +588,7 @@ func (ts *Tagset_t) DelTag(tid TID_t) (err error) {
 
 // String tag getter.
 func (ts *Tagset_t) String(tid TID_t) (string, bool) {
-	if data, err := ts.GetTag(tid); err == nil {
+	if data, err := ts.Get(tid); err == nil {
 		return data.String()
 	}
 	return "", false
@@ -593,7 +596,7 @@ func (ts *Tagset_t) String(tid TID_t) (string, bool) {
 
 // Bool is boolean tag getter.
 func (ts *Tagset_t) Bool(tid TID_t) (bool, bool) {
-	if data, err := ts.GetTag(tid); err == nil {
+	if data, err := ts.Get(tid); err == nil {
 		return data.Bool()
 	}
 	return false, false
@@ -601,7 +604,7 @@ func (ts *Tagset_t) Bool(tid TID_t) (bool, bool) {
 
 // Byte tag getter.
 func (ts *Tagset_t) Byte(tid TID_t) (byte, bool) {
-	if data, err := ts.GetTag(tid); err == nil {
+	if data, err := ts.Get(tid); err == nil {
 		return data.Byte()
 	}
 	return 0, false
@@ -610,7 +613,7 @@ func (ts *Tagset_t) Byte(tid TID_t) (byte, bool) {
 // Uint16 is 16-bit unsigned int tag getter.
 // Conversion can be used to get signed 16-bit integers.
 func (ts *Tagset_t) Uint16(tid TID_t) (TID_t, bool) {
-	if data, err := ts.GetTag(tid); err == nil {
+	if data, err := ts.Get(tid); err == nil {
 		return data.Uint16()
 	}
 	return 0, false
@@ -619,7 +622,7 @@ func (ts *Tagset_t) Uint16(tid TID_t) (TID_t, bool) {
 // Uint32 is 32-bit unsigned int tag getter.
 // Conversion can be used to get signed 32-bit integers.
 func (ts *Tagset_t) Uint32(tid TID_t) (uint32, bool) {
-	if data, err := ts.GetTag(tid); err == nil {
+	if data, err := ts.Get(tid); err == nil {
 		return data.Uint32()
 	}
 	return 0, false
@@ -628,7 +631,7 @@ func (ts *Tagset_t) Uint32(tid TID_t) (uint32, bool) {
 // Uint64 is 64-bit unsigned int tag getter.
 // Conversion can be used to get signed 64-bit integers.
 func (ts *Tagset_t) Uint64(tid TID_t) (uint64, bool) {
-	if data, err := ts.GetTag(tid); err == nil {
+	if data, err := ts.Get(tid); err == nil {
 		return data.Uint64()
 	}
 	return 0, false
@@ -636,7 +639,7 @@ func (ts *Tagset_t) Uint64(tid TID_t) (uint64, bool) {
 
 // Uint is unspecified size unsigned int tag getter.
 func (ts *Tagset_t) Uint(tid TID_t) (uint, bool) {
-	if data, err := ts.GetTag(tid); err == nil {
+	if data, err := ts.Get(tid); err == nil {
 		return data.Uint()
 	}
 	return 0, false
@@ -644,7 +647,7 @@ func (ts *Tagset_t) Uint(tid TID_t) (uint, bool) {
 
 // Number is 64-bit float tag getter.
 func (ts *Tagset_t) Number(tid TID_t) (float64, bool) {
-	if data, err := ts.GetTag(tid); err == nil {
+	if data, err := ts.Get(tid); err == nil {
 		return data.Number()
 	}
 	return 0, false
@@ -707,6 +710,85 @@ func (ts *Tagset_t) IsDir() bool {
 // Sys is for fs.FileInfo interface compatibility.
 func (ts *Tagset_t) Sys() interface{} {
 	return nil
+}
+
+// Iterator clones this tagset to iterate through all tags.
+func (ts *Tagset_t) Iterator() TagsetIterator {
+	return TagsetIterator{
+		Tagset_t: *ts,
+	}
+}
+
+// TagsetIterator helps to iterate through all tags.
+type TagsetIterator struct {
+	Tagset_t
+	pos uint16
+	tid TID_t
+	len uint16
+}
+
+// TID returns the tag ID of the current element pointed to by position.
+func (ts *TagsetIterator) TID() TID_t {
+	return ts.tid
+}
+
+// Num returns number of tags in tags set.
+func (ts *TagsetIterator) Num() (n uint16) {
+	if len(ts.Data) < 2 {
+		return
+	}
+	n = binary.LittleEndian.Uint16(ts.Data[:2])
+	ts.pos += 2
+	return
+}
+
+// Get returns tag with given ID using iterator.
+func (ts *TagsetIterator) Get(tid TID_t) (Tag_t, error) {
+	ts.pos = 0
+	var n = ts.Num()
+	for i := uint16(0); i < n && ts.Next() && ts.tid != tid; i++ {
+	}
+	if ts.pos > uint16(len(ts.Data)) {
+		return nil, io.EOF
+	}
+	if ts.tid != tid {
+		return nil, ErrNoTag
+	}
+	return Tag_t(ts.Data[ts.pos : ts.pos+ts.len]), nil
+}
+
+// Next carries to the next tag position.
+func (ts *TagsetIterator) Next() (ok bool) {
+	if ts.pos < 2 {
+		ts.pos = 2
+	}
+
+	var tsl = uint16(len(ts.Data))
+
+	if ts.pos += ts.len; ts.pos > tsl {
+		return
+	}
+
+	if ts.pos += 2; ts.pos > tsl {
+		return
+	}
+	ts.tid = TID_t(binary.LittleEndian.Uint16(ts.Data[ts.pos-2:]))
+
+	if ts.pos += 2; ts.pos > tsl {
+		return
+	}
+	ts.len = binary.LittleEndian.Uint16(ts.Data[ts.pos-2:])
+
+	ok = true
+	return
+}
+
+// Extract returns tag on which current position is pointed to.
+func (ts *TagsetIterator) Extract() (tid TID_t, tag Tag_t) {
+	if ts.pos < 2 || ts.pos+ts.len > uint16(len(ts.Data)) {
+		return 0, nil
+	}
+	return ts.tid, ts.Data[ts.pos : ts.pos+ts.len]
 }
 
 // DirEntry is directory representation of nested into package files.
@@ -854,7 +936,7 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 		}
 
 		// insert file tags
-		pack.tom.Store(key, Offset_t(tagpos))
+		pack.tom.Store(key, Offset_t(tagpos)-pack.fttoffset)
 	}
 	return
 }

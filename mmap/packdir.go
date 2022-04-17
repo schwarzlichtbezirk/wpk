@@ -76,7 +76,7 @@ func (pack *PackDir) OpenTags(ts wpk.Tagset_t) (wpk.NestedFile, error) {
 func (pack *PackDir) NamedTags(key string) (wpk.Tagset_t, bool) {
 	if tagpos, is := pack.Offset(key); is {
 		return wpk.Tagset_t{
-			Data: pack.ftt.region[tagpos-pack.FTTOffset():],
+			Data: pack.ftt.region[tagpos:],
 		}, true
 	} else {
 		return wpk.Tagset_t{}, false
@@ -97,9 +97,9 @@ func OpenImage(fname string) (pack *PackDir, err error) {
 
 	// open tags set file
 	var ts wpk.Tagset_t
-	ts.PutTag(wpk.TIDfid, wpk.TagUint32(0))
-	ts.PutTag(wpk.TIDoffset, wpk.TagUint64(uint64(pack.FTTOffset())))
-	ts.PutTag(wpk.TIDsize, wpk.TagUint64(uint64(pack.FTTSize())))
+	ts.Put(wpk.TIDfid, wpk.TagUint32(0))
+	ts.Put(wpk.TIDoffset, wpk.TagUint64(uint64(pack.FTTOffset())))
+	ts.Put(wpk.TIDsize, wpk.TagUint64(uint64(pack.FTTSize())))
 	if pack.ftt, err = NewMappedFile(pack, ts); err != nil {
 		return
 	}

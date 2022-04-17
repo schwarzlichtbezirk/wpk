@@ -44,6 +44,7 @@ type PackDir struct {
 	*wpk.Package
 	workspace string // workspace directory in package
 	bulk      []byte // slice with whole package content
+	ftt       []byte // file tags table nested slice
 }
 
 // OpenTags creates file object to give access to nested into package file by given tagset.
@@ -56,7 +57,7 @@ func (pack *PackDir) OpenTags(ts wpk.Tagset_t) (wpk.NestedFile, error) {
 func (pack *PackDir) NamedTags(key string) (wpk.Tagset_t, bool) {
 	if tagpos, is := pack.Offset(key); is {
 		return wpk.Tagset_t{
-			Data: pack.bulk[tagpos:],
+			Data: pack.ftt[tagpos:],
 		}, true
 	} else {
 		return wpk.Tagset_t{}, false
@@ -76,6 +77,7 @@ func OpenImage(fname string) (pack *PackDir, err error) {
 	if err = pack.Read(bytes.NewReader(bulk)); err != nil {
 		return
 	}
+	pack.ftt = bulk[pack.FTTOffset() : pack.FTTOffset()+wpk.Offset_t(pack.FTTSize())]
 	return
 }
 
@@ -104,6 +106,7 @@ func (pack *PackDir) Sub(dir string) (df fs.FS, err error) {
 				pack.Package,
 				workspace,
 				pack.bulk,
+				pack.ftt,
 			}, nil
 			return false
 		}
@@ -156,9 +159,9 @@ func (pack *PackDir) ReadDir(dir string) ([]fs.DirEntry, error) {
 func (pack *PackDir) Open(dir string) (fs.File, error) {
 	if dir == "wpk" && pack.workspace == "." {
 		var ts wpk.Tagset_t
-		ts.PutTag(wpk.TIDfid, wpk.TagUint32(0))
-		ts.PutTag(wpk.TIDoffset, wpk.TagUint64(0))
-		ts.PutTag(wpk.TIDsize, wpk.TagUint64(uint64(len(pack.bulk))))
+		ts.Put(wpk.TIDfid, wpk.TagUint32(0))
+		ts.Put(wpk.TIDoffset, wpk.TagUint64(0))
+		ts.Put(wpk.TIDsize, wpk.TagUint64(uint64(len(pack.bulk))))
 		return NewSliceFile(pack, ts)
 	}
 

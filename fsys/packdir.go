@@ -62,7 +62,7 @@ func (pack *PackDir) OpenTags(ts wpk.Tagset_t) (wpk.NestedFile, error) {
 func (pack *PackDir) NamedTags(key string) (wpk.Tagset_t, bool) {
 	if tagpos, is := pack.Offset(key); is {
 		return wpk.Tagset_t{
-			Data: pack.ftt[tagpos-pack.FTTOffset():],
+			Data: pack.ftt[tagpos:],
 		}, true
 	} else {
 		return wpk.Tagset_t{}, false
