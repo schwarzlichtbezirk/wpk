@@ -109,26 +109,25 @@ func readpackage() (err error) {
 			defer pack.Close()
 
 			var num, sum int64
-			pack.Enum(func(key string, offset wpk.Offset_t) (next bool) {
+			pack.Enum(func(fkey string, ts *wpk.Tagset_t) (next bool) {
 				defer func() {
 					next = err == nil
 				}()
-				var ts, _ = pack.NamedTags(key)
-				var kpath = ts.Path()
+				var fpath = ts.Path()
 
-				var fpath = path.Join(DstPath, kpath)
-				if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+				var fullpath = path.Join(DstPath, fpath)
+				if err = os.MkdirAll(filepath.Dir(fullpath), os.ModePerm); err != nil {
 					return
 				}
 
 				var src wpk.NestedFile
-				if src, err = pack.OpenTags(ts); err != nil {
+				if src, err = pack.OpenTags(*ts); err != nil {
 					return
 				}
 				defer src.Close()
 
 				var dst *os.File
-				if dst, err = os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+				if dst, err = os.OpenFile(fullpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
 					return
 				}
 				defer dst.Close()
@@ -141,7 +140,7 @@ func readpackage() (err error) {
 				sum += n
 
 				if ShowLog {
-					log.Printf("#%-3d %6d bytes   %s", ts.FID(), n, kpath)
+					log.Printf("#%-3d %6d bytes   %s", ts.FID(), n, fpath)
 				}
 				return
 			})

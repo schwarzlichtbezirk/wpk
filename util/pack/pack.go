@@ -104,24 +104,25 @@ func writepackage() (err error) {
 	if PutMIME {
 		log.Printf("put mime type tags")
 		const sniffLen = 512
-		for fname, tags := range pack.Tags {
-			var ctype = mime.TypeByExtension(filepath.Ext(fname))
+		pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
+			var ctype = mime.TypeByExtension(filepath.Ext(fkey))
 			if ctype == "" {
-				var offset, size = tags.Offset(), tags.Size()
+				var offset, size = ts.Offset(), ts.Size()
 				// rewind to file start
-				if _, err = fwpk.Seek(offset, io.SeekStart); err != nil {
-					return
+				if _, err = fwpk.Seek(int64(offset), io.SeekStart); err != nil {
+					return false
 				}
 				// read a chunk to decide between utf-8 text and binary
 				var buf [sniffLen]byte
 				var n int64
 				if n, err = io.CopyN(bytes.NewBuffer(buf[:]), io.LimitReader(fwpk, size), sniffLen); err != nil && err != io.EOF {
-					return
+					return false
 				}
 				ctype = http.DetectContentType(buf[:n])
 			}
-			tags[wpk.TIDmime] = wpk.TagString(ctype)
-		}
+			ts.Put(wpk.TIDmime, wpk.TagString(ctype))
+			return true
+		})
 	}
 
 	// finalize

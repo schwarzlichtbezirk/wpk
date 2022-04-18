@@ -68,7 +68,7 @@ and see `build.wpk` file in binary directory near compiled output.
 Package consist of 3 sections:
  1. **Header**, constantly 60 bytes. Starts with signature (24 bytes), then follow label (24 bytes), file tags table offset (8 bytes), and records number (4 bytes).
  2. **Bare data files blocks**.
- 3. **Tags sets**. Contains list of tags set for each file alias. Each tags set must contain some requered fields: it's ID, file size, file offset in package, file name (path), creation time.
+ 3. **Tags sets**. Contains list of tagset for each file alias. Each tagset must contain some requered fields: it's ID, file size, file offset in package, file name (path), creation time.
 
 Existing package can be opened to append new files, in this case new files blocks will be posted to *tags sets* old place.
 

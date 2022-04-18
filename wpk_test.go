@@ -29,18 +29,18 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 	if err = pack.Read(fwpk); err != nil {
 		t.Fatal(err)
 	}
-	if len(pack.Tags) != tagsnum {
-		t.Fatalf("expected %d entries in package, realy got %d entries", tagsnum, len(pack.Tags))
-	}
 
-	for _, tags := range pack.Tags {
-		var _, isfile = tags[wpk.TIDcreated]
-		var kpath = tags.Path()
-		var link, is = tags[wpk.TIDlink]
-		if isfile && !is {
-			t.Fatalf("found file without link #%d '%s'", tags.FID(), kpath)
+	var realtagsnum int
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
+		realtagsnum++
+
+		var isfile = ts.Has(wpk.TIDcreated)
+		var fpath = ts.Path()
+		var link, islink = ts.Get(wpk.TIDlink)
+		if isfile && !islink {
+			t.Fatalf("found file without link #%d '%s'", ts.FID(), fpath)
 		}
-		var offset, size = tags.Offset(), tags.Size()
+		var offset, size = ts.Offset(), ts.Size()
 
 		var orig []byte
 		if isfile {
@@ -49,14 +49,14 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 			}
 		} else {
 			var is bool
-			if orig, is = memdata[kpath]; !is {
-				t.Fatalf("memory block named as '%s' not found", kpath)
+			if orig, is = memdata[fpath]; !is {
+				t.Fatalf("memory block named as '%s' not found", fpath)
 			}
 		}
 
 		if size != int64(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
-				kpath, size, len(orig))
+				fpath, size, len(orig))
 		}
 
 		var extr = make([]byte, size)
@@ -65,21 +65,25 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 			t.Fatal(err)
 		}
 		if n != len(extr) {
-			t.Errorf("can not extract content of file '%s' completely", kpath)
+			t.Errorf("can not extract content of file '%s' completely", fpath)
 		}
 		if !bytes.Equal(orig, extr) {
-			t.Errorf("content of file '%s' is defer from original", kpath)
+			t.Errorf("content of file '%s' is defer from original", fpath)
 		}
 
 		if t.Failed() {
-			break
+			return false
 		}
 
 		if isfile {
-			t.Logf("check file #%d '%s' is ok", tags.FID(), kpath)
+			t.Logf("check file #%d '%s' is ok", ts.FID(), fpath)
 		} else {
-			t.Logf("check data #%d '%s' is ok", tags.FID(), kpath)
+			t.Logf("check data #%d '%s' is ok", ts.FID(), fpath)
 		}
+		return true
+	})
+	if realtagsnum != tagsnum {
+		t.Fatalf("expected %d entries in package, realy got %d entries", tagsnum, realtagsnum)
 	}
 }
 
@@ -138,24 +142,24 @@ func TestPutFiles(t *testing.T) {
 		}
 		defer file.Close()
 
-		var tags wpk.Tagmap_t
-		if tags, err = pack.PackFile(fwpk, file, name); err != nil {
+		var ts *wpk.Tagset_t
+		if ts, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
 
 		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, tags.Size())
+		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, ts.Size())
 	}
 	var putdata = func(name string, data []byte) {
 		var r = bytes.NewReader(data)
 
-		var tags wpk.Tagmap_t
-		if tags, err = pack.PackData(fwpk, r, name); err != nil {
+		var ts *wpk.Tagset_t
+		if ts, err = pack.PackData(fwpk, r, name); err != nil {
 			t.Fatal(err)
 		}
 
 		tagsnum++
-		t.Logf("put data #%d '%s', %d bytes", pack.LastFID, name, tags.Size())
+		t.Logf("put data #%d '%s', %d bytes", pack.LastFID, name, ts.Size())
 	}
 	var putalias = func(oldname, newname string) {
 		if err = pack.PutAlias(oldname, newname); err != nil {
@@ -203,10 +207,10 @@ func TestPutFiles(t *testing.T) {
 	CheckPackage(t, fwpk, tagsnum)
 
 	// check alias existence
-	if _, ok := pack.Tags["jasper.jpg"]; !ok {
+	if _, ok := pack.Tagset("jasper.jpg"); !ok {
 		t.Fatal("'jasper.jpg' alias not found")
 	}
-	if _, ok := pack.Tags["basaltbay.jpg"]; ok {
+	if _, ok := pack.Tagset("basaltbay.jpg"); ok {
 		t.Fatal("'basaltbay.jpg' alias not deleted")
 	}
 }
@@ -230,13 +234,13 @@ func TestAppendContinues(t *testing.T) {
 		}
 		defer file.Close()
 
-		var tags wpk.Tagmap_t
-		if tags, err = pack.PackFile(fwpk, file, name); err != nil {
+		var ts *wpk.Tagset_t
+		if ts, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
 
 		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, tags.Size())
+		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, ts.Size())
 	}
 
 	// open temporary file for read/write
@@ -300,13 +304,13 @@ func TestAppendDiscrete(t *testing.T) {
 		}
 		defer file.Close()
 
-		var tags wpk.Tagmap_t
-		if tags, err = pack.PackFile(fwpk, file, name); err != nil {
+		var ts *wpk.Tagset_t
+		if ts, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
 
 		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, tags.Size())
+		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, ts.Size())
 	}
 
 	t.Run("step1", func(t *testing.T) {

@@ -99,12 +99,15 @@ func ValueToTag(v lua.LValue) (tag wpk.Tag_t, err error) {
 	return
 }
 
+// Tagmap_t is tags set for each file in package.
+type Tagmap_t map[wpk.TID_t]wpk.Tag_t
+
 // TableToTagset converts Lua-table to Tagmap_t. Lua-table keys can be number identifiers
 // or string names associated ID values. Lua-table values can be strings,
 // boolean or "tag" userdata values. Numbers can not be passed to table
 // to prevent ambiguous type representation.
-func TableToTagset(lt *lua.LTable) (tm wpk.Tagmap_t, err error) {
-	tm = wpk.Tagmap_t{}
+func TableToTagset(lt *lua.LTable) (tm Tagmap_t, err error) {
+	tm = Tagmap_t{}
 	lt.ForEach(func(k lua.LValue, v lua.LValue) {
 		var (
 			tid wpk.TID_t

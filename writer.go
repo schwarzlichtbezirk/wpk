@@ -7,99 +7,21 @@ import (
 	"os"
 )
 
-// TagsMap is tags sets map.
-type TagsMap map[string]Tagmap_t
-
 // Writer is package writer structure.
 type Writer struct {
-	Header
-	Tags    TagsMap
+	Package
 	LastFID FID_t
 }
 
-// Opens package for reading. At first its checkup file signature, then
-// reads records table, and reads file tags set table. Tags set
-// for each file must contain at least file ID, file name and creation time.
-func (pack *Writer) Read(r io.ReadSeeker) (err error) {
-	// go to file start
-	if _, err = r.Seek(0, io.SeekStart); err != nil {
-		return
-	}
-	// read header
-	if _, err = pack.Header.ReadFrom(r); err != nil {
-		return
-	}
-	if string(pack.signature[:]) == Prebuild {
-		return ErrSignPre
-	}
-	if string(pack.signature[:]) != Signature {
-		return ErrSignBad
-	}
-	pack.Tags = make(TagsMap)
-
-	// read file tags set table
-	if _, err = r.Seek(int64(pack.fttoffset), io.SeekStart); err != nil {
-		return
-	}
-	var n int64
-	for {
-		if _, err = r.Seek(0, io.SeekCurrent); err != nil {
-			return
-		}
-		var tags = Tagmap_t{}
-		if n, err = tags.ReadFrom(r); err != nil {
-			return
-		}
-		if n == 2 {
-			break // end marker was readed
-		}
-
-		// check tags fields
-		if _, ok := tags[TIDpath]; !ok {
-			return &ErrTag{ErrNoPath, "", TIDpath}
-		}
-		var key = Normalize(tags.Path())
-		if _, ok := pack.Tags[key]; ok {
-			return &ErrTag{fs.ErrExist, key, TIDpath}
-		}
-
-		if _, ok := tags[TIDfid]; !ok {
-			return &ErrTag{ErrNoFID, key, TIDfid}
-		}
-		var fid = tags.FID()
-		if fid > pack.LastFID {
-			pack.LastFID = fid
-		}
-
-		if _, ok := tags[TIDoffset]; !ok {
-			return &ErrTag{ErrNoOffset, key, TIDoffset}
-		}
-		if _, ok := tags[TIDsize]; !ok {
-			return &ErrTag{ErrNoSize, key, TIDsize}
-		}
-		var offset, size = tags.Offset(), tags.Size()
-		if offset < HeaderSize || offset >= int64(pack.fttoffset) {
-			return &ErrTag{ErrOutOff, key, TIDoffset}
-		}
-		if offset+size > int64(pack.fttoffset) {
-			return &ErrTag{ErrOutSize, key, TIDsize}
-		}
-
-		// insert file tags
-		pack.Tags[key] = tags
-	}
-
-	return
-}
-
 // Reset initializes fields with zero values and sets prebuild signature.
-func (pack *Writer) Reset() {
+func (pack *Package) Reset() {
+	pack.mux.Lock()
+	defer pack.mux.Unlock()
+
 	// reset header
 	copy(pack.signature[:], Prebuild)
 	pack.fttoffset = HeaderSize
 	pack.fttsize = 0
-	// setup empty tags table
-	pack.Tags = TagsMap{}
 }
 
 // Begin writes prebuild header for new empty package.
@@ -119,7 +41,9 @@ func (pack *Writer) Begin(w io.WriteSeeker) (err error) {
 // Append writes prebuild header for previously opened package to append new files.
 func (pack *Writer) Append(w io.WriteSeeker) (err error) {
 	// partially reset header
+	pack.mux.Lock()
 	copy(pack.signature[:], Prebuild)
+	pack.mux.Unlock()
 	// go to file start
 	if _, err = w.Seek(0, io.SeekStart); err != nil {
 		return
@@ -138,21 +62,31 @@ func (pack *Writer) Append(w io.WriteSeeker) (err error) {
 // Finalize finalizes package writing. Writes true signature and header settings.
 func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 	// get tags table offset as actual end of file
-	var fttoffset int64
-	if fttoffset, err = w.Seek(0, io.SeekEnd); err != nil {
+	var pos int64
+	if pos, err = w.Seek(0, io.SeekEnd); err != nil {
 		return
 	}
-	pack.fttoffset = Offset_t(fttoffset)
+	pack.fttoffset = Offset_t(pos)
 	// write files tags table
-	for _, tags := range pack.Tags {
-		if _, err = tags.WriteTo(w); err != nil {
-			return
+	pack.Enum(func(fkey string, ts *Tagset_t) bool {
+		if _, err = w.Write(ts.Data()); err != nil {
+			return false
 		}
+		return true
+	})
+	if err != nil {
+		return
 	}
 	// write tags table end marker
 	if err = binary.Write(w, binary.LittleEndian, TID_t(0)); err != nil {
 		return
 	}
+
+	// get writer end marker and setup the file tags table size
+	if pos, err = w.Seek(0, io.SeekEnd); err != nil {
+		return
+	}
+	pack.fttsize = Size_t(pos) - Size_t(pack.fttoffset)
 
 	// rewrite true header
 	if _, err = w.Seek(0, io.SeekStart); err != nil {
@@ -165,10 +99,11 @@ func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 	return
 }
 
-// PackData puts data streamed by given reader into package as a file and associate keyname "kpath" with it.
-func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags Tagmap_t, err error) {
-	var key = Normalize(kpath)
-	if _, ok := pack.Tags[key]; ok {
+// PackData puts data streamed by given reader into package as a file
+// and associate keyname "kpath" with it.
+func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (ts *Tagset_t, err error) {
+	var fkey = Normalize(kpath)
+	if _, ok := pack.Tagset(fkey); ok {
 		err = &fs.PathError{Op: "packdata", Path: kpath, Err: fs.ErrExist}
 		return
 	}
@@ -184,13 +119,12 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags 
 
 	// insert new entry to tags table
 	pack.LastFID++
-	tags = Tagmap_t{
-		TIDfid:    TagUint32(uint32(pack.LastFID)),
-		TIDoffset: TagUint64(uint64(offset)),
-		TIDsize:   TagUint64(uint64(size)),
-		TIDpath:   TagString(ToSlash(kpath)),
-	}
-	pack.Tags[key] = tags
+	ts = &Tagset_t{}
+	ts.Put(TIDfid, TagUint32(uint32(pack.LastFID)))
+	ts.Put(TIDoffset, TagUint64(uint64(offset)))
+	ts.Put(TIDsize, TagUint64(uint64(size)))
+	ts.Put(TIDpath, TagString(ToSlash(kpath)))
+	pack.ftt.Store(fkey, ts)
 
 	// update header
 	pack.fttoffset = Offset_t(offset + size)
@@ -198,17 +132,17 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (tags 
 }
 
 // PackFile puts file with given file handle into package and associate keyname "kpath" with it.
-func (pack *Writer) PackFile(w io.WriteSeeker, file *os.File, kpath string) (tags Tagmap_t, err error) {
+func (pack *Writer) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ts *Tagset_t, err error) {
 	var fi os.FileInfo
 	if fi, err = file.Stat(); err != nil {
 		return
 	}
-	if tags, err = pack.PackData(w, file, kpath); err != nil {
+	if ts, err = pack.PackData(w, file, kpath); err != nil {
 		return
 	}
 
-	tags[TIDcreated] = TagUint64(uint64(fi.ModTime().Unix()))
-	tags[TIDlink] = TagString(ToSlash(kpath))
+	ts.Put(TIDcreated, TagUint64(uint64(fi.ModTime().Unix())))
+	ts.Put(TIDlink, TagString(ToSlash(kpath)))
 	return
 }
 
@@ -262,53 +196,57 @@ func (pack *Writer) PackDir(w io.WriteSeeker, dirname, prefix string, hook PackD
 	return
 }
 
-// Rename tags set with file name 'oldname' to 'newname'.
+// Rename tagset with file name 'oldname' to 'newname'.
 // Keeps link to original file name.
 func (pack *Writer) Rename(oldname, newname string) error {
-	var key1 = Normalize(oldname)
-	var key2 = Normalize(newname)
-	var tags, ok = pack.Tags[key1]
+	var fkey1 = Normalize(oldname)
+	var fkey2 = Normalize(newname)
+	var ts, ok = pack.Tagset(fkey1)
 	if !ok {
 		return &fs.PathError{Op: "rename", Path: oldname, Err: fs.ErrNotExist}
 	}
-	if _, ok = pack.Tags[key2]; ok {
+	if _, ok = pack.Tagset(fkey2); ok {
 		return &fs.PathError{Op: "rename", Path: newname, Err: fs.ErrExist}
 	}
 
-	tags[TIDpath] = TagString(ToSlash(newname))
-	delete(pack.Tags, key1)
-	pack.Tags[key2] = tags
+	ts.Set(TIDpath, TagString(ToSlash(newname)))
+	pack.ftt.Delete(fkey1)
+	pack.ftt.Store(fkey2, ts)
 	return nil
 }
 
-// PutAlias makes clone tags set with file name 'oldname' and replace name tag
+// PutAlias makes clone tagset with file name 'oldname' and replace name tag
 // in it to 'newname'. Keeps link to original file name.
 func (pack *Writer) PutAlias(oldname, newname string) error {
-	var key1 = Normalize(oldname)
-	var key2 = Normalize(newname)
-	var tags1, ok = pack.Tags[key1]
+	var fkey1 = Normalize(oldname)
+	var fkey2 = Normalize(newname)
+	var ts1, ok = pack.Tagset(fkey1)
 	if !ok {
 		return &fs.PathError{Op: "putalias", Path: oldname, Err: fs.ErrNotExist}
 	}
-	if _, ok = pack.Tags[key2]; ok {
+	if _, ok = pack.Tagset(fkey2); ok {
 		return &fs.PathError{Op: "putalias", Path: newname, Err: fs.ErrExist}
 	}
 
-	var tags2 = Tagmap_t{}
-	for k, v := range tags1 {
-		tags2[k] = v
+	var tsi = ts1.Iterator()
+	var ts2 = &Tagset_t{}
+	for tsi.Next() {
+		if tsi.tid != TIDpath {
+			ts2.Put(tsi.tid, tsi.Tag())
+		} else {
+			ts2.Put(TIDpath, TagString(ToSlash(newname)))
+		}
 	}
-	tags2[TIDpath] = TagString(ToSlash(newname))
-	pack.Tags[key2] = tags2
+	pack.ftt.Store(fkey2, ts2)
 	return nil
 }
 
-// DelAlias delete tags set with specified file name. Data block is still remains.
+// DelAlias delete tagset with specified file name. Data block is still remains.
 func (pack *Writer) DelAlias(name string) bool {
-	var key = Normalize(name)
-	var _, ok = pack.Tags[key]
+	var fkey = Normalize(name)
+	var _, ok = pack.Tagset(fkey)
 	if ok {
-		delete(pack.Tags, key)
+		pack.ftt.Delete(fkey)
 	}
 	return ok
 }

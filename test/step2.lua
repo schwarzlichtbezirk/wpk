@@ -28,20 +28,20 @@ end
 local function logfmt(...) -- write to log formatted string
 	log(string.format(...))
 end
-local function logfile(kpath) -- write record log
+local function logfile(fkey) -- write record log
 	logfmt("#%d file %s, crc=%s",
-		pkg:gettag(kpath, "fid").uint32, kpath,
-		tostring(pkg:gettag(kpath, "crc32")))
+		pkg:gettag(fkey, "fid").uint32, fkey,
+		tostring(pkg:gettag(fkey, "crc32")))
 end
-local function packfile(kpath, keywords) -- pack given file with common preset
-	pkg:putfile(kpath, path.join(scrdir, "media", kpath))
-	pkg:addtags(kpath, {keywords=keywords, author="schwarzlichtbezirk"})
-	logfile(kpath)
+local function packfile(fkey, keywords) -- pack given file with common preset
+	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
+	pkg:addtags(fkey, {keywords=keywords, author="schwarzlichtbezirk"})
+	logfile(fkey)
 end
-local function packdata(kpath, data, keywords) -- put text file created from given string
-	pkg:putdata(kpath, data)
-	pkg:settags(kpath, {keywords=keywords, mime="text/plain;charset=utf-8"})
-	logfile(kpath)
+local function packdata(fkey, data, keywords) -- put text file created from given string
+	pkg:putdata(fkey, data)
+	pkg:settags(fkey, {keywords=keywords, mime="text/plain;charset=utf-8"})
+	logfile(fkey)
 end
 local function safealias(fname1, fname2) -- make 2 file name aliases to 1 file
 	if pkg:hasfile(fname1) then

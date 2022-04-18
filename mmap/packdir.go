@@ -71,18 +71,6 @@ func (pack *PackDir) OpenTags(ts wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewMappedFile(pack, ts)
 }
 
-// NamedTags returns tags set referred by offset at named file tags map field.
-// Function receives normalized full path of file.
-func (pack *PackDir) NamedTags(key string) (wpk.Tagset_t, bool) {
-	if tagpos, is := pack.Offset(key); is {
-		return wpk.Tagset_t{
-			Data: pack.ftt.region[tagpos:],
-		}, true
-	} else {
-		return wpk.Tagset_t{}, false
-	}
-}
-
 // OpenImage opens WPK-file package by given file name.
 func OpenImage(fname string) (pack *PackDir, err error) {
 	pack = &PackDir{Package: &wpk.Package{}}
@@ -134,8 +122,8 @@ func (pack *PackDir) Sub(dir string) (df fs.FS, err error) {
 	if workspace != "." {
 		prefixdir = workspace + "/" // make prefix slash-terminated
 	}
-	pack.Enum(func(key string, offset wpk.Offset_t) bool {
-		if strings.HasPrefix(key, prefixdir) {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
+		if strings.HasPrefix(fkey, prefixdir) {
 			df, err = &PackDir{
 				pack.Package,
 				workspace,
@@ -158,12 +146,12 @@ func (pack *PackDir) Stat(name string) (fs.FileInfo, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrInvalid}
 	}
-	var ts wpk.Tagset_t
+	var ts *wpk.Tagset_t
 	var is bool
-	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.workspace, name))); !is {
+	if ts, is = pack.Tagset(wpk.Normalize(path.Join(pack.workspace, name))); !is {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
 	}
-	return &ts, nil
+	return ts, nil
 }
 
 // ReadFile returns slice with nested into package file content.
@@ -173,12 +161,12 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
 	}
-	var ts wpk.Tagset_t
+	var ts *wpk.Tagset_t
 	var is bool
-	if ts, is = pack.NamedTags(wpk.Normalize(path.Join(pack.workspace, name))); !is {
+	if ts, is = pack.Tagset(wpk.Normalize(path.Join(pack.workspace, name))); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
-	var f, err = NewMappedFile(pack, ts)
+	var f, err = NewMappedFile(pack, *ts)
 	if err != nil {
 		return nil, err
 	}
@@ -204,8 +192,8 @@ func (pack *PackDir) Open(dir string) (fs.File, error) {
 	}
 
 	var fullname = path.Join(pack.workspace, dir)
-	if ts, is := pack.NamedTags(wpk.Normalize(fullname)); is {
-		return NewMappedFile(pack, ts)
+	if ts, is := pack.Tagset(wpk.Normalize(fullname)); is {
+		return NewMappedFile(pack, *ts)
 	}
 	return wpk.OpenDir(pack, fullname)
 }

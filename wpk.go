@@ -32,6 +32,8 @@ type (
 
 // List of predefined tags IDs.
 const (
+	TIDnone TID_t = 0xffff
+
 	TIDfid        TID_t = 0 // required, uint32
 	TIDoffset     TID_t = 1 // required, uint64
 	TIDsize       TID_t = 2 // required, uint64
@@ -85,6 +87,8 @@ var (
 	ErrSignPre = errors.New("package is not ready")
 	ErrSignBad = errors.New("signature does not pass")
 
+	ErrCorrupt  = errors.New("file tags table is corrupted")
+	ErrNoData   = errors.New("data is absent")
 	ErrNoTag    = errors.New("tag with given ID not found")
 	ErrNoPath   = errors.New("file name is absent")
 	ErrNoFID    = errors.New("file ID is absent")
@@ -110,9 +114,8 @@ type NestedFile interface {
 
 // Tagger provides file tags access.
 type Tagger interface {
-	Offset(string) (Offset_t, bool)
-	Enum(func(string, Offset_t) bool)
-	NamedTags(string) (Tagset_t, bool)
+	Tagset(string) (*Tagset_t, bool)
+	Enum(func(string, *Tagset_t) bool)
 }
 
 // Packager refers to package data access management implementation.
@@ -379,216 +382,125 @@ func TagNumber(val float64) Tag_t {
 	return buf[:]
 }
 
-// Tagmap_t is tags set for each file in package.
-type Tagmap_t map[TID_t]Tag_t
-
-// FID returns file ID.
-func (ts Tagmap_t) FID() FID_t {
-	if data, ok := ts[TIDfid]; ok {
-		var fid, _ = data.Uint32()
-		return FID_t(fid)
-	}
-	return 0
-}
-
-// Path returns path of nested into package file.
-func (ts Tagmap_t) Path() string {
-	if data, ok := ts[TIDpath]; ok {
-		return string(data)
-	}
-	return ""
-}
-
-// Name returns name of nested into package file.
-func (ts Tagmap_t) Name() string {
-	if data, ok := ts[TIDpath]; ok {
-		return filepath.Base(string(data))
-	}
-	return ""
-}
-
-// Size returns size of nested into package file.
-func (ts Tagmap_t) Size() int64 {
-	if data, ok := ts[TIDsize]; ok {
-		var size, _ = data.Uint64()
-		return int64(size)
-	}
-	return 0
-}
-
-// Offset returns offset of nested into package file.
-func (ts Tagmap_t) Offset() int64 {
-	if data, ok := ts[TIDoffset]; ok {
-		var offset, _ = data.Uint64()
-		return int64(offset)
-	}
-	return 0
-}
-
-// ReadFrom reads tags set from stream.
-func (ts Tagmap_t) ReadFrom(r io.Reader) (n int64, err error) {
-	var num, id, l TID_t
-	if err = binary.Read(r, binary.LittleEndian, &num); err != nil {
-		return
-	}
-	n += 2
-	for i := TID_t(0); i < num; i++ {
-		if err = binary.Read(r, binary.LittleEndian, &id); err != nil {
-			return
-		}
-		n += 2
-		if err = binary.Read(r, binary.LittleEndian, &l); err != nil {
-			return
-		}
-		n += 2
-		var data = make([]byte, l)
-		if err = binary.Read(r, binary.LittleEndian, &data); err != nil {
-			return
-		}
-		n += int64(l)
-		ts[id] = data
-	}
-	return
-}
-
-// WriteTo writes tags set to stream.
-func (ts Tagmap_t) WriteTo(w io.Writer) (n int64, err error) {
-	if err = binary.Write(w, binary.LittleEndian, TID_t(len(ts))); err != nil {
-		return
-	}
-	n += 2
-	for id, data := range ts {
-		if err = binary.Write(w, binary.LittleEndian, id); err != nil {
-			return
-		}
-		n += 2
-		if err = binary.Write(w, binary.LittleEndian, TID_t(len(data))); err != nil {
-			return
-		}
-		n += 2
-		if err = binary.Write(w, binary.LittleEndian, data); err != nil {
-			return
-		}
-		n += int64(len(data))
-	}
-	return
-}
-
 // Tagset_t is slice of bytes with tags set. Length of slice can be
 // not determined to record end, i.e. slice starts at record beginning
 // (at number of tags), and can continues after record end.
 // fs.FileInfo interface implementation.
 type Tagset_t struct {
-	Data []byte
+	data []byte
 }
 
-// Num returns number of tags in tags set.
+// NewTagset returns new tagset with given slice.
+func NewTagset(data []byte) *Tagset_t {
+	return &Tagset_t{data}
+}
+
+// Data returns whole tagset content.
+func (ts *Tagset_t) Data() []byte {
+	return ts.data
+}
+
+// Num returns number of tags in tagset.
 func (ts *Tagset_t) Num() uint16 {
-	if len(ts.Data) < 2 {
+	if len(ts.data) < 2 {
 		return 0
 	}
-	return binary.LittleEndian.Uint16(ts.Data[:2])
+	return binary.LittleEndian.Uint16(ts.data[:2])
 }
 
-// GetPos returns position of tag with given identifier.
-// If tag is not found, returns ErrNoTag.
-// If slice content is broken, returns io.EOF.
-func (ts *Tagset_t) Pos(tid TID_t) (pos uint16, size uint16, err error) {
-	var tsl = uint16(len(ts.Data))
-	err = io.EOF
-	if pos+2 > tsl {
-		return
+// Has checks existence of tag with given ID.
+func (ts *Tagset_t) Has(tid TID_t) bool {
+	var tsi = ts.Iterator()
+	if tsi == nil {
+		return false
 	}
-	var num = binary.LittleEndian.Uint16(ts.Data[pos : pos+2])
-	pos += 2
-	for i := uint16(0); i < num; i++ {
-		if pos+2 > tsl {
-			return
-		}
-		var id = TID_t(binary.LittleEndian.Uint16(ts.Data[pos : pos+2]))
-		pos += 2
-		if pos+2 > tsl {
-			return
-		}
-		size = binary.LittleEndian.Uint16(ts.Data[pos : pos+2])
-		pos += 2
-		if pos+size > tsl {
-			return
-		}
-		if id == tid {
-			err = nil
-			return
-		}
-		pos += size
+	for tsi.Next() && tsi.tid != tid {
 	}
-	err = ErrNoTag
-	return
+	return tsi.tid == tid
 }
 
 // GetTag returns Tag_t with given identifier.
-// If tag is not found, returns ErrNoTag.
-// If slice content is broken, returns io.EOF.
-func (ts *Tagset_t) Get(tid TID_t) (Tag_t, error) {
-	var pos, size, err = ts.Pos(tid)
-	if err != nil {
-		return nil, err
+// If tag is not found, slice content is broken,
+// returns false.
+func (ts *Tagset_t) Get(tid TID_t) (Tag_t, bool) {
+	var tsi = ts.Iterator()
+	if tsi == nil {
+		return nil, false // ErrNoData
 	}
-	return Tag_t(ts.Data[pos : pos+size]), nil
+	for tsi.Next() && tsi.tid != tid {
+	}
+	if tsi.pos > uint16(len(tsi.data)) {
+		return nil, false // io.EOF
+	}
+	if tsi.tid != tid {
+		return nil, false // ErrNoTag
+	}
+	return Tag_t(tsi.data[tsi.tag:tsi.pos]), true
 }
 
-// Put appends new tag to tags set.
+// Put appends new tag to tagset.
 func (ts *Tagset_t) Put(tid TID_t, tag Tag_t) {
-	var num uint16
-	if len(ts.Data) >= 2 {
-		num = binary.LittleEndian.Uint16(ts.Data[:2])
-		num++
-		binary.LittleEndian.PutUint16(ts.Data[:2], num)
-	} else {
-		ts.Data = []byte{0, 1}
+	if len(ts.data) < 2 { // init empty slice
+		ts.data = make([]byte, 2)
 	}
-	var size [2]byte
-	binary.LittleEndian.PutUint16(size[:], uint16(len(tag)))
-	ts.Data = append(ts.Data, size[:]...)
-	ts.Data = append(ts.Data, tag...)
+	var num = binary.LittleEndian.Uint16(ts.data[:2])
+	num++
+	binary.LittleEndian.PutUint16(ts.data[:2], num)
+
+	var buf [4]byte
+	binary.LittleEndian.PutUint16(buf[0:2], uint16(tid))
+	binary.LittleEndian.PutUint16(buf[2:4], uint16(len(tag)))
+	ts.data = append(ts.data, buf[:]...)
+	ts.data = append(ts.data, tag...)
 }
 
-// Set replaces tag with given ID and equal size,
-// or appends it to tags set.
-func (ts *Tagset_t) Set(tid TID_t, tag Tag_t) (err error) {
-	var pos, size uint16
-	if pos, size, err = ts.Pos(tid); err != nil {
-		if err != ErrNoTag {
-			return
-		}
+// Set replaces tag with given ID and equal size, or
+// appends it to tagset. Returns true if new one added.
+func (ts *Tagset_t) Set(tid TID_t, tag Tag_t) bool {
+	var tsi = ts.Iterator()
+	if tsi == nil {
 		ts.Put(tid, tag)
-		err = nil
-		return
+		return true
 	}
+	for tsi.Next() && tsi.tid != tid {
+	}
+	if tsi.tid != tid {
+		ts.Put(tid, tag)
+		return true
+	}
+
 	var tl = uint16(len(tag))
-	if tl == size {
-		copy(ts.Data[pos:pos+size], tag)
+	if tl == tsi.pos-tsi.tag {
+		copy(ts.data[tsi.tag:tsi.pos], tag)
 	} else {
-		binary.LittleEndian.PutUint16(ts.Data[pos-2:pos], tl)
-		var suff = ts.Data[pos+size:]
-		ts.Data = append(ts.Data[:pos], tag...)
-		ts.Data = append(ts.Data, suff...)
+		binary.LittleEndian.PutUint16(ts.data[tsi.tag-2:tsi.tag], tl) // set tag length
+		var suff = ts.data[tsi.pos:]
+		ts.data = append(ts.data[:tsi.tag], tag...)
+		ts.data = append(ts.data, suff...)
 	}
-	return
+	return false
 }
 
 // Del deletes tag with given ID.
-func (ts *Tagset_t) Del(tid TID_t) (err error) {
-	var pos, size uint16
-	if pos, size, err = ts.Pos(tid); err != nil {
-		return
+func (ts *Tagset_t) Del(tid TID_t) bool {
+	var tsi = ts.Iterator()
+	if tsi == nil {
+		return false // ErrNoData
 	}
-	ts.Data = append(ts.Data[:pos-2], ts.Data[pos+size:]...)
-	return
+	for tsi.Next() && tsi.tid != tid {
+	}
+	if tsi.tid != tid {
+		return false // ErrNoTag
+	}
+	tsi.num--
+	binary.LittleEndian.PutUint16(ts.data[:2], tsi.num)
+	ts.data = append(ts.data[:tsi.tag-4], ts.data[tsi.pos:]...)
+	return true
 }
 
 // String tag getter.
 func (ts *Tagset_t) String(tid TID_t) (string, bool) {
-	if data, err := ts.Get(tid); err == nil {
+	if data, ok := ts.Get(tid); ok {
 		return data.String()
 	}
 	return "", false
@@ -596,7 +508,7 @@ func (ts *Tagset_t) String(tid TID_t) (string, bool) {
 
 // Bool is boolean tag getter.
 func (ts *Tagset_t) Bool(tid TID_t) (bool, bool) {
-	if data, err := ts.Get(tid); err == nil {
+	if data, ok := ts.Get(tid); ok {
 		return data.Bool()
 	}
 	return false, false
@@ -604,7 +516,7 @@ func (ts *Tagset_t) Bool(tid TID_t) (bool, bool) {
 
 // Byte tag getter.
 func (ts *Tagset_t) Byte(tid TID_t) (byte, bool) {
-	if data, err := ts.Get(tid); err == nil {
+	if data, ok := ts.Get(tid); ok {
 		return data.Byte()
 	}
 	return 0, false
@@ -613,7 +525,7 @@ func (ts *Tagset_t) Byte(tid TID_t) (byte, bool) {
 // Uint16 is 16-bit unsigned int tag getter.
 // Conversion can be used to get signed 16-bit integers.
 func (ts *Tagset_t) Uint16(tid TID_t) (TID_t, bool) {
-	if data, err := ts.Get(tid); err == nil {
+	if data, ok := ts.Get(tid); ok {
 		return data.Uint16()
 	}
 	return 0, false
@@ -622,7 +534,7 @@ func (ts *Tagset_t) Uint16(tid TID_t) (TID_t, bool) {
 // Uint32 is 32-bit unsigned int tag getter.
 // Conversion can be used to get signed 32-bit integers.
 func (ts *Tagset_t) Uint32(tid TID_t) (uint32, bool) {
-	if data, err := ts.Get(tid); err == nil {
+	if data, ok := ts.Get(tid); ok {
 		return data.Uint32()
 	}
 	return 0, false
@@ -631,7 +543,7 @@ func (ts *Tagset_t) Uint32(tid TID_t) (uint32, bool) {
 // Uint64 is 64-bit unsigned int tag getter.
 // Conversion can be used to get signed 64-bit integers.
 func (ts *Tagset_t) Uint64(tid TID_t) (uint64, bool) {
-	if data, err := ts.Get(tid); err == nil {
+	if data, ok := ts.Get(tid); ok {
 		return data.Uint64()
 	}
 	return 0, false
@@ -639,7 +551,7 @@ func (ts *Tagset_t) Uint64(tid TID_t) (uint64, bool) {
 
 // Uint is unspecified size unsigned int tag getter.
 func (ts *Tagset_t) Uint(tid TID_t) (uint, bool) {
-	if data, err := ts.Get(tid); err == nil {
+	if data, ok := ts.Get(tid); ok {
 		return data.Uint()
 	}
 	return 0, false
@@ -647,7 +559,7 @@ func (ts *Tagset_t) Uint(tid TID_t) (uint, bool) {
 
 // Number is 64-bit float tag getter.
 func (ts *Tagset_t) Number(tid TID_t) (float64, bool) {
-	if data, err := ts.Get(tid); err == nil {
+	if data, ok := ts.Get(tid); ok {
 		return data.Number()
 	}
 	return 0, false
@@ -659,17 +571,10 @@ func (ts *Tagset_t) FID() FID_t {
 	return FID_t(fid)
 }
 
-// Path returns path of nested into package file.
-func (ts *Tagset_t) Path() string {
-	var kpath, _ = ts.String(TIDpath)
-	return kpath
-}
-
-// Name returns base name of nested into package file.
-// fs.FileInfo implementation.
-func (ts *Tagset_t) Name() string {
-	var kpath, _ = ts.String(TIDpath)
-	return filepath.Base(kpath)
+// Offset returns offset of nested into package file.
+func (ts *Tagset_t) Offset() int64 {
+	var offset, _ = ts.Uint64(TIDoffset)
+	return int64(offset)
 }
 
 // Size returns size of nested into package file.
@@ -679,10 +584,17 @@ func (ts *Tagset_t) Size() int64 {
 	return int64(size)
 }
 
-// Offset returns offset of nested into package file.
-func (ts *Tagset_t) Offset() int64 {
-	var offset, _ = ts.Uint64(TIDoffset)
-	return int64(offset)
+// Path returns path of nested into package file.
+func (ts *Tagset_t) Path() string {
+	var fpath, _ = ts.String(TIDpath)
+	return fpath
+}
+
+// Name returns base name of nested into package file.
+// fs.FileInfo implementation.
+func (ts *Tagset_t) Name() string {
+	var fpath, _ = ts.String(TIDpath)
+	return filepath.Base(fpath)
 }
 
 // Mode is for fs.FileInfo interface compatibility.
@@ -713,82 +625,102 @@ func (ts *Tagset_t) Sys() interface{} {
 }
 
 // Iterator clones this tagset to iterate through all tags.
-func (ts *Tagset_t) Iterator() TagsetIterator {
-	return TagsetIterator{
+func (ts *Tagset_t) Iterator() *TagsetIterator {
+	if len(ts.data) < 2 {
+		return nil
+	}
+	return &TagsetIterator{
 		Tagset_t: *ts,
+		num:      binary.LittleEndian.Uint16(ts.data[:2]),
+		idx:      0,
+		pos:      2,
+		tid:      TIDnone,
 	}
 }
 
 // TagsetIterator helps to iterate through all tags.
 type TagsetIterator struct {
 	Tagset_t
-	pos uint16
-	tid TID_t
-	len uint16
+	num uint16 // number of tags in tagset
+	idx uint16 // index of tag to read by "Next" call
+	pos uint16 // current position in the slice
+	tid TID_t  // tag ID of last readed tag
+	tag uint16 // start position of last readed tag content
 }
 
-// TID returns the tag ID of the current element pointed to by position.
-func (ts *TagsetIterator) TID() TID_t {
-	return ts.tid
+// TID returns the tag ID of the last readed tag.
+func (tsi *TagsetIterator) TID() TID_t {
+	return tsi.tid
 }
 
-// Num returns number of tags in tags set.
-func (ts *TagsetIterator) Num() (n uint16) {
-	if len(ts.Data) < 2 {
-		return
+// Tag returns tag slice of the last readed tag content.
+func (tsi *TagsetIterator) Tag() Tag_t {
+	if tsi.tid == TIDnone || tsi.pos > uint16(len(tsi.data)) {
+		return nil
 	}
-	n = binary.LittleEndian.Uint16(ts.Data[:2])
-	ts.pos += 2
-	return
+	return tsi.data[tsi.tag:tsi.pos]
 }
 
-// Get returns tag with given ID using iterator.
-func (ts *TagsetIterator) Get(tid TID_t) (Tag_t, error) {
-	ts.pos = 0
-	var n = ts.Num()
-	for i := uint16(0); i < n && ts.Next() && ts.tid != tid; i++ {
+// TagLen returns length of last readed tag content.
+func (tsi *TagsetIterator) TagLen() uint16 {
+	if tsi.tid == TIDnone {
+		return 0
 	}
-	if ts.pos > uint16(len(ts.Data)) {
-		return nil, io.EOF
-	}
-	if ts.tid != tid {
-		return nil, ErrNoTag
-	}
-	return Tag_t(ts.Data[ts.pos : ts.pos+ts.len]), nil
+	return tsi.pos - tsi.tag
+}
+
+// Passed returns true if the end of iterations is reached.
+func (tsi *TagsetIterator) Passed() bool {
+	return tsi.idx == tsi.num
 }
 
 // Next carries to the next tag position.
-func (ts *TagsetIterator) Next() (ok bool) {
-	if ts.pos < 2 {
-		ts.pos = 2
+func (tsi *TagsetIterator) Next() (ok bool) {
+	tsi.tid = TIDnone
+	// check up the end of tagset is reached
+	if tsi.idx >= tsi.num {
+		return
 	}
+	var tsl = uint16(len(tsi.data))
 
-	var tsl = uint16(len(ts.Data))
+	// get tag identifier
+	if tsi.pos += 2; tsi.pos > tsl {
+		return
+	}
+	tsi.tid = TID_t(binary.LittleEndian.Uint16(tsi.data[tsi.pos-2:]))
 
-	if ts.pos += ts.len; ts.pos > tsl {
+	// get tag length
+	if tsi.pos += 2; tsi.pos > tsl {
+		return
+	}
+	tsi.tag = tsi.pos // store tag content position
+	var len = binary.LittleEndian.Uint16(tsi.data[tsi.pos-2:])
+
+	// prepare to get tag content
+	if tsi.pos += len; tsi.pos > tsl {
 		return
 	}
 
-	if ts.pos += 2; ts.pos > tsl {
-		return
-	}
-	ts.tid = TID_t(binary.LittleEndian.Uint16(ts.Data[ts.pos-2:]))
-
-	if ts.pos += 2; ts.pos > tsl {
-		return
-	}
-	ts.len = binary.LittleEndian.Uint16(ts.Data[ts.pos-2:])
-
+	tsi.idx++
 	ok = true
 	return
 }
 
-// Extract returns tag on which current position is pointed to.
-func (ts *TagsetIterator) Extract() (tid TID_t, tag Tag_t) {
-	if ts.pos < 2 || ts.pos+ts.len > uint16(len(ts.Data)) {
-		return 0, nil
-	}
-	return ts.tid, ts.Data[ts.pos : ts.pos+ts.len]
+const tsiconst = "content changes are disabled for iterator"
+
+// Put is the stub to disable any changes to data content of iterator.
+func (tsi *TagsetIterator) Put(tid TID_t, tag Tag_t) {
+	panic(tsiconst)
+}
+
+// Set is the stub to disable any changes to data content of iterator.
+func (tsi *TagsetIterator) Set(tid TID_t, tag Tag_t) bool {
+	panic(tsiconst)
+}
+
+// Del is the stub to disable any changes to data content of iterator.
+func (tsi *TagsetIterator) Del(tid TID_t) bool {
+	panic(tsiconst)
 }
 
 // DirEntry is directory representation of nested into package files.
@@ -841,20 +773,24 @@ func (f *ReadDirFile) ReadDir(n int) (matches []fs.DirEntry, err error) {
 // Package structure contains all data needed for package representation.
 type Package struct {
 	Header
-	tom sync.Map // keys - package filenames in lower case, values - tags slices offsets.
+	// File tags table.
+	// Keys - package filenames in lower case, values - tagset slices.
+	ftt sync.Map
 }
 
-// Offset returns offset in package of file with given filename.
-func (pack *Package) Offset(fname string) (Offset_t, bool) {
-	var val, ok = pack.tom.Load(fname)
-	var ret = val.(Offset_t)
-	return ret, ok
+// Tagset returns offset in package of file with given filename.
+func (pack *Package) Tagset(fkey string) (ts *Tagset_t, ok bool) {
+	var val interface{}
+	if val, ok = pack.ftt.Load(fkey); ok {
+		ts = val.(*Tagset_t)
+	}
+	return
 }
 
 // Enum calls given closure for each file in package.
-func (pack *Package) Enum(f func(string, Offset_t) bool) {
-	pack.tom.Range(func(key, value interface{}) bool {
-		return f(key.(string), value.(Offset_t))
+func (pack *Package) Enum(f func(string, *Tagset_t) bool) {
+	pack.ftt.Range(func(key, value interface{}) bool {
+		return f(key.(string), value.(*Tagset_t))
 	})
 }
 
@@ -865,9 +801,9 @@ func (pack *Package) Glob(pattern string) (res []string, err error) {
 	if _, err = filepath.Match(pattern, ""); err != nil {
 		return
 	}
-	pack.Enum(func(key string, offset Offset_t) bool {
-		if matched, _ := filepath.Match(pattern, key); matched {
-			res = append(res, key)
+	pack.Enum(func(fkey string, ts *Tagset_t) bool {
+		if matched, _ := filepath.Match(pattern, fkey); matched {
+			res = append(res, fkey)
 		}
 		return true
 	})
@@ -875,7 +811,7 @@ func (pack *Package) Glob(pattern string) (res []string, err error) {
 }
 
 // Opens package for reading. At first its checkup file signature, then
-// reads records table, and reads file tags set table. Tags set for each
+// reads records table, and reads file tagset table. Tags set for each
 // file must contain at least file ID, file name and creation time.
 func (pack *Package) Read(r io.ReadSeeker) (err error) {
 	// go to file start
@@ -890,53 +826,77 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 		return
 	}
 
+	// setup empty tags table
+	pack.ftt = sync.Map{}
+
 	// read file tags table
 	if _, err = r.Seek(int64(pack.fttoffset), io.SeekStart); err != nil {
 		return
 	}
-	var n int64
+	var fttbulk = make([]byte, pack.fttsize)
+	if _, err = r.Read(fttbulk); err != nil {
+		return
+	}
+
+	var tspos int64
 	for {
-		var tagpos int64
-		if tagpos, err = r.Seek(0, io.SeekCurrent); err != nil {
-			return
+		var data = fttbulk[tspos:]
+		var dl = uint16(len(data))
+		if dl < 2 {
+			return io.EOF
 		}
-		var tm = Tagmap_t{}
-		if n, err = tm.ReadFrom(r); err != nil {
-			return
+		var tsi = TagsetIterator{
+			Tagset_t: Tagset_t{data},
+			num:      binary.LittleEndian.Uint16(data[:2]),
+			idx:      0,
+			pos:      2,
+			tid:      TIDnone,
 		}
-		if n == 2 {
-			break // end marker was readed
+		if tsi.num == 0 {
+			if dl > 2 {
+				return ErrCorrupt
+			}
+			break // end marker was reached
+		}
+		for tsi.Next() {
+		}
+		if tsi.pos > dl {
+			return io.EOF
 		}
 
-		// check tags fields
-		if _, ok := tm[TIDpath]; !ok {
+		var ts = NewTagset(data[:tsi.pos])
+
+		// get file key and check tags fields
+		var (
+			ok           bool
+			fkey, fpath  string
+			offset, size uint64
+		)
+		if fpath, ok = ts.String(TIDpath); !ok {
 			return &ErrTag{ErrNoPath, "", TIDpath}
 		}
-		var key = Normalize(tm.Path())
-		if _, ok := pack.tom.Load(key); ok {
-			return &ErrTag{fs.ErrExist, key, TIDpath}
+		fkey = Normalize(fpath)
+		if _, ok = pack.ftt.Load(fkey); ok {
+			return &ErrTag{fs.ErrExist, fkey, TIDpath}
+		}
+		if _, ok = ts.Uint32(TIDfid); !ok {
+			return &ErrTag{ErrNoFID, fkey, TIDfid}
+		}
+		if offset, ok = ts.Uint64(TIDoffset); !ok {
+			return &ErrTag{ErrNoOffset, fkey, TIDoffset}
+		}
+		if size, ok = ts.Uint64(TIDsize); !ok {
+			return &ErrTag{ErrNoSize, fkey, TIDsize}
+		}
+		if offset < HeaderSize || offset >= uint64(pack.fttoffset) {
+			return &ErrTag{ErrOutOff, fkey, TIDoffset}
+		}
+		if offset+size > uint64(pack.fttoffset) {
+			return &ErrTag{ErrOutSize, fkey, TIDsize}
 		}
 
-		if _, ok := tm[TIDfid]; !ok {
-			return &ErrTag{ErrNoFID, key, TIDfid}
-		}
-
-		if _, ok := tm[TIDoffset]; !ok {
-			return &ErrTag{ErrNoOffset, key, TIDoffset}
-		}
-		if _, ok := tm[TIDsize]; !ok {
-			return &ErrTag{ErrNoSize, key, TIDsize}
-		}
-		var offset, size = tm.Offset(), tm.Size()
-		if offset < HeaderSize || offset >= int64(pack.fttoffset) {
-			return &ErrTag{ErrOutOff, key, TIDoffset}
-		}
-		if offset+size > int64(pack.fttoffset) {
-			return &ErrTag{ErrOutSize, key, TIDsize}
-		}
-
-		// insert file tags
-		pack.tom.Store(key, Offset_t(tagpos)-pack.fttoffset)
+		tspos += int64(tsi.pos)
+		pack.ftt.Store(fkey, ts)
 	}
 	return
 }

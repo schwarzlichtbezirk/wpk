@@ -61,8 +61,8 @@ var ToSlash = filepath.ToSlash
 
 // Normalize brings file path to normalized form. It makes argument lowercase,
 // change back slashes to normal slashes. Normalized path is the key to FTTMap.
-func Normalize(kpath string) string {
-	return strings.ToLower(ToSlash(kpath))
+func Normalize(fpath string) string {
+	return strings.ToLower(ToSlash(fpath))
 }
 
 // ReadDir returns fs.FileInfo array with nested into given package directory presentation.
@@ -76,19 +76,19 @@ func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) 
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
 	var dirs = map[string]struct{}{}
-	pack.Enum(func(key string, offset Offset_t) bool {
-		if strings.HasPrefix(key, prefix) {
-			var suffix = key[len(prefix):]
+	pack.Enum(func(fkey string, ts *Tagset_t) bool {
+		if strings.HasPrefix(fkey, prefix) {
+			var suffix = fkey[len(prefix):]
 			var sp = strings.IndexByte(suffix, '/')
 			if sp < 0 { // file detected
-				var ts, _ = pack.NamedTags(key)
-				matches = append(matches, &DirEntry{ts})
+				var ts, _ = pack.Tagset(fkey)
+				matches = append(matches, &DirEntry{*ts})
 				n--
 			} else { // dir detected
 				var subdir = path.Join(prefix, suffix[:sp])
 				if _, ok := dirs[subdir]; !ok {
 					dirs[subdir] = struct{}{}
-					var ts, _ = pack.NamedTags(key)
+					var ts, _ = pack.Tagset(fkey)
 					var fp = ts.Path() // extract not normalized path
 					var de DirEntry
 					de.Put(TIDpath, TagString(fp[:len(subdir)]))
@@ -118,12 +118,12 @@ func OpenDir(pack Tagger, dir string) (df fs.ReadDirFile, err error) {
 	if dir != "." {
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
-	pack.Enum(func(key string, offset Offset_t) bool {
-		if strings.HasPrefix(key, prefix) {
-			var ts Tagset_t
-			ts.Put(TIDpath, TagString(ToSlash(dir)))
+	pack.Enum(func(fkey string, ts *Tagset_t) bool {
+		if strings.HasPrefix(fkey, prefix) {
+			var dts Tagset_t
+			dts.Put(TIDpath, TagString(ToSlash(dir)))
 			df, err = &ReadDirFile{
-				Tagset_t: ts,
+				Tagset_t: dts,
 				Pack:     pack,
 			}, nil
 			return false

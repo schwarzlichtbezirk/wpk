@@ -13,10 +13,10 @@ pkg.sha256 = true -- generate SHA256 hash for each file
 pkg:begin(pkgpath)
 log("starts: "..pkgpath)
 
--- pack given file, then add keywords and author to tags set
-local function packfile(kpath, fpath, keywords)
-	pkg:putfile(kpath, fpath)
-	pkg:addtags(kpath, {keywords=keywords, author="schwarzlichtbezirk"})
+-- pack given file, then add keywords and author to tagset
+local function packfile(fkey, fpath, keywords)
+	pkg:putfile(fkey, fpath)
+	pkg:addtags(fkey, {keywords=keywords, author="schwarzlichtbezirk"})
 end
 
 -- put images with keywords and author addition tags

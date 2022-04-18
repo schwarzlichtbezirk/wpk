@@ -29,18 +29,19 @@ func CheckPackage(t *testing.T, wpkname string) {
 		t.Fatal(err)
 	}
 
-	for _, tags := range pack.Tags {
-		var kpath = tags.Path()
-		if _, is := tags[wpk.TIDcreated]; !is {
-			t.Logf("found packed data #%d '%s'", tags.FID(), kpath)
-			continue // skip packed data
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
+		var ok bool
+		var fpath = ts.Path()
+		if ok = ts.Has(wpk.TIDcreated); !ok {
+			t.Logf("found packed data #%d '%s'", ts.FID(), fpath)
+			return true // skip packed data
 		}
 
-		var link, is = tags[wpk.TIDlink]
-		if !is {
-			t.Fatalf("found file without link #%d '%s'", tags.FID(), kpath)
+		var link wpk.Tag_t
+		if link, ok = ts.Get(wpk.TIDlink); !ok {
+			t.Fatalf("found file without link #%d '%s'", ts.FID(), fpath)
 		}
-		var offset, size = tags.Offset(), tags.Size()
+		var offset, size = ts.Offset(), ts.Size()
 
 		var orig []byte
 		if orig, err = os.ReadFile(mediadir + string(link)); err != nil {
@@ -49,7 +50,7 @@ func CheckPackage(t *testing.T, wpkname string) {
 
 		if size != int64(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
-				kpath, size, len(orig))
+				fpath, size, len(orig))
 		}
 
 		var extr = make([]byte, size)
@@ -58,18 +59,19 @@ func CheckPackage(t *testing.T, wpkname string) {
 			t.Fatal(err)
 		}
 		if n != len(extr) {
-			t.Errorf("can not extract content of file '%s' completely", kpath)
+			t.Errorf("can not extract content of file '%s' completely", fpath)
 		}
 		if !bytes.Equal(orig, extr) {
-			t.Errorf("content of file '%s' is defer from original", kpath)
+			t.Errorf("content of file '%s' is defer from original", fpath)
 		}
 
 		if t.Failed() {
-			break
+			return false
 		}
 
-		t.Logf("checkup #%d '%s' is ok", tags.FID(), kpath)
-	}
+		t.Logf("checkup #%d '%s' is ok", ts.FID(), fpath)
+		return true
+	})
 }
 
 // Test packdir script call.
