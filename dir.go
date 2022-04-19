@@ -11,6 +11,53 @@ import (
 	"strings"
 )
 
+// DirEntry is directory representation of nested into package files.
+// No any reader for directory implementation.
+// fs.DirEntry interface implementation.
+type DirEntry struct {
+	Tagset_t // has fs.FileInfo interface
+}
+
+// Type is for fs.DirEntry interface compatibility.
+func (f *DirEntry) Type() fs.FileMode {
+	if _, ok := f.Uint32(TIDfid); ok { // file ID is absent for dir
+		return 0444
+	}
+	return fs.ModeDir
+}
+
+// Info returns the FileInfo for the file or subdirectory described by the entry.
+func (f *DirEntry) Info() (fs.FileInfo, error) {
+	return &f.Tagset_t, nil
+}
+
+// ReadDirFile is a directory file whose entries can be read with the ReadDir method.
+// fs.ReadDirFile interface implementation.
+type ReadDirFile struct {
+	Tagset_t // has fs.FileInfo interface
+	Pack     Tagger
+}
+
+// Stat is for fs.ReadDirFile interface compatibility.
+func (f *ReadDirFile) Stat() (fs.FileInfo, error) {
+	return &f.Tagset_t, nil
+}
+
+// Read is for fs.ReadDirFile interface compatibility.
+func (f *ReadDirFile) Read(b []byte) (n int, err error) {
+	return 0, io.EOF
+}
+
+// Close is for fs.ReadDirFile interface compatibility.
+func (f *ReadDirFile) Close() error {
+	return nil
+}
+
+// ReadDir returns fs.FileInfo array with nested into given package directory presentation.
+func (f *ReadDirFile) ReadDir(n int) (matches []fs.DirEntry, err error) {
+	return ReadDir(f.Pack, strings.TrimSuffix(f.Path(), "/"), n)
+}
+
 var (
 	evlre = regexp.MustCompile(`\$\w+`)     // env var with linux-like syntax
 	evure = regexp.MustCompile(`\$\{\w+\}`) // env var with unix-like syntax

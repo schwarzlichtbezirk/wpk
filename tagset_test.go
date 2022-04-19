@@ -18,9 +18,9 @@ func TestTagset(t *testing.T) {
 		mime   string = "image/jpeg"
 	)
 	var ts wpk.Tagset_t
-	ts.Put(wpk.TIDfid, wpk.TagUint32(uint32(fid)))
 	ts.Put(wpk.TIDoffset, wpk.TagUint64(uint64(offset)))
 	ts.Put(wpk.TIDsize, wpk.TagUint64(uint64(size)))
+	ts.Put(wpk.TIDfid, wpk.TagUint32(uint32(fid)))
 	ts.Put(wpk.TIDpath, wpk.TagString(wpk.ToSlash(kpath)))
 
 	if wpk.Normalize(kpath) != fkey || wpk.Normalize(kpath2) != fkey {
@@ -46,24 +46,6 @@ func TestTagset(t *testing.T) {
 		u64 uint64
 		str string
 	)
-
-	// check up FID
-	if !tsi.Next() {
-		t.Fatal("can not iterate to 'fid'")
-	}
-	if tsi.TID() != wpk.TIDfid {
-		t.Fatal("tag #1 is not 'fid'")
-	}
-	tag = tsi.Tag()
-	if tag == nil {
-		t.Fatal("can not get 'fid' tag")
-	}
-	if u32, ok = tag.Uint32(); !ok {
-		t.Fatal("can not convert 'fid' tag to value")
-	}
-	if u32 != fid {
-		t.Fatal("'fid' tag is not equal to original value")
-	}
 
 	// check up OFFSET
 	if !tsi.Next() {
@@ -101,6 +83,24 @@ func TestTagset(t *testing.T) {
 		t.Fatal("'size' tag is not equal to original value")
 	}
 
+	// check up FID
+	if !tsi.Next() {
+		t.Fatal("can not iterate to 'fid'")
+	}
+	if tsi.TID() != wpk.TIDfid {
+		t.Fatal("tag #1 is not 'fid'")
+	}
+	tag = tsi.Tag()
+	if tag == nil {
+		t.Fatal("can not get 'fid' tag")
+	}
+	if u32, ok = tag.Uint32(); !ok {
+		t.Fatal("can not convert 'fid' tag to value")
+	}
+	if u32 != fid {
+		t.Fatal("'fid' tag is not equal to original value")
+	}
+
 	// check up PATH
 	if !tsi.Next() {
 		t.Fatal("can not iterate to 'path'")
@@ -134,7 +134,7 @@ func TestTagset(t *testing.T) {
 	}
 
 	// check up 'Has'
-	if !(ts.Has(wpk.TIDfid) && ts.Has(wpk.TIDoffset) && ts.Has(wpk.TIDsize) && ts.Has(wpk.TIDpath)) {
+	if !(ts.Has(wpk.TIDoffset) && ts.Has(wpk.TIDsize) && ts.Has(wpk.TIDfid) && ts.Has(wpk.TIDpath)) {
 		t.Fatal("something does not pointed that should be present")
 	}
 	if ts.Has(wpk.TIDmd5) {
@@ -196,3 +196,5 @@ func TestTagset(t *testing.T) {
 		t.Fatal("number of tags after repeated delete 'mime' must be unchanged")
 	}
 }
+
+// The End.

@@ -5,27 +5,23 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"sync"
+	"sync/atomic"
 )
 
 // Writer is package writer structure.
 type Writer struct {
 	Package
-	LastFID FID_t
-}
-
-// Reset initializes fields with zero values and sets prebuild signature.
-func (pack *Package) Reset() {
-	pack.mux.Lock()
-	defer pack.mux.Unlock()
-
-	// reset header
-	copy(pack.signature[:], Prebuild)
-	pack.fttoffset = HeaderSize
-	pack.fttsize = 0
+	LastFID uint32
+	mux     sync.Mutex
 }
 
 // Begin writes prebuild header for new empty package.
 func (pack *Writer) Begin(w io.WriteSeeker) (err error) {
+	pack.mux.Lock()
+	defer pack.mux.Unlock()
+
+	// reset header
 	pack.Reset()
 	// go to file start
 	if _, err = w.Seek(0, io.SeekStart); err != nil {
@@ -40,10 +36,11 @@ func (pack *Writer) Begin(w io.WriteSeeker) (err error) {
 
 // Append writes prebuild header for previously opened package to append new files.
 func (pack *Writer) Append(w io.WriteSeeker) (err error) {
-	// partially reset header
 	pack.mux.Lock()
+	defer pack.mux.Unlock()
+
+	// partially reset header
 	copy(pack.signature[:], Prebuild)
-	pack.mux.Unlock()
 	// go to file start
 	if _, err = w.Seek(0, io.SeekStart); err != nil {
 		return
@@ -61,12 +58,14 @@ func (pack *Writer) Append(w io.WriteSeeker) (err error) {
 
 // Finalize finalizes package writing. Writes true signature and header settings.
 func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
+	pack.mux.Lock()
+	defer pack.mux.Unlock()
+
 	// get tags table offset as actual end of file
-	var pos int64
-	if pos, err = w.Seek(0, io.SeekEnd); err != nil {
+	var pos1, pos2 int64
+	if pos1, err = w.Seek(0, io.SeekEnd); err != nil {
 		return
 	}
-	pack.fttoffset = Offset_t(pos)
 	// write files tags table
 	pack.Enum(func(fkey string, ts *Tagset_t) bool {
 		if _, err = w.Write(ts.Data()); err != nil {
@@ -81,18 +80,18 @@ func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 	if err = binary.Write(w, binary.LittleEndian, TID_t(0)); err != nil {
 		return
 	}
-
 	// get writer end marker and setup the file tags table size
-	if pos, err = w.Seek(0, io.SeekEnd); err != nil {
+	if pos2, err = w.Seek(0, io.SeekEnd); err != nil {
 		return
 	}
-	pack.fttsize = Size_t(pos) - Size_t(pack.fttoffset)
 
 	// rewrite true header
 	if _, err = w.Seek(0, io.SeekStart); err != nil {
 		return
 	}
 	copy(pack.signature[:], Signature)
+	pack.fttoffset = Offset_t(pos1)
+	pack.fttsize = Size_t(pos2 - pos1)
 	if _, err = pack.Header.WriteTo(w); err != nil {
 		return
 	}
@@ -108,26 +107,32 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (ts *T
 		return
 	}
 
-	// get offset and put provided data
 	var offset, size int64
-	if offset, err = w.Seek(0, io.SeekCurrent); err != nil {
-		return
-	}
-	if size, err = io.Copy(w, r); err != nil {
+	if func() {
+		pack.mux.Lock()
+		defer pack.mux.Unlock()
+
+		// get offset and put provided data
+		if offset, err = w.Seek(0, io.SeekCurrent); err != nil {
+			return
+		}
+		if size, err = io.Copy(w, r); err != nil {
+			return
+		}
+		// update header
+		pack.fttoffset = Offset_t(offset + size)
+	}(); err != nil {
 		return
 	}
 
 	// insert new entry to tags table
-	pack.LastFID++
+	var fid = atomic.AddUint32(&pack.LastFID, 1)
 	ts = &Tagset_t{}
-	ts.Put(TIDfid, TagUint32(uint32(pack.LastFID)))
 	ts.Put(TIDoffset, TagUint64(uint64(offset)))
 	ts.Put(TIDsize, TagUint64(uint64(size)))
+	ts.Put(TIDfid, TagUint32(fid))
 	ts.Put(TIDpath, TagString(ToSlash(kpath)))
 	pack.ftt.Store(fkey, ts)
-
-	// update header
-	pack.fttoffset = Offset_t(offset + size)
 	return
 }
 

@@ -695,7 +695,7 @@ func wpkhastag(ls *lua.LState) int {
 
 	var err error
 	var tid wpk.TID_t
-	if tid, err = ValueToAid(k); err != nil {
+	if tid, err = ValueToTID(k); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
@@ -722,7 +722,7 @@ func wpkgettag(ls *lua.LState) int {
 	var err error
 
 	var tid wpk.TID_t
-	if tid, err = ValueToAid(k); err != nil {
+	if tid, err = ValueToTID(k); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
@@ -754,7 +754,7 @@ func wpksettag(ls *lua.LState) int {
 	var err error
 	if func() {
 		var tid wpk.TID_t
-		if tid, err = ValueToAid(k); err != nil {
+		if tid, err = ValueToTID(k); err != nil {
 			return
 		}
 		if tid < wpk.TIDsys {
@@ -790,7 +790,7 @@ func wpkdeltag(ls *lua.LState) int {
 	var err error
 	if func() {
 		var tid wpk.TID_t
-		if tid, err = ValueToAid(k); err != nil {
+		if tid, err = ValueToTID(k); err != nil {
 			return
 		}
 		if tid < wpk.TIDsys {
@@ -847,11 +847,18 @@ func wpksettags(ls *lua.LState) int {
 
 	var err error
 	if func() {
-		var addt Tagmap_t
+		var addt *wpk.Tagset_t
 		if addt, err = TableToTagset(lt); err != nil {
 			return
 		}
-		for tid := range addt {
+
+		var addti = addt.Iterator()
+		if addti == nil {
+			err = wpk.ErrCorrupt
+			return
+		}
+		for addti.Next() {
+			var tid = addti.TID()
 			if tid < wpk.TIDsys {
 				err = &ErrProtected{fkey, tid}
 				return
@@ -864,8 +871,9 @@ func wpksettags(ls *lua.LState) int {
 			return
 		}
 
-		for tid, tag := range addt {
-			ts.Set(tid, tag)
+		addti.Reset()
+		for addti.Next() {
+			ts.Set(addti.TID(), addti.Tag())
 		}
 	}(); err != nil {
 		ls.RaiseError(err.Error())
@@ -884,7 +892,7 @@ func wpkaddtags(ls *lua.LState) int {
 
 	var err error
 
-	var addt Tagmap_t
+	var addt *wpk.Tagset_t
 	if addt, err = TableToTagset(lt); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
@@ -897,10 +905,16 @@ func wpkaddtags(ls *lua.LState) int {
 		return 0
 	}
 
+	var addti = addt.Iterator()
+	if addti == nil {
+		ls.RaiseError(wpk.ErrCorrupt.Error())
+		return 0
+	}
 	var n = 0
-	for tid, tag := range addt {
+	for addti.Next() {
+		var tid = addti.TID()
 		if ok := ts.Has(tid); !ok {
-			ts.Put(tid, tag)
+			ts.Put(tid, addti.Tag())
 			n++
 		}
 	}
@@ -918,12 +932,19 @@ func wpkdeltags(ls *lua.LState) int {
 
 	var err error
 
-	var addt Tagmap_t
+	var addt *wpk.Tagset_t
 	if addt, err = TableToTagset(lt); err != nil {
 		ls.RaiseError(err.Error())
 		return 0
 	}
-	for tid := range addt {
+
+	var addti = addt.Iterator()
+	if addti == nil {
+		ls.RaiseError(wpk.ErrCorrupt.Error())
+		return 0
+	}
+	for addti.Next() {
+		var tid = addti.TID()
 		if tid < wpk.TIDsys {
 			ls.RaiseError((&ErrProtected{fkey, tid}).Error())
 			return 0
@@ -937,8 +958,10 @@ func wpkdeltags(ls *lua.LState) int {
 		return 0
 	}
 
+	addti.Reset()
 	var n = 0
-	for tid := range addt {
+	for addti.Next() {
+		var tid = addti.TID()
 		if ok := ts.Has(tid); ok {
 			ts.Del(tid)
 			n++

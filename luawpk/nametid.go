@@ -10,14 +10,15 @@ import (
 
 // NameTid helps convert Lua-table string keys to associated TID_t values.
 var NameTid = map[string]wpk.TID_t{
-	"fid":     wpk.TIDfid,
 	"offset":  wpk.TIDoffset,
 	"size":    wpk.TIDsize,
+	"fid":     wpk.TIDfid,
 	"name":    wpk.TIDpath,
 	"path":    wpk.TIDpath,
 	"time":    wpk.TIDcreated,
 	"created": wpk.TIDcreated,
 	"crt":     wpk.TIDcreated,
+	"mime":    wpk.TIDmime,
 
 	"crc32":     wpk.TIDcrc32c,
 	"crc32ieee": wpk.TIDcrc32ieee,
@@ -33,7 +34,6 @@ var NameTid = map[string]wpk.TID_t{
 	"sha384": wpk.TIDsha384,
 	"sha512": wpk.TIDsha512,
 
-	"mime":     wpk.TIDmime,
 	"link":     wpk.TIDlink,
 	"keywords": wpk.TIDkeywords,
 	"category": wpk.TIDcategory,
@@ -57,10 +57,10 @@ var (
 	ErrBadTagVal = errors.New("tag value type is not string or boolean or 'tag' userdata")
 )
 
-// ValueToAid converts LValue to uint16 tag identifier. Numbers converts explicitly,
-// strings converts to uint16 values wich they presents.
-// Error returns on any other case.
-func ValueToAid(k lua.LValue) (tid wpk.TID_t, err error) {
+// ValueToTID converts LValue to uint16 tag identifier.
+// Numbers converts explicitly, strings converts to uint16
+// values wich they presents. Error returns on any other case.
+func ValueToTID(k lua.LValue) (tid wpk.TID_t, err error) {
 	if n, ok := k.(lua.LNumber); ok {
 		tid = wpk.TID_t(n)
 	} else if name, ok := k.(lua.LString); ok {
@@ -99,29 +99,26 @@ func ValueToTag(v lua.LValue) (tag wpk.Tag_t, err error) {
 	return
 }
 
-// Tagmap_t is tags set for each file in package.
-type Tagmap_t map[wpk.TID_t]wpk.Tag_t
-
-// TableToTagset converts Lua-table to Tagmap_t. Lua-table keys can be number identifiers
+// TableToTagset converts Lua-table to Tagset_t. Lua-table keys can be number identifiers
 // or string names associated ID values. Lua-table values can be strings,
 // boolean or "tag" userdata values. Numbers can not be passed to table
 // to prevent ambiguous type representation.
-func TableToTagset(lt *lua.LTable) (tm Tagmap_t, err error) {
-	tm = Tagmap_t{}
+func TableToTagset(lt *lua.LTable) (ts *wpk.Tagset_t, err error) {
+	ts = &wpk.Tagset_t{}
 	lt.ForEach(func(k lua.LValue, v lua.LValue) {
 		var (
 			tid wpk.TID_t
 			tag wpk.Tag_t
 		)
 
-		if tid, err = ValueToAid(k); err != nil {
+		if tid, err = ValueToTID(k); err != nil {
 			return
 		}
 		if tag, err = ValueToTag(v); err != nil {
 			return
 		}
 
-		tm[tid] = tag
+		ts.Put(tid, tag)
 	})
 	return
 }

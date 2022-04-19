@@ -61,9 +61,8 @@ func (f *MappedFile) Close() error {
 // fs.FS interface implementation.
 type PackDir struct {
 	*wpk.Package
-	workspace string      // workspace directory in package
-	filewpk   *os.File    // open package file descriptor
-	ftt       *MappedFile // file tags table mapped file
+	workspace string   // workspace directory in package
+	filewpk   *os.File // open package file descriptor
 }
 
 // OpenTags creates file object to give access to nested into package file by given tagset.
@@ -82,15 +81,6 @@ func OpenImage(fname string) (pack *PackDir, err error) {
 	if err = pack.Read(pack.filewpk); err != nil {
 		return
 	}
-
-	// open tags set file
-	var ts wpk.Tagset_t
-	ts.Put(wpk.TIDfid, wpk.TagUint32(0))
-	ts.Put(wpk.TIDoffset, wpk.TagUint64(uint64(pack.FTTOffset())))
-	ts.Put(wpk.TIDsize, wpk.TagUint64(uint64(pack.FTTSize())))
-	if pack.ftt, err = NewMappedFile(pack, ts); err != nil {
-		return
-	}
 	return
 }
 
@@ -98,15 +88,7 @@ func OpenImage(fname string) (pack *PackDir, err error) {
 // not subdirectories.
 // io.Closer implementation.
 func (pack *PackDir) Close() error {
-	var err1 = pack.ftt.Close()
-	var err2 = pack.filewpk.Close()
-	if err1 != nil {
-		return err1
-	}
-	if err2 != nil {
-		return err2
-	}
-	return nil
+	return pack.filewpk.Close()
 }
 
 // Sub clones object and gives access to pointed subdirectory.
@@ -128,7 +110,6 @@ func (pack *PackDir) Sub(dir string) (df fs.FS, err error) {
 				pack.Package,
 				workspace,
 				pack.filewpk,
-				pack.ftt,
 			}, nil
 			return false
 		}

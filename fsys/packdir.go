@@ -49,7 +49,6 @@ type PackDir struct {
 	*wpk.Package
 	workspace string // workspace directory in package
 	fname     string // package filename
-	ftt       []byte // file tags table slice
 }
 
 // OpenTags creates file object to give access to nested into package file by given tagset.
@@ -70,15 +69,6 @@ func OpenImage(fname string) (pack *PackDir, err error) {
 	defer filewpk.Close()
 
 	if err = pack.Read(filewpk); err != nil {
-		return
-	}
-
-	// read file tags table
-	pack.ftt = make([]byte, pack.FTTSize())
-	if _, err = filewpk.Seek(int64(pack.FTTOffset()), io.SeekStart); err != nil {
-		return
-	}
-	if _, err = filewpk.Read(pack.ftt); err != nil {
 		return
 	}
 	return
@@ -110,7 +100,6 @@ func (pack *PackDir) Sub(dir string) (df fs.FS, err error) {
 				pack.Package,
 				workspace,
 				pack.fname,
-				pack.ftt,
 			}, nil
 			return false
 		}
