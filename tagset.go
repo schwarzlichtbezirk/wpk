@@ -53,15 +53,15 @@ func TagByte(val byte) Tag_t {
 }
 
 // Uint16 is 16-bit unsigned int tag converter.
-func (t Tag_t) Uint16() (TID_t, bool) {
+func (t Tag_t) Uint16() (uint16, bool) {
 	if len(t) == 2 {
-		return TID_t(binary.LittleEndian.Uint16(t)), true
+		return uint16(binary.LittleEndian.Uint16(t)), true
 	}
 	return 0, false
 }
 
 // TagUint16 is 16-bit unsigned int tag constructor.
-func TagUint16(val TID_t) Tag_t {
+func TagUint16(val uint16) Tag_t {
 	var buf [2]byte
 	binary.LittleEndian.PutUint16(buf[:], uint16(val))
 	return buf[:]
@@ -135,8 +135,8 @@ type Tagset_t struct {
 	data []byte
 }
 
-// NewTagset returns new tagset with given slice.
-func NewTagset(data []byte) *Tagset_t {
+// MakeTagset returns tagset with given slice.
+func MakeTagset(data []byte) *Tagset_t {
 	return &Tagset_t{data}
 }
 
@@ -146,19 +146,17 @@ func (ts *Tagset_t) Data() []byte {
 }
 
 // Num returns number of tags in tagset.
-func (ts *Tagset_t) Num() uint16 {
-	if len(ts.data) < 2 {
-		return 0
+func (ts *Tagset_t) Num() (n int) {
+	var tsi = ts.Iterator()
+	for tsi.Next() {
+		n++
 	}
-	return binary.LittleEndian.Uint16(ts.data[:2])
+	return
 }
 
 // Has checks existence of tag with given ID.
 func (ts *Tagset_t) Has(tid TID_t) bool {
 	var tsi = ts.Iterator()
-	if tsi == nil {
-		return false
-	}
 	for tsi.Next() && tsi.tid != tid {
 	}
 	return tsi.tid == tid
@@ -169,12 +167,9 @@ func (ts *Tagset_t) Has(tid TID_t) bool {
 // returns false.
 func (ts *Tagset_t) Get(tid TID_t) (Tag_t, bool) {
 	var tsi = ts.Iterator()
-	if tsi == nil {
-		return nil, false // ErrNoData
-	}
 	for tsi.Next() && tsi.tid != tid {
 	}
-	if tsi.pos > uint16(len(tsi.data)) {
+	if tsi.Failed() {
 		return nil, false // io.EOF
 	}
 	if tsi.tid != tid {
@@ -185,16 +180,13 @@ func (ts *Tagset_t) Get(tid TID_t) (Tag_t, bool) {
 
 // Put appends new tag to tagset.
 func (ts *Tagset_t) Put(tid TID_t, tag Tag_t) {
-	if len(ts.data) < 2 { // init empty slice
-		ts.data = make([]byte, 2)
+	if tid == TIDnone { // special case
+		return
 	}
-	var num = binary.LittleEndian.Uint16(ts.data[:2])
-	num++
-	binary.LittleEndian.PutUint16(ts.data[:2], num)
 
-	var buf [4]byte
-	binary.LittleEndian.PutUint16(buf[0:2], uint16(tid))
-	binary.LittleEndian.PutUint16(buf[2:4], uint16(len(tag)))
+	var buf [TID_l + TID_l]byte
+	binary.LittleEndian.PutUint16(buf[0:TID_l], uint16(tid))
+	binary.LittleEndian.PutUint16(buf[TID_l:TID_l+TID_l], uint16(len(tag)))
 	ts.data = append(ts.data, buf[:]...)
 	ts.data = append(ts.data, tag...)
 }
@@ -202,11 +194,11 @@ func (ts *Tagset_t) Put(tid TID_t, tag Tag_t) {
 // Set replaces tag with given ID and equal size, or
 // appends it to tagset. Returns true if new one added.
 func (ts *Tagset_t) Set(tid TID_t, tag Tag_t) bool {
-	var tsi = ts.Iterator()
-	if tsi == nil {
-		ts.Put(tid, tag)
-		return true
+	if tid == TIDnone { // special case
+		return false
 	}
+
+	var tsi = ts.Iterator()
 	for tsi.Next() && tsi.tid != tid {
 	}
 	if tsi.tid != tid {
@@ -214,11 +206,11 @@ func (ts *Tagset_t) Set(tid TID_t, tag Tag_t) bool {
 		return true
 	}
 
-	var tl = uint16(len(tag))
-	if tl == tsi.pos-tsi.tag {
+	var tl = len(tag)
+	if TSSize_t(tl) == tsi.pos-tsi.tag {
 		copy(ts.data[tsi.tag:tsi.pos], tag)
 	} else {
-		binary.LittleEndian.PutUint16(ts.data[tsi.tag-2:tsi.tag], tl) // set tag length
+		binary.LittleEndian.PutUint16(ts.data[tsi.tag-TID_l:tsi.tag], uint16(tl)) // set tag length
 		var suff = ts.data[tsi.pos:]
 		ts.data = append(ts.data[:tsi.tag], tag...)
 		ts.data = append(ts.data, suff...)
@@ -228,18 +220,17 @@ func (ts *Tagset_t) Set(tid TID_t, tag Tag_t) bool {
 
 // Del deletes tag with given ID.
 func (ts *Tagset_t) Del(tid TID_t) bool {
-	var tsi = ts.Iterator()
-	if tsi == nil {
-		return false // ErrNoData
+	if tid == TIDnone { // special case
+		return false
 	}
+
+	var tsi = ts.Iterator()
 	for tsi.Next() && tsi.tid != tid {
 	}
 	if tsi.tid != tid {
 		return false // ErrNoTag
 	}
-	tsi.num--
-	binary.LittleEndian.PutUint16(ts.data[:2], tsi.num)
-	ts.data = append(ts.data[:tsi.tag-4], ts.data[tsi.pos:]...)
+	ts.data = append(ts.data[:tsi.tag-TID_l-TID_l], ts.data[tsi.pos:]...)
 	return true
 }
 
@@ -269,7 +260,7 @@ func (ts *Tagset_t) Byte(tid TID_t) (byte, bool) {
 
 // Uint16 is 16-bit unsigned int tag getter.
 // Conversion can be used to get signed 16-bit integers.
-func (ts *Tagset_t) Uint16(tid TID_t) (TID_t, bool) {
+func (ts *Tagset_t) Uint16(tid TID_t) (uint16, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.Uint16()
 	}
@@ -371,31 +362,23 @@ func (ts *Tagset_t) Sys() interface{} {
 
 // Iterator clones this tagset to iterate through all tags.
 func (ts *Tagset_t) Iterator() *TagsetIterator {
-	if len(ts.data) < 2 {
-		return nil
-	}
 	var tsi TagsetIterator
 	tsi.data = ts.data
-	tsi.Reset()
 	return &tsi
 }
 
 // TagsetIterator helps to iterate through all tags.
 type TagsetIterator struct {
 	Tagset_t
-	num uint16 // number of tags in tagset
-	idx uint16 // index of tag to read by "Next" call
-	pos uint16 // current position in the slice
-	tid TID_t  // tag ID of last readed tag
-	tag uint16 // start position of last readed tag content
+	tid TID_t    // tag ID of last readed tag
+	pos TSSize_t // current position in the slice
+	tag TSSize_t // start position of last readed tag content
 }
 
 // Reset restarts iterator for new iterations loop.
 func (tsi *TagsetIterator) Reset() {
-	tsi.num = binary.LittleEndian.Uint16(tsi.data[:2])
-	tsi.idx = 0
-	tsi.pos = 2
 	tsi.tid = TIDnone
+	tsi.pos = 0
 	tsi.tag = 0
 }
 
@@ -406,53 +389,60 @@ func (tsi *TagsetIterator) TID() TID_t {
 
 // Tag returns tag slice of the last readed tag content.
 func (tsi *TagsetIterator) Tag() Tag_t {
-	if tsi.tid == TIDnone || tsi.pos > uint16(len(tsi.data)) {
+	if tsi.Failed() {
 		return nil
 	}
 	return tsi.data[tsi.tag:tsi.pos]
 }
 
 // TagLen returns length of last readed tag content.
-func (tsi *TagsetIterator) TagLen() uint16 {
-	if tsi.tid == TIDnone {
+func (tsi *TagsetIterator) TagLen() TSSize_t {
+	if tsi.Failed() {
 		return 0
 	}
 	return tsi.pos - tsi.tag
 }
 
-// Passed returns true if the end of iterations is reached.
+// Passed returns true if the end of iterations is successfully reached.
 func (tsi *TagsetIterator) Passed() bool {
-	return tsi.idx == tsi.num
+	return tsi.pos == TSSize_t(len(tsi.data))
+}
+
+// Failed points that iterator is finished by broken tagset state.
+func (tsi *TagsetIterator) Failed() bool {
+	return tsi.pos > TSSize_t(len(tsi.data))
 }
 
 // Next carries to the next tag position.
 func (tsi *TagsetIterator) Next() (ok bool) {
+	var tsl = TSSize_t(len(tsi.data))
 	tsi.tid = TIDnone
-	// check up the end of tagset is reached
-	if tsi.idx >= tsi.num {
+
+	// check up the end of tagset is reached by any reason
+	if tsi.pos >= tsl {
 		return
 	}
-	var tsl = uint16(len(tsi.data))
 
 	// get tag identifier
-	if tsi.pos += 2; tsi.pos > tsl {
+	if tsi.pos += TID_l; tsi.pos > tsl {
 		return
 	}
-	tsi.tid = TID_t(binary.LittleEndian.Uint16(tsi.data[tsi.pos-2:]))
+	var tid = TID_t(binary.LittleEndian.Uint16(tsi.data[tsi.pos-TID_l:]))
 
 	// get tag length
-	if tsi.pos += 2; tsi.pos > tsl {
+	if tsi.pos += TID_l; tsi.pos > tsl {
 		return
 	}
-	tsi.tag = tsi.pos // store tag content position
-	var len = binary.LittleEndian.Uint16(tsi.data[tsi.pos-2:])
+	var len = binary.LittleEndian.Uint16(tsi.data[tsi.pos-TID_l:])
+	// store tag content position
+	var tag = tsi.pos
 
 	// prepare to get tag content
-	if tsi.pos += len; tsi.pos > tsl {
+	if tsi.pos += TSSize_t(len); tsi.pos > tsl {
 		return
 	}
 
-	tsi.idx++
+	tsi.tid, tsi.tag = tid, tag
 	ok = true
 	return
 }

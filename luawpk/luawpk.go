@@ -825,9 +825,6 @@ func wpkgettags(ls *lua.LState) int {
 
 	var tb = ls.CreateTable(0, 0)
 	var tsi = ts.Iterator()
-	if tsi == nil {
-		return 0
-	}
 	for tsi.Next() {
 		var tid, tag = tsi.TID(), tsi.Tag()
 		var ud = ls.NewUserData()
@@ -853,10 +850,6 @@ func wpksettags(ls *lua.LState) int {
 		}
 
 		var addti = addt.Iterator()
-		if addti == nil {
-			err = wpk.ErrCorrupt
-			return
-		}
 		for addti.Next() {
 			var tid = addti.TID()
 			if tid < wpk.TIDsys {
@@ -906,10 +899,6 @@ func wpkaddtags(ls *lua.LState) int {
 	}
 
 	var addti = addt.Iterator()
-	if addti == nil {
-		ls.RaiseError(wpk.ErrCorrupt.Error())
-		return 0
-	}
 	var n = 0
 	for addti.Next() {
 		var tid = addti.TID()
@@ -939,10 +928,6 @@ func wpkdeltags(ls *lua.LState) int {
 	}
 
 	var addti = addt.Iterator()
-	if addti == nil {
-		ls.RaiseError(wpk.ErrCorrupt.Error())
-		return 0
-	}
 	for addti.Next() {
 		var tid = addti.TID()
 		if tid < wpk.TIDsys {

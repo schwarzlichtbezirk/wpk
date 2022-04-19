@@ -68,6 +68,11 @@ func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 	}
 	// write files tags table
 	pack.Enum(func(fkey string, ts *Tagset_t) bool {
+		// write tagset length
+		if err = binary.Write(w, binary.LittleEndian, TSSize_t(len(ts.Data()))); err != nil {
+			return false
+		}
+		// write tagset content
 		if _, err = w.Write(ts.Data()); err != nil {
 			return false
 		}
@@ -77,7 +82,7 @@ func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 		return
 	}
 	// write tags table end marker
-	if err = binary.Write(w, binary.LittleEndian, TID_t(0)); err != nil {
+	if err = binary.Write(w, binary.LittleEndian, TSSize_t(0)); err != nil {
 		return
 	}
 	// get writer end marker and setup the file tags table size
@@ -132,7 +137,7 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (ts *T
 	ts.Put(TIDsize, TagUint64(uint64(size)))
 	ts.Put(TIDfid, TagUint32(fid))
 	ts.Put(TIDpath, TagString(ToSlash(kpath)))
-	pack.ftt.Store(fkey, ts)
+	pack.SetTagset(fkey, ts)
 	return
 }
 
@@ -215,8 +220,8 @@ func (pack *Writer) Rename(oldname, newname string) error {
 	}
 
 	ts.Set(TIDpath, TagString(ToSlash(newname)))
-	pack.ftt.Delete(fkey1)
-	pack.ftt.Store(fkey2, ts)
+	pack.DelTagset(fkey1)
+	pack.SetTagset(fkey2, ts)
 	return nil
 }
 
@@ -242,7 +247,7 @@ func (pack *Writer) PutAlias(oldname, newname string) error {
 			ts2.Put(TIDpath, TagString(ToSlash(newname)))
 		}
 	}
-	pack.ftt.Store(fkey2, ts2)
+	pack.SetTagset(fkey2, ts2)
 	return nil
 }
 
@@ -251,7 +256,7 @@ func (pack *Writer) DelAlias(name string) bool {
 	var fkey = Normalize(name)
 	var _, ok = pack.Tagset(fkey)
 	if ok {
-		pack.ftt.Delete(fkey)
+		pack.DelTagset(fkey)
 	}
 	return ok
 }

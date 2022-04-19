@@ -28,9 +28,6 @@ func TestTagset(t *testing.T) {
 	}
 
 	var tsi = ts.Iterator()
-	if tsi == nil {
-		t.Fatal("can not create iterator")
-	}
 	if tsi.TID() != wpk.TIDnone {
 		t.Fatal("tag ID in created iterator should be 'none'")
 	}
@@ -108,7 +105,7 @@ func TestTagset(t *testing.T) {
 	if tsi.TID() != wpk.TIDpath {
 		t.Fatal("tag #4 is not 'path'")
 	}
-	if tsi.TagLen() != uint16(len(kpath)) {
+	if tsi.TagLen() != wpk.TSSize_t(len(kpath)) {
 		t.Fatal("length of 'path' tag does not equal to original length")
 	}
 	tag = tsi.Tag()
@@ -123,6 +120,9 @@ func TestTagset(t *testing.T) {
 	}
 
 	// check up valid iterations finish
+	if tsi.Failed() {
+		t.Fatal("content is broken")
+	}
 	if tsi.Next() {
 		t.Fatal("iterator does not finished")
 	}
