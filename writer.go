@@ -1,7 +1,6 @@
 package wpk
 
 import (
-	"encoding/binary"
 	"io"
 	"io/fs"
 	"os"
@@ -66,23 +65,13 @@ func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 	if pos1, err = w.Seek(0, io.SeekEnd); err != nil {
 		return
 	}
-	// write files tags table
-	pack.Enum(func(fkey string, ts *Tagset_t) bool {
-		// write tagset length
-		if err = binary.Write(w, binary.LittleEndian, TSSize_t(len(ts.Data()))); err != nil {
-			return false
-		}
-		// write tagset content
-		if _, err = w.Write(ts.Data()); err != nil {
-			return false
-		}
-		return true
-	})
-	if err != nil {
-		return
+	// update package info if it has
+	if ts, ok := pack.Tagset(""); ok {
+		ts.Set(TIDoffset, TagFOffset(HeaderSize))
+		ts.Set(TIDsize, TagFSize(FSize_t(pos1-HeaderSize)))
 	}
-	// write tags table end marker
-	if err = binary.Write(w, binary.LittleEndian, TSSize_t(0)); err != nil {
+	// write file tags table
+	if _, err = pack.FTT_t.WriteTo(w); err != nil {
 		return
 	}
 	// get writer end marker and setup the file tags table size
@@ -132,11 +121,11 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (ts *T
 
 	// insert new entry to tags table
 	var fid = FID_t(atomic.AddUint32(&pack.LastFID, 1))
-	ts = &Tagset_t{}
-	ts.Put(TIDoffset, TagFOffset(FOffset_t(offset)))
-	ts.Put(TIDsize, TagFSize(FSize_t(size)))
-	ts.Put(TIDfid, TagFID(fid))
-	ts.Put(TIDpath, TagString(ToSlash(kpath)))
+	ts = NewTagset().
+		Put(TIDoffset, TagFOffset(FOffset_t(offset))).
+		Put(TIDsize, TagFSize(FSize_t(size))).
+		Put(TIDfid, TagFID(fid)).
+		Put(TIDpath, TagString(ToSlash(kpath)))
 	pack.SetTagset(fkey, ts)
 	return
 }
@@ -156,14 +145,14 @@ func (pack *Writer) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ts 
 	return
 }
 
-// PackDirHook is function called before each file or directory with its parameters
+// PackDirFilter is function called before each file or directory with its parameters
 // during PackDir processing. Returns whether to process the file or directory.
 // Can be used as filter and logger.
-type PackDirHook = func(fi os.FileInfo, kpath, fpath string) bool
+type PackDirFilter = func(fi os.FileInfo, kpath, fpath string) bool
 
 // PackDir puts all files of given folder and it's subfolders into package.
-// Hook function can be nil.
-func (pack *Writer) PackDir(w io.WriteSeeker, dirname, prefix string, hook PackDirHook) (err error) {
+// Filter function can be nil.
+func (pack *Writer) PackDir(w io.WriteSeeker, dirname, prefix string, filter PackDirFilter) (err error) {
 	var fis []os.FileInfo
 	if func() {
 		var dir *os.File
@@ -182,9 +171,9 @@ func (pack *Writer) PackDir(w io.WriteSeeker, dirname, prefix string, hook PackD
 		if fi != nil {
 			var kpath = prefix + fi.Name()
 			var fpath = dirname + fi.Name()
-			if hook == nil || hook(fi, kpath, fpath) {
+			if filter == nil || filter(fi, kpath, fpath) {
 				if fi.IsDir() {
-					if err = pack.PackDir(w, fpath+"/", kpath+"/", hook); err != nil {
+					if err = pack.PackDir(w, fpath+"/", kpath+"/", filter); err != nil {
 						return
 					}
 				} else if func() {

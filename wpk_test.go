@@ -32,12 +32,17 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 
 	var realtagsnum int
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-		realtagsnum++
-
 		var offset, _ = ts.FOffset()
 		var size, _ = ts.FSize()
 		var fid, _ = ts.FID()
 		var fpath = ts.Path()
+
+		if fid == 0 {
+			var label, _ = ts.String(wpk.TIDlabel)
+			t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
+			return true
+		}
+		realtagsnum++
 
 		var isfile = ts.Has(wpk.TIDcreated)
 		var link, islink = ts.Get(wpk.TIDlink)
@@ -113,12 +118,15 @@ func TestPackDir(t *testing.T) {
 	if err = pack.PackDir(fwpk, mediadir, "", func(fi os.FileInfo, fname, fpath string) bool {
 		if !fi.IsDir() {
 			tagsnum++
-			t.Logf("put file #%d '%s', %d bytes", pack.LastFID, fname, fi.Size())
+			t.Logf("put file #%d '%s', %d bytes", pack.LastFID+1, fname, fi.Size())
 		}
 		return true
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// put package info
+	pack.Info().
+		Put(wpk.TIDlabel, wpk.TagString("packed-dir"))
 	// finalize
 	if err = pack.Finalize(fwpk); err != nil {
 		t.Fatal(err)

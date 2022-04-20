@@ -180,6 +180,11 @@ type Tagset_t struct {
 	data []byte
 }
 
+// NewTagset returns new empty tagset.
+func NewTagset() *Tagset_t {
+	return &Tagset_t{}
+}
+
 // MakeTagset returns tagset with given slice.
 func MakeTagset(data []byte) *Tagset_t {
 	return &Tagset_t{data}
@@ -224,9 +229,9 @@ func (ts *Tagset_t) Get(tid TID_t) (Tag_t, bool) {
 }
 
 // Put appends new tag to tagset.
-func (ts *Tagset_t) Put(tid TID_t, tag Tag_t) {
+func (ts *Tagset_t) Put(tid TID_t, tag Tag_t) *Tagset_t {
 	if tid == TIDnone { // special case
-		return
+		return ts
 	}
 
 	var buf [TID_l + TSize_l]byte
@@ -234,6 +239,7 @@ func (ts *Tagset_t) Put(tid TID_t, tag Tag_t) {
 	TSize_w(buf[TID_l:TID_l+TSize_l], TSize_t(len(tag)))
 	ts.data = append(ts.data, buf[:]...)
 	ts.data = append(ts.data, tag...)
+	return ts
 }
 
 // Set replaces tag with given ID and equal size, or
@@ -507,7 +513,7 @@ func (tsi *TagsetIterator) Next() (ok bool) {
 const tsiconst = "content changes are disabled for iterator"
 
 // Put is the stub to disable any changes to data content of iterator.
-func (tsi *TagsetIterator) Put(tid TID_t, tag Tag_t) {
+func (tsi *TagsetIterator) Put(tid TID_t, tag Tag_t) *Tagset_t {
 	panic(tsiconst)
 }
 

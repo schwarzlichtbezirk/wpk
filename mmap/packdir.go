@@ -20,13 +20,13 @@ const pagesize = 64 * 1024
 // wpk.NestedFile interface implementation.
 type MappedFile struct {
 	wpk.FileReader
-	tags   wpk.Tagset_t // has fs.FileInfo interface
+	tags   *wpk.Tagset_t // has fs.FileInfo interface
 	region []byte
 	mm.MMap
 }
 
 // NewMappedFile maps nested to package file based on given tags slice.
-func NewMappedFile(pack *PackDir, ts wpk.Tagset_t) (f *MappedFile, err error) {
+func NewMappedFile(pack *PackDir, ts *wpk.Tagset_t) (f *MappedFile, err error) {
 	// calculate paged size/offset
 	var offset, _ = ts.FOffset()
 	var size, _ = ts.FSize()
@@ -49,7 +49,7 @@ func NewMappedFile(pack *PackDir, ts wpk.Tagset_t) (f *MappedFile, err error) {
 
 // Stat is for fs.File interface compatibility.
 func (f *MappedFile) Stat() (fs.FileInfo, error) {
-	return &f.tags, nil
+	return f.tags, nil
 }
 
 // Close unmaps memory and closes mapped memory handle.
@@ -67,7 +67,7 @@ type PackDir struct {
 }
 
 // OpenTags creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenTags(ts wpk.Tagset_t) (wpk.NestedFile, error) {
+func (pack *PackDir) OpenTags(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewMappedFile(pack, ts)
 }
 
@@ -148,7 +148,7 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	if ts, is = pack.Tagset(wpk.Normalize(path.Join(pack.workspace, name))); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
-	var f, err = NewMappedFile(pack, *ts)
+	var f, err = NewMappedFile(pack, ts)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (pack *PackDir) Open(dir string) (fs.File, error) {
 
 	var fullname = path.Join(pack.workspace, dir)
 	if ts, is := pack.Tagset(wpk.Normalize(fullname)); is {
-		return NewMappedFile(pack, *ts)
+		return NewMappedFile(pack, ts)
 	}
 	return wpk.OpenDir(pack, fullname)
 }

@@ -14,11 +14,11 @@ import (
 // wpk.NestedFile interface implementation.
 type SliceFile struct {
 	wpk.FileReader
-	tags wpk.Tagset_t // has fs.FileInfo interface
+	tags *wpk.Tagset_t // has fs.FileInfo interface
 }
 
 // NewSliceFile creates SliceFile file structure based on given tags slice.
-func NewSliceFile(pack *PackDir, ts wpk.Tagset_t) (f *SliceFile, err error) {
+func NewSliceFile(pack *PackDir, ts *wpk.Tagset_t) (f *SliceFile, err error) {
 	var offset, _ = ts.FOffset()
 	var size, _ = ts.FSize()
 	f = &SliceFile{
@@ -30,7 +30,7 @@ func NewSliceFile(pack *PackDir, ts wpk.Tagset_t) (f *SliceFile, err error) {
 
 // Stat is for fs.File interface compatibility.
 func (f *SliceFile) Stat() (fs.FileInfo, error) {
-	return &f.tags, nil
+	return f.tags, nil
 }
 
 // Close is for fs.File interface compatibility.
@@ -48,7 +48,7 @@ type PackDir struct {
 }
 
 // OpenTags creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenTags(ts wpk.Tagset_t) (wpk.NestedFile, error) {
+func (pack *PackDir) OpenTags(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewSliceFile(pack, ts)
 }
 
@@ -144,16 +144,16 @@ func (pack *PackDir) ReadDir(dir string) ([]fs.DirEntry, error) {
 // fs.FS implementation.
 func (pack *PackDir) Open(dir string) (fs.File, error) {
 	if dir == "wpk" && pack.workspace == "." {
-		var ts wpk.Tagset_t
-		ts.Put(wpk.TIDfid, wpk.TagFID(0))
-		ts.Put(wpk.TIDoffset, wpk.TagFOffset(0))
-		ts.Put(wpk.TIDsize, wpk.TagFSize(wpk.FSize_t(len(pack.bulk))))
+		var ts = wpk.NewTagset().
+			Put(wpk.TIDfid, wpk.TagFID(0)).
+			Put(wpk.TIDoffset, wpk.TagFOffset(0)).
+			Put(wpk.TIDsize, wpk.TagFSize(wpk.FSize_t(len(pack.bulk))))
 		return NewSliceFile(pack, ts)
 	}
 
 	var fullname = path.Join(pack.workspace, dir)
 	if ts, is := pack.Tagset(wpk.Normalize(fullname)); is {
-		return NewSliceFile(pack, *ts)
+		return NewSliceFile(pack, ts)
 	}
 	return wpk.OpenDir(pack, fullname)
 }

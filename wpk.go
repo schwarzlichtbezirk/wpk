@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"path/filepath"
 	"sync"
 )
@@ -48,12 +47,13 @@ const (
 
 	TIDtmbimg   TID_t = 100 // []byte, thumbnail image (icon)
 	TIDtmbmime  TID_t = 101 // string, MIME type of thumbnail image
-	TIDlink     TID_t = 110 // string
-	TIDkeywords TID_t = 111 // string
-	TIDcategory TID_t = 112 // string
-	TIDversion  TID_t = 113 // string
-	TIDauthor   TID_t = 114 // string
-	TIDcomment  TID_t = 115 // string
+	TIDlabel    TID_t = 110 // string
+	TIDlink     TID_t = 111 // string
+	TIDkeywords TID_t = 112 // string
+	TIDcategory TID_t = 113 // string
+	TIDversion  TID_t = 114 // string
+	TIDauthor   TID_t = 115 // string
+	TIDcomment  TID_t = 116 // string
 )
 
 // ErrTag is error on some field of tags set.
@@ -75,6 +75,7 @@ func (e *ErrTag) Unwrap() error {
 var (
 	ErrSignPre = errors.New("package is not ready")
 	ErrSignBad = errors.New("signature does not pass")
+	ErrSignFTT = errors.New("header contains incorrect data")
 
 	ErrNoTag    = errors.New("tag with given ID not found")
 	ErrNoPath   = errors.New("file name is absent")
@@ -110,7 +111,7 @@ type Packager interface {
 	DataSize() FSize_t
 	Tagger
 
-	OpenTags(Tagset_t) (NestedFile, error)
+	OpenTags(*Tagset_t) (NestedFile, error)
 	io.Closer
 	fs.SubFS
 	fs.StatFS
@@ -121,17 +122,14 @@ type Packager interface {
 
 const (
 	// HeaderSize - package header size in bytes.
-	HeaderSize = 64
+	HeaderSize = 48
 	// SignSize - signature field size.
 	SignSize = 24
-	// NameSize - disk label field size.
-	NameSize = 32
 )
 
 // Header - package header.
 type Header struct {
 	signature [SignSize]byte
-	disklabel [NameSize]byte
 	fttoffset uint64  // file tags table offset
 	fttsize   uint64  // file tags table size
 	typesize  [8]byte // sizes of package types
@@ -156,23 +154,6 @@ func (pack *Header) Reset() {
 	pack.fttoffset = HeaderSize
 	pack.fttsize = 0
 	pack.typesize = PackageTypeSizes
-}
-
-// Label returns string with disk label, copied from header fixed field.
-// Maximum length of label is 24 bytes.
-func (pack *Header) Label() string {
-	var i int
-	for ; i < NameSize && pack.disklabel[i] > 0; i++ {
-	}
-	return string(pack.disklabel[:i])
-}
-
-// SetLabel setups header fixed label field to given string.
-// Maximum length of label is 24 bytes.
-func (pack *Header) SetLabel(label string) {
-	for i := copy(pack.disklabel[:], []byte(label)); i < NameSize; i++ {
-		pack.disklabel[i] = 0 // make label zero-terminated
-	}
 }
 
 // DataSize returns sum size of all real stored records in package.
@@ -200,10 +181,6 @@ func (pack *Header) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 	n += SignSize
-	if err = binary.Read(r, binary.LittleEndian, pack.disklabel[:]); err != nil {
-		return
-	}
-	n += NameSize
 	if err = binary.Read(r, binary.LittleEndian, &pack.fttoffset); err != nil {
 		return
 	}
@@ -225,10 +202,6 @@ func (pack *Header) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 	n += SignSize
-	if err = binary.Write(w, binary.LittleEndian, pack.disklabel[:]); err != nil {
-		return
-	}
-	n += NameSize
 	if err = binary.Write(w, binary.LittleEndian, &pack.fttoffset); err != nil {
 		return
 	}
@@ -282,6 +255,155 @@ func (ftt *FTT_t) DelTagset(fkey string) {
 	ftt.Delete(fkey)
 }
 
+// Info returns package information tagset,
+// and stores if it not present before.
+func (ftt *FTT_t) Info() *Tagset_t {
+	var val, _ = ftt.LoadOrStore("",
+		NewTagset().
+			Put(TIDfid, TagFID(0)).
+			Put(TIDpath, TagString("")))
+	if val == nil {
+		panic("can not obtain package info")
+	}
+	return val.(*Tagset_t)
+}
+
+// ReadFrom reads file tags table whole content from the given stream.
+func (ftt *FTT_t) ReadFrom(r io.Reader) (n int64, err error) {
+	var dataoffset FOffset_t
+	var datasize FSize_t
+	for {
+		var tsl TSSize_t
+		if err = binary.Read(r, binary.LittleEndian, &tsl); err != nil {
+			return
+		}
+		n += TSSize_l
+
+		if tsl == 0 {
+			break // end marker was reached
+		}
+
+		var data = make([]byte, tsl)
+		if _, err = r.Read(data); err != nil {
+			return
+		}
+		n += int64(tsl)
+
+		var ts = MakeTagset(data)
+		var tsi = ts.Iterator()
+		for tsi.Next() {
+		}
+		if tsi.Failed() {
+			err = io.EOF
+			return
+		}
+
+		var (
+			ok     bool
+			offset FOffset_t
+			size   FSize_t
+			fpath  string
+			fkey   string
+		)
+
+		// get file key
+		if fpath, ok = ts.String(TIDpath); !ok {
+			err = &ErrTag{ErrNoPath, "", TIDpath}
+			return
+		}
+		fkey = Normalize(fpath)
+		if ftt.HasTagset(fkey) {
+			err = &ErrTag{fs.ErrExist, fkey, TIDpath}
+			return
+		}
+
+		// check system tags
+		if offset, ok = ts.FOffset(); !ok {
+			err = &ErrTag{ErrNoOffset, fkey, TIDoffset}
+			return
+		}
+		if size, ok = ts.FSize(); !ok {
+			err = &ErrTag{ErrNoSize, fkey, TIDsize}
+			return
+		}
+		if !ts.Has(TIDfid) {
+			err = &ErrTag{ErrNoFID, fkey, TIDfid}
+			return
+		}
+
+		// setup whole package offset and size
+		if fkey == "" {
+			dataoffset, datasize = offset, size
+		}
+
+		// check up offset and tag if package info is provided
+		if datasize > 0 {
+			if offset < dataoffset || offset > dataoffset+FOffset_t(datasize) {
+				err = &ErrTag{ErrOutOff, fkey, TIDoffset}
+				return
+			}
+			if offset+FOffset_t(size) > dataoffset+FOffset_t(datasize) {
+				err = &ErrTag{ErrOutSize, fkey, TIDsize}
+				return
+			}
+		}
+
+		ftt.SetTagset(fkey, ts)
+	}
+	return
+}
+
+// WriteTo writes file tags table whole content to the given stream.
+func (ftt *FTT_t) WriteTo(w io.Writer) (n int64, err error) {
+	// write tagset with package info at first
+	if ts, ok := ftt.Tagset(""); ok {
+		var tsl = len(ts.Data())
+
+		// write tagset length
+		if err = binary.Write(w, binary.LittleEndian, TSSize_t(tsl)); err != nil {
+			return
+		}
+		n += TSSize_l
+
+		// write tagset content
+		if _, err = w.Write(ts.Data()); err != nil {
+			return
+		}
+		n += int64(tsl)
+	}
+
+	// write files tags table
+	ftt.Enum(func(fkey string, ts *Tagset_t) bool {
+		// skip package info
+		if fkey == "" {
+			return true
+		}
+		var tsl = len(ts.Data())
+
+		// write tagset length
+		if err = binary.Write(w, binary.LittleEndian, TSSize_t(tsl)); err != nil {
+			return false
+		}
+		n += TSSize_l
+
+		// write tagset content
+		if _, err = w.Write(ts.Data()); err != nil {
+			return false
+		}
+		n += int64(tsl)
+		return true
+	})
+	if err != nil {
+		return
+	}
+	// write tags table end marker
+	if err = binary.Write(w, binary.LittleEndian, TSSize_t(0)); err != nil {
+		return
+	}
+	n += TSSize_l
+	return
+}
+
 // Package structure contains all data needed for package representation.
 type Package struct {
 	Header
@@ -320,75 +442,20 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 		return
 	}
 
-	// read file tags table
+	// go to file tags table start
 	if _, err = r.Seek(int64(pack.fttoffset), io.SeekStart); err != nil {
 		return
 	}
-
 	// setup empty tags table
 	pack.FTT_t = FTT_t{}
-
-	// read whole ftt slice at once
-	var fttbulk = make([]byte, pack.fttsize)
-	if _, err = r.Read(fttbulk); err != nil {
+	// read file tags table
+	var fttsize int64
+	if fttsize, err = pack.FTT_t.ReadFrom(r); err != nil {
 		return
 	}
-
-	var tspos int64
-	for {
-		if tspos == int64(pack.fttsize) {
-			break // end bound was reached
-		}
-		if tspos += TSSize_l; tspos > int64(pack.fttsize) {
-			return io.EOF
-		}
-		var tsl = int64(TSSize_r(fttbulk[tspos-TSSize_l : tspos]))
-		if tsl == 0 {
-			break // end marker was reached
-		}
-
-		var ts = MakeTagset(fttbulk[tspos : tspos+tsl])
-		var tsi = ts.Iterator()
-		for tsi.Next() {
-		}
-		if tsi.Failed() {
-			return io.EOF
-		}
-
-		// get file key and check tags fields
-		var (
-			ok     bool
-			fkey   string
-			fpath  string
-			offset FOffset_t
-			size   FSize_t
-		)
-		if fpath, ok = ts.String(TIDpath); !ok {
-			return &ErrTag{ErrNoPath, "", TIDpath}
-		}
-		fkey = Normalize(fpath)
-		if pack.HasTagset(fkey) {
-			return &ErrTag{fs.ErrExist, fkey, TIDpath}
-		}
-		if !ts.Has(TIDfid) {
-			return &ErrTag{ErrNoFID, fkey, TIDfid}
-		}
-		if offset, ok = ts.FOffset(); !ok {
-			return &ErrTag{ErrNoOffset, fkey, TIDoffset}
-		}
-		if size, ok = ts.FSize(); !ok {
-			return &ErrTag{ErrNoSize, fkey, TIDsize}
-		}
-		if offset < HeaderSize || uint64(offset) >= pack.fttoffset {
-			log.Printf("!!! offset=%d", offset)
-			return &ErrTag{ErrOutOff, fkey, TIDoffset}
-		}
-		if uint64(offset)+uint64(size) > pack.fttoffset {
-			return &ErrTag{ErrOutSize, fkey, TIDsize}
-		}
-
-		pack.SetTagset(fkey, ts)
-		tspos += tsl
+	if fttsize != int64(pack.fttsize) {
+		err = ErrSignFTT
+		return
 	}
 	return
 }

@@ -121,7 +121,7 @@ func readpackage() (err error) {
 				}
 
 				var src wpk.NestedFile
-				if src, err = pack.OpenTags(*ts); err != nil {
+				if src, err = pack.OpenTags(ts); err != nil {
 					return
 				}
 				defer src.Close()

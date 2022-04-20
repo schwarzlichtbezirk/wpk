@@ -34,6 +34,7 @@ var NameTid = map[string]wpk.TID_t{
 	"sha384": wpk.TIDsha384,
 	"sha512": wpk.TIDsha512,
 
+	"label":    wpk.TIDlabel,
 	"link":     wpk.TIDlink,
 	"keywords": wpk.TIDkeywords,
 	"category": wpk.TIDcategory,

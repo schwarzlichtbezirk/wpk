@@ -14,12 +14,12 @@ import (
 // wpk.NestedFile interface implementation.
 type ChunkFile struct {
 	wpk.FileReader
-	tags wpk.Tagset_t // has fs.FileInfo interface
+	tags *wpk.Tagset_t // has fs.FileInfo interface
 	wpkf *os.File
 }
 
 // NewChunkFile creates ChunkFile file structure based on given tags slice.
-func NewChunkFile(fname string, ts wpk.Tagset_t) (f *ChunkFile, err error) {
+func NewChunkFile(fname string, ts *wpk.Tagset_t) (f *ChunkFile, err error) {
 	var wpkf *os.File
 	if wpkf, err = os.Open(fname); err != nil {
 		return
@@ -36,7 +36,7 @@ func NewChunkFile(fname string, ts wpk.Tagset_t) (f *ChunkFile, err error) {
 
 // Stat is for fs.File interface compatibility.
 func (f *ChunkFile) Stat() (fs.FileInfo, error) {
-	return &f.tags, nil
+	return f.tags, nil
 }
 
 // Close closes associated wpk-file handle.
@@ -54,7 +54,7 @@ type PackDir struct {
 }
 
 // OpenTags creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenTags(ts wpk.Tagset_t) (wpk.NestedFile, error) {
+func (pack *PackDir) OpenTags(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewChunkFile(pack.fname, ts)
 }
 
@@ -139,7 +139,7 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	if ts, is = pack.Tagset(wpk.Normalize(path.Join(pack.workspace, name))); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
-	var f, err = NewChunkFile(pack.fname, *ts)
+	var f, err = NewChunkFile(pack.fname, ts)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (pack *PackDir) Open(dir string) (fs.File, error) {
 
 	var fullname = path.Join(pack.workspace, dir)
 	if ts, is := pack.Tagset(wpk.Normalize(fullname)); is {
-		return NewChunkFile(pack.fname, *ts)
+		return NewChunkFile(pack.fname, ts)
 	}
 	return wpk.OpenDir(pack, fullname)
 }

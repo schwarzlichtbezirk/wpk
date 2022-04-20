@@ -200,14 +200,21 @@ var methodsPack = map[string]lua.LGFunction{
 
 func getlabel(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LString(pack.Label()))
-	return 1
+
+	if ts, ok := pack.Tagset(""); ok {
+		if str, ok := ts.String(wpk.TIDlabel); ok {
+			ls.Push(lua.LString(str))
+			return 1
+		}
+	}
+	return 0
 }
 
 func setlabel(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var label = ls.CheckString(2)
-	pack.SetLabel(label)
+
+	pack.Info().Set(wpk.TIDlabel, wpk.TagString(label))
 	return 0
 }
 
