@@ -34,13 +34,16 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		realtagsnum++
 
-		var isfile = ts.Has(wpk.TIDcreated)
+		var offset, _ = ts.FOffset()
+		var size, _ = ts.FSize()
+		var fid, _ = ts.FID()
 		var fpath = ts.Path()
+
+		var isfile = ts.Has(wpk.TIDcreated)
 		var link, islink = ts.Get(wpk.TIDlink)
 		if isfile && !islink {
-			t.Fatalf("found file without link #%d '%s'", ts.FID(), fpath)
+			t.Fatalf("found file without link #%d '%s'", fid, fpath)
 		}
-		var offset, size = ts.Offset(), ts.Size()
 
 		var orig []byte
 		if isfile {
@@ -54,14 +57,14 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 			}
 		}
 
-		if size != int64(len(orig)) {
+		if size != wpk.FSize_t(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
 				fpath, size, len(orig))
 		}
 
 		var extr = make([]byte, size)
 		var n int
-		if n, err = fwpk.ReadAt(extr, offset); err != nil {
+		if n, err = fwpk.ReadAt(extr, int64(offset)); err != nil {
 			t.Fatal(err)
 		}
 		if n != len(extr) {
@@ -76,9 +79,9 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 		}
 
 		if isfile {
-			t.Logf("check file #%d '%s' is ok", ts.FID(), fpath)
+			t.Logf("check file #%d '%s' is ok", fid, fpath)
 		} else {
-			t.Logf("check data #%d '%s' is ok", ts.FID(), fpath)
+			t.Logf("check data #%d '%s' is ok", fid, fpath)
 		}
 		return true
 	})
@@ -148,7 +151,8 @@ func TestPutFiles(t *testing.T) {
 		}
 
 		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, ts.Size())
+		var size, _ = ts.FSize()
+		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, size)
 	}
 	var putdata = func(name string, data []byte) {
 		var r = bytes.NewReader(data)
@@ -159,7 +163,8 @@ func TestPutFiles(t *testing.T) {
 		}
 
 		tagsnum++
-		t.Logf("put data #%d '%s', %d bytes", pack.LastFID, name, ts.Size())
+		var size, _ = ts.FSize()
+		t.Logf("put data #%d '%s', %d bytes", pack.LastFID, name, size)
 	}
 	var putalias = func(oldname, newname string) {
 		if err = pack.PutAlias(oldname, newname); err != nil {
@@ -240,7 +245,8 @@ func TestAppendContinues(t *testing.T) {
 		}
 
 		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, ts.Size())
+		var size, _ = ts.FSize()
+		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, size)
 	}
 
 	// open temporary file for read/write
@@ -310,7 +316,8 @@ func TestAppendDiscrete(t *testing.T) {
 		}
 
 		tagsnum++
-		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, ts.Size())
+		var size, _ = ts.FSize()
+		t.Logf("put file #%d '%s', %d bytes", pack.LastFID, name, size)
 	}
 
 	t.Run("step1", func(t *testing.T) {

@@ -31,31 +31,33 @@ func CheckPackage(t *testing.T, wpkname string) {
 
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		var ok bool
+		var fid, _ = ts.FID()
 		var fpath = ts.Path()
 		if ok = ts.Has(wpk.TIDcreated); !ok {
-			t.Logf("found packed data #%d '%s'", ts.FID(), fpath)
+			t.Logf("found packed data #%d '%s'", fid, fpath)
 			return true // skip packed data
 		}
 
 		var link wpk.Tag_t
 		if link, ok = ts.Get(wpk.TIDlink); !ok {
-			t.Fatalf("found file without link #%d '%s'", ts.FID(), fpath)
+			t.Fatalf("found file without link #%d '%s'", fid, fpath)
 		}
-		var offset, size = ts.Offset(), ts.Size()
+		var offset, _ = ts.FOffset()
+		var size, _ = ts.FSize()
 
 		var orig []byte
 		if orig, err = os.ReadFile(mediadir + string(link)); err != nil {
 			t.Fatal(err)
 		}
 
-		if size != int64(len(orig)) {
+		if size != wpk.FSize_t(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
 				fpath, size, len(orig))
 		}
 
 		var extr = make([]byte, size)
 		var n int
-		if n, err = fwpk.ReadAt(extr, offset); err != nil {
+		if n, err = fwpk.ReadAt(extr, int64(offset)); err != nil {
 			t.Fatal(err)
 		}
 		if n != len(extr) {
@@ -69,7 +71,7 @@ func CheckPackage(t *testing.T, wpkname string) {
 			return false
 		}
 
-		t.Logf("checkup #%d '%s' is ok", ts.FID(), fpath)
+		t.Logf("checkup #%d '%s' is ok", fid, fpath)
 		return true
 	})
 }

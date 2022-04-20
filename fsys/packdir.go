@@ -24,9 +24,11 @@ func NewChunkFile(fname string, ts wpk.Tagset_t) (f *ChunkFile, err error) {
 	if wpkf, err = os.Open(fname); err != nil {
 		return
 	}
+	var offset, _ = ts.FOffset()
+	var size, _ = ts.FSize()
 	f = &ChunkFile{
 		tags:       ts,
-		FileReader: io.NewSectionReader(wpkf, ts.Offset(), ts.Size()),
+		FileReader: io.NewSectionReader(wpkf, int64(offset), int64(size)),
 		wpkf:       wpkf,
 	}
 	return
@@ -143,7 +145,7 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	}
 	defer f.Close()
 
-	var size = ts.Size()
+	var size, _ = ts.FSize()
 	var buf = make([]byte, size)
 	_, err = f.Read(buf)
 	return buf, err

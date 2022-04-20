@@ -95,8 +95,8 @@ func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 		return
 	}
 	copy(pack.signature[:], Signature)
-	pack.fttoffset = Offset_t(pos1)
-	pack.fttsize = Size_t(pos2 - pos1)
+	pack.fttoffset = uint64(pos1)
+	pack.fttsize = uint64(pos2 - pos1)
 	if _, err = pack.Header.WriteTo(w); err != nil {
 		return
 	}
@@ -125,17 +125,17 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (ts *T
 			return
 		}
 		// update header
-		pack.fttoffset = Offset_t(offset + size)
+		pack.fttoffset = uint64(offset + size)
 	}(); err != nil {
 		return
 	}
 
 	// insert new entry to tags table
-	var fid = atomic.AddUint32(&pack.LastFID, 1)
+	var fid = FID_t(atomic.AddUint32(&pack.LastFID, 1))
 	ts = &Tagset_t{}
-	ts.Put(TIDoffset, TagUint64(uint64(offset)))
-	ts.Put(TIDsize, TagUint64(uint64(size)))
-	ts.Put(TIDfid, TagUint32(fid))
+	ts.Put(TIDoffset, TagFOffset(FOffset_t(offset)))
+	ts.Put(TIDsize, TagFSize(FSize_t(size)))
+	ts.Put(TIDfid, TagFID(fid))
 	ts.Put(TIDpath, TagString(ToSlash(kpath)))
 	pack.SetTagset(fkey, ts)
 	return

@@ -127,6 +127,51 @@ func TagNumber(val float64) Tag_t {
 	return buf[:]
 }
 
+// FOffset is FOffset_t tag converter.
+func (t Tag_t) FOffset() (FOffset_t, bool) {
+	if len(t) == FOffset_l {
+		return FOffset_r(t), true
+	}
+	return 0, false
+}
+
+// TagFOffset FOffset_t tag constructor.
+func TagFOffset(val FOffset_t) Tag_t {
+	var buf [FOffset_l]byte
+	FOffset_w(buf[:], val)
+	return buf[:]
+}
+
+// FSize is FSize_t tag converter.
+func (t Tag_t) FSize() (FSize_t, bool) {
+	if len(t) == FSize_l {
+		return FSize_r(t), true
+	}
+	return 0, false
+}
+
+// TagFSize is 64-bit unsigned int tag constructor.
+func TagFSize(val FSize_t) Tag_t {
+	var buf [FSize_l]byte
+	FSize_w(buf[:], val)
+	return buf[:]
+}
+
+// FID is FID_t tag converter.
+func (t Tag_t) FID() (FID_t, bool) {
+	if len(t) == FID_l {
+		return FID_r(t), true
+	}
+	return 0, false
+}
+
+// TagFID is FID_t tag constructor.
+func TagFID(val FID_t) Tag_t {
+	var buf [FID_l]byte
+	FID_w(buf[:], val)
+	return buf[:]
+}
+
 // Tagset_t is slice of bytes with tags set. Length of slice can be
 // not determined to record end, i.e. slice starts at record beginning
 // (at number of tags), and can continues after record end.
@@ -184,9 +229,9 @@ func (ts *Tagset_t) Put(tid TID_t, tag Tag_t) {
 		return
 	}
 
-	var buf [TID_l + TID_l]byte
-	binary.LittleEndian.PutUint16(buf[0:TID_l], uint16(tid))
-	binary.LittleEndian.PutUint16(buf[TID_l:TID_l+TID_l], uint16(len(tag)))
+	var buf [TID_l + TSize_l]byte
+	TID_w(buf[0:TID_l], tid)
+	TSize_w(buf[TID_l:TID_l+TSize_l], TSize_t(len(tag)))
 	ts.data = append(ts.data, buf[:]...)
 	ts.data = append(ts.data, tag...)
 }
@@ -206,11 +251,11 @@ func (ts *Tagset_t) Set(tid TID_t, tag Tag_t) bool {
 		return true
 	}
 
-	var tl = len(tag)
-	if TSSize_t(tl) == tsi.pos-tsi.tag {
+	var tl = TSize_t(len(tag))
+	if tl == TSize_t(tsi.pos-tsi.tag) {
 		copy(ts.data[tsi.tag:tsi.pos], tag)
 	} else {
-		binary.LittleEndian.PutUint16(ts.data[tsi.tag-TID_l:tsi.tag], uint16(tl)) // set tag length
+		TSize_w(ts.data[tsi.tag-TSize_l:tsi.tag], tl) // set tag length
 		var suff = ts.data[tsi.pos:]
 		ts.data = append(ts.data[:tsi.tag], tag...)
 		ts.data = append(ts.data, suff...)
@@ -230,7 +275,7 @@ func (ts *Tagset_t) Del(tid TID_t) bool {
 	if tsi.tid != tid {
 		return false // ErrNoTag
 	}
-	ts.data = append(ts.data[:tsi.tag-TID_l-TID_l], ts.data[tsi.pos:]...)
+	ts.data = append(ts.data[:tsi.tag-TSize_l-TID_l], ts.data[tsi.pos:]...)
 	return true
 }
 
@@ -301,23 +346,29 @@ func (ts *Tagset_t) Number(tid TID_t) (float64, bool) {
 	return 0, false
 }
 
-// Offset returns offset of nested into package file.
-func (ts *Tagset_t) Offset() int64 {
-	var offset, _ = ts.Uint64(TIDoffset)
-	return int64(offset)
+// FOffset returns offset of nested into package file.
+func (ts *Tagset_t) FOffset() (FOffset_t, bool) {
+	if data, ok := ts.Get(TIDoffset); ok && len(data) == FOffset_l {
+		return FOffset_r(data), true
+	}
+	return 0, false
 }
 
-// Size returns size of nested into package file.
+// FSize returns size of nested into package file.
 // fs.FileInfo implementation.
-func (ts *Tagset_t) Size() int64 {
-	var size, _ = ts.Uint64(TIDsize)
-	return int64(size)
+func (ts *Tagset_t) FSize() (FSize_t, bool) {
+	if data, ok := ts.Get(TIDsize); ok && len(data) == FSize_l {
+		return FSize_r(data), true
+	}
+	return 0, false
 }
 
 // FID returns file ID.
-func (ts *Tagset_t) FID() FID_t {
-	var fid, _ = ts.Uint32(TIDfid)
-	return FID_t(fid)
+func (ts *Tagset_t) FID() (FID_t, bool) {
+	if data, ok := ts.Get(TIDfid); ok && len(data) == FID_l {
+		return FID_r(data), true
+	}
+	return 0, false
 }
 
 // Path returns path of nested into package file.
@@ -333,9 +384,16 @@ func (ts *Tagset_t) Name() string {
 	return filepath.Base(fpath)
 }
 
+// Size returns size of nested into package file.
+// fs.FileInfo implementation.
+func (ts *Tagset_t) Size() int64 {
+	var size, _ = ts.FSize()
+	return int64(size)
+}
+
 // Mode is for fs.FileInfo interface compatibility.
 func (ts *Tagset_t) Mode() fs.FileMode {
-	if _, ok := ts.Uint32(TIDfid); ok { // file ID is absent for dir
+	if ts.Has(TIDfid) { // file ID is absent for dir
 		return 0444
 	}
 	return fs.ModeDir
@@ -351,8 +409,7 @@ func (ts *Tagset_t) ModTime() time.Time {
 // IsDir detects that object presents a directory. Directory can not have file ID.
 // fs.FileInfo implementation.
 func (ts *Tagset_t) IsDir() bool {
-	var _, ok = ts.Uint32(TIDfid) // file ID is absent for dir
-	return !ok
+	return !ts.Has(TIDfid) // file ID is absent for dir
 }
 
 // Sys is for fs.FileInfo interface compatibility.
@@ -427,13 +484,13 @@ func (tsi *TagsetIterator) Next() (ok bool) {
 	if tsi.pos += TID_l; tsi.pos > tsl {
 		return
 	}
-	var tid = TID_t(binary.LittleEndian.Uint16(tsi.data[tsi.pos-TID_l:]))
+	var tid = TID_r(tsi.data[tsi.pos-TID_l:])
 
 	// get tag length
-	if tsi.pos += TID_l; tsi.pos > tsl {
+	if tsi.pos += TSize_l; tsi.pos > tsl {
 		return
 	}
-	var len = binary.LittleEndian.Uint16(tsi.data[tsi.pos-TID_l:])
+	var len = TSize_r(tsi.data[tsi.pos-TSize_l:])
 	// store tag content position
 	var tag = tsi.pos
 

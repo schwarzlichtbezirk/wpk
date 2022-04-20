@@ -9,21 +9,21 @@ import (
 
 func TestTagset(t *testing.T) {
 	const (
-		fid    uint32 = 100
-		offset uint64 = 0xDEADBEEF
-		size   uint64 = 1234
-		kpath  string = "Dir\\FileName.Ext"
-		kpath2 string = "DIR\\FILENAME.EXT"
-		fkey   string = "dir/filename.ext"
-		mime   string = "image/jpeg"
+		fid    = 100
+		offset = 0xDEADBEEF
+		size   = 1234
+		kpath1 = `Dir\FileName.Ext`
+		kpath2 = `DIR\FILENAME.EXT`
+		fkey   = `dir/filename.ext`
+		mime   = "image/jpeg"
 	)
 	var ts wpk.Tagset_t
-	ts.Put(wpk.TIDoffset, wpk.TagUint64(uint64(offset)))
-	ts.Put(wpk.TIDsize, wpk.TagUint64(uint64(size)))
-	ts.Put(wpk.TIDfid, wpk.TagUint32(uint32(fid)))
-	ts.Put(wpk.TIDpath, wpk.TagString(wpk.ToSlash(kpath)))
+	ts.Put(wpk.TIDoffset, wpk.TagFOffset(offset))
+	ts.Put(wpk.TIDsize, wpk.TagFSize(size))
+	ts.Put(wpk.TIDfid, wpk.TagFID(fid))
+	ts.Put(wpk.TIDpath, wpk.TagString(wpk.ToSlash(kpath1)))
 
-	if wpk.Normalize(kpath) != fkey || wpk.Normalize(kpath2) != fkey {
+	if wpk.Normalize(kpath1) != fkey || wpk.Normalize(kpath2) != fkey {
 		t.Fatal("normalize test failed")
 	}
 
@@ -39,8 +39,9 @@ func TestTagset(t *testing.T) {
 	var (
 		tag wpk.Tag_t
 		ok  bool
-		u32 uint32
-		u64 uint64
+		fv  wpk.FID_t
+		ov  wpk.FOffset_t
+		sv  wpk.FSize_t
 		str string
 	)
 
@@ -55,10 +56,10 @@ func TestTagset(t *testing.T) {
 	if tag == nil {
 		t.Fatal("can not get 'offset' tag")
 	}
-	if u64, ok = tag.Uint64(); !ok {
+	if ov, ok = tag.FOffset(); !ok {
 		t.Fatal("can not convert 'offset' tag to value")
 	}
-	if u64 != offset {
+	if ov != offset {
 		t.Fatal("'offset' tag is not equal to original value")
 	}
 
@@ -73,10 +74,10 @@ func TestTagset(t *testing.T) {
 	if tag == nil {
 		t.Fatal("can not get 'size' tag")
 	}
-	if u64, ok = tag.Uint64(); !ok {
+	if sv, ok = tag.FSize(); !ok {
 		t.Fatal("can not convert 'size' tag to value")
 	}
-	if u64 != size {
+	if sv != size {
 		t.Fatal("'size' tag is not equal to original value")
 	}
 
@@ -91,10 +92,10 @@ func TestTagset(t *testing.T) {
 	if tag == nil {
 		t.Fatal("can not get 'fid' tag")
 	}
-	if u32, ok = tag.Uint32(); !ok {
+	if fv, ok = tag.FID(); !ok {
 		t.Fatal("can not convert 'fid' tag to value")
 	}
-	if u32 != fid {
+	if fv != fid {
 		t.Fatal("'fid' tag is not equal to original value")
 	}
 
@@ -105,7 +106,7 @@ func TestTagset(t *testing.T) {
 	if tsi.TID() != wpk.TIDpath {
 		t.Fatal("tag #4 is not 'path'")
 	}
-	if tsi.TagLen() != wpk.TSSize_t(len(kpath)) {
+	if tsi.TagLen() != wpk.TSSize_t(len(kpath1)) {
 		t.Fatal("length of 'path' tag does not equal to original length")
 	}
 	tag = tsi.Tag()
@@ -115,7 +116,7 @@ func TestTagset(t *testing.T) {
 	if str, ok = tag.String(); !ok {
 		t.Fatal("can not convert 'path' tag to value")
 	}
-	if str != wpk.ToSlash(kpath) {
+	if str != wpk.ToSlash(kpath1) {
 		t.Fatal("'path' tag is not equal to original value")
 	}
 
@@ -142,19 +143,19 @@ func TestTagset(t *testing.T) {
 	}
 
 	// check up helpers functions
-	if ts.FID() != wpk.FID_t(fid) {
+	if v, ok := ts.FID(); !ok || v != fid {
 		t.Fatal("'FID' function does not work correctly")
 	}
-	if ts.Offset() != int64(offset) {
-		t.Fatal("'Offset' function does not work correctly")
+	if v, ok := ts.FOffset(); !ok || v != offset {
+		t.Fatal("'FOffset' function does not work correctly")
 	}
-	if ts.Size() != int64(size) {
-		t.Fatal("'Size' function does not work correctly")
+	if v, ok := ts.FSize(); !ok || v != size {
+		t.Fatal("'FSize' function does not work correctly")
 	}
-	if ts.Path() != wpk.ToSlash(kpath) {
+	if ts.Path() != wpk.ToSlash(kpath1) {
 		t.Fatal("'Path' function does not work correctly")
 	}
-	if ts.Name() != filepath.Base(kpath) {
+	if ts.Name() != filepath.Base(kpath1) {
 		t.Fatal("'Name' function does not work correctly")
 	}
 

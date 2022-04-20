@@ -107,7 +107,8 @@ func writepackage() (err error) {
 		pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 			var ctype = mime.TypeByExtension(filepath.Ext(fkey))
 			if ctype == "" {
-				var offset, size = ts.Offset(), ts.Size()
+				var offset, _ = ts.FOffset()
+				var size, _ = ts.FSize()
 				// rewind to file start
 				if _, err = fwpk.Seek(int64(offset), io.SeekStart); err != nil {
 					return false
@@ -115,7 +116,7 @@ func writepackage() (err error) {
 				// read a chunk to decide between utf-8 text and binary
 				var buf [sniffLen]byte
 				var n int64
-				if n, err = io.CopyN(bytes.NewBuffer(buf[:]), io.LimitReader(fwpk, size), sniffLen); err != nil && err != io.EOF {
+				if n, err = io.CopyN(bytes.NewBuffer(buf[:]), io.LimitReader(fwpk, int64(size)), sniffLen); err != nil && err != io.EOF {
 					return false
 				}
 				ctype = http.DetectContentType(buf[:n])

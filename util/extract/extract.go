@@ -140,7 +140,8 @@ func readpackage() (err error) {
 				sum += n
 
 				if ShowLog {
-					log.Printf("#%-3d %6d bytes   %s", ts.FID(), n, fpath)
+					var fid, _ = ts.FID()
+					log.Printf("#%-3d %6d bytes   %s", fid, n, fpath)
 				}
 				return
 			})

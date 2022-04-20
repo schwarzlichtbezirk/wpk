@@ -14,7 +14,7 @@ import (
 // System pages granulation for memory mapping system calls.
 // The page size on most Unixes is 4KB, but on Windows it's 64KB.
 // os.Getpagesize() returns incorrect value on Windows.
-const pagesize = int64(64 * 1024)
+const pagesize = 64 * 1024
 
 // MappedFile structure gives access to nested into package file by memory mapping.
 // wpk.NestedFile interface implementation.
@@ -28,19 +28,20 @@ type MappedFile struct {
 // NewMappedFile maps nested to package file based on given tags slice.
 func NewMappedFile(pack *PackDir, ts wpk.Tagset_t) (f *MappedFile, err error) {
 	// calculate paged size/offset
-	var offset, size = ts.Offset(), ts.Size()
+	var offset, _ = ts.FOffset()
+	var size, _ = ts.FSize()
 	var pgoff = offset % pagesize
 	var offsetx = offset - pgoff
-	var sizex = size + pgoff
+	var sizex = size + wpk.FSize_t(pgoff)
 	// create mapped memory block
 	var mmap mm.MMap
-	if mmap, err = mm.MapRegion(pack.filewpk, offsetx, sizex, mm.RDONLY, 0); err != nil {
+	if mmap, err = mm.MapRegion(pack.filewpk, int64(offsetx), int64(sizex), mm.RDONLY, 0); err != nil {
 		return
 	}
 	f = &MappedFile{
 		tags:       ts,
-		FileReader: bytes.NewReader(mmap[pgoff : pgoff+size]),
-		region:     mmap[pgoff : pgoff+size],
+		FileReader: bytes.NewReader(mmap[pgoff : pgoff+wpk.FOffset_t(size)]),
+		region:     mmap[pgoff : pgoff+wpk.FOffset_t(size)],
 		MMap:       mmap,
 	}
 	return
@@ -153,7 +154,7 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	}
 	defer f.Close()
 
-	var size = ts.Size()
+	var size, _ = ts.FSize()
 	var buf = make([]byte, size)
 	_, err = f.Read(buf)
 	return buf, err

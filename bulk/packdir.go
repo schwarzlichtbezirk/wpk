@@ -19,10 +19,11 @@ type SliceFile struct {
 
 // NewSliceFile creates SliceFile file structure based on given tags slice.
 func NewSliceFile(pack *PackDir, ts wpk.Tagset_t) (f *SliceFile, err error) {
-	var offset, size = ts.Offset(), ts.Size()
+	var offset, _ = ts.FOffset()
+	var size, _ = ts.FSize()
 	f = &SliceFile{
 		tags:       ts,
-		FileReader: bytes.NewReader(pack.bulk[offset : offset+size]),
+		FileReader: bytes.NewReader(pack.bulk[offset : offset+wpk.FOffset_t(size)]),
 	}
 	return
 }
@@ -123,14 +124,14 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
 	}
-	var offset, size int64
 	var ts *wpk.Tagset_t
 	var is bool
 	if ts, is = pack.Tagset(wpk.Normalize(path.Join(pack.workspace, name))); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
-	offset, size = ts.Offset(), ts.Size()
-	return pack.bulk[offset : offset+size], nil
+	var offset, _ = ts.FOffset()
+	var size, _ = ts.FSize()
+	return pack.bulk[offset : offset+wpk.FOffset_t(size)], nil
 }
 
 // ReadDir reads the named directory
@@ -144,9 +145,9 @@ func (pack *PackDir) ReadDir(dir string) ([]fs.DirEntry, error) {
 func (pack *PackDir) Open(dir string) (fs.File, error) {
 	if dir == "wpk" && pack.workspace == "." {
 		var ts wpk.Tagset_t
-		ts.Put(wpk.TIDfid, wpk.TagUint32(0))
-		ts.Put(wpk.TIDoffset, wpk.TagUint64(0))
-		ts.Put(wpk.TIDsize, wpk.TagUint64(uint64(len(pack.bulk))))
+		ts.Put(wpk.TIDfid, wpk.TagFID(0))
+		ts.Put(wpk.TIDoffset, wpk.TagFOffset(0))
+		ts.Put(wpk.TIDsize, wpk.TagFSize(wpk.FSize_t(len(pack.bulk))))
 		return NewSliceFile(pack, ts)
 	}
 

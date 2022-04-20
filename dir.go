@@ -20,7 +20,7 @@ type DirEntry struct {
 
 // Type is for fs.DirEntry interface compatibility.
 func (f *DirEntry) Type() fs.FileMode {
-	if _, ok := f.Uint32(TIDfid); ok { // file ID is absent for dir
+	if f.Has(TIDfid) { // file ID is absent for dir
 		return 0444
 	}
 	return fs.ModeDir

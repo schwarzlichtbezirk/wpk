@@ -522,9 +522,9 @@ func wpkfinalize(ls *lua.LState) int {
 func wpksumsize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	var sum int64
+	var sum wpk.FSize_t
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-		var size = ts.Size()
+		var size, _ = ts.FSize()
 		sum += size
 		return true
 	})
@@ -575,7 +575,7 @@ func wpkfilesize(ls *lua.LState) int {
 		return 0
 	}
 
-	var size = ts.Size()
+	var size, _ = ts.FSize()
 	ls.Push(lua.LNumber(size))
 	return 1
 }
