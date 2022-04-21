@@ -216,7 +216,7 @@ type FTT_t struct {
 // Tagset returns tagset with given filename key, if it found.
 func (ftt *FTT_t) Tagset(fkey string) (ts *Tagset_t, ok bool) {
 	var val interface{}
-	if val, ok = ftt.Load(fkey); ok {
+	if val, ok = ftt.Load(Normalize(fkey)); ok {
 		ts = val.(*Tagset_t)
 	}
 	return
@@ -231,18 +231,27 @@ func (ftt *FTT_t) Enum(f func(string, *Tagset_t) bool) {
 
 // HasTagset check up that tagset with given filename key is present.
 func (ftt *FTT_t) HasTagset(fkey string) (ok bool) {
-	_, ok = ftt.Load(fkey)
+	_, ok = ftt.Load(Normalize(fkey))
 	return
 }
 
 // SetTagset puts tagset with given filename key.
 func (ftt *FTT_t) SetTagset(fkey string, ts *Tagset_t) {
-	ftt.Store(fkey, ts)
+	ftt.Store(Normalize(fkey), ts)
 }
 
 // DelTagset deletes tagset with given filename key.
 func (ftt *FTT_t) DelTagset(fkey string) {
-	ftt.Delete(fkey)
+	ftt.Delete(Normalize(fkey))
+}
+
+// GetDelTagset deletes the tagset for a key, returning the previous tagset if any.
+func (ftt *FTT_t) GetDelTagset(fkey string) (ts *Tagset_t, ok bool) {
+	var val interface{}
+	if val, ok = ftt.LoadAndDelete(Normalize(fkey)); ok {
+		ts = val.(*Tagset_t)
+	}
+	return
 }
 
 var emptyinfo = (&Tagset_t{}).
@@ -285,7 +294,7 @@ func (ftt *FTT_t) ReadFrom(r io.Reader) (n int64, err error) {
 		for tsi.Next() {
 		}
 		if tsi.Failed() {
-			err = io.EOF
+			err = io.ErrUnexpectedEOF
 			return
 		}
 
@@ -294,7 +303,6 @@ func (ftt *FTT_t) ReadFrom(r io.Reader) (n int64, err error) {
 			offset FOffset_t
 			size   FSize_t
 			fpath  string
-			fkey   string
 		)
 
 		// get file key
@@ -302,44 +310,43 @@ func (ftt *FTT_t) ReadFrom(r io.Reader) (n int64, err error) {
 			err = &ErrTag{ErrNoPath, "", TIDpath}
 			return
 		}
-		fkey = Normalize(fpath)
-		if ftt.HasTagset(fkey) {
-			err = &ErrTag{fs.ErrExist, fkey, TIDpath}
+		if ftt.HasTagset(fpath) {
+			err = &ErrTag{fs.ErrExist, fpath, TIDpath}
 			return
 		}
 
 		// check system tags
 		if offset, ok = ts.FOffset(); !ok {
-			err = &ErrTag{ErrNoOffset, fkey, TIDoffset}
+			err = &ErrTag{ErrNoOffset, fpath, TIDoffset}
 			return
 		}
 		if size, ok = ts.FSize(); !ok {
-			err = &ErrTag{ErrNoSize, fkey, TIDsize}
+			err = &ErrTag{ErrNoSize, fpath, TIDsize}
 			return
 		}
 		if !ts.Has(TIDfid) {
-			err = &ErrTag{ErrNoFID, fkey, TIDfid}
+			err = &ErrTag{ErrNoFID, fpath, TIDfid}
 			return
 		}
 
 		// setup whole package offset and size
-		if fkey == "" {
+		if fpath == "" {
 			dataoffset, datasize = offset, size
 		}
 
 		// check up offset and tag if package info is provided
 		if datasize > 0 {
 			if offset < dataoffset || offset > dataoffset+FOffset_t(datasize) {
-				err = &ErrTag{ErrOutOff, fkey, TIDoffset}
+				err = &ErrTag{ErrOutOff, fpath, TIDoffset}
 				return
 			}
 			if offset+FOffset_t(size) > dataoffset+FOffset_t(datasize) {
-				err = &ErrTag{ErrOutSize, fkey, TIDsize}
+				err = &ErrTag{ErrOutSize, fpath, TIDsize}
 				return
 			}
 		}
 
-		ftt.SetTagset(fkey, ts)
+		ftt.SetTagset(fpath, ts)
 	}
 	return
 }
@@ -417,10 +424,10 @@ func (pack *Package) Glob(pattern string) (res []string, err error) {
 	return
 }
 
-// Opens package for reading. At first its checkup file signature, then
+// Opens package for reading. At first it checkups file signature, then
 // reads records table, and reads file tagset table. Tags set for each
-// file must contain at least file ID, file name and creation time.
-func (pack *Package) Read(r io.ReadSeeker) (err error) {
+// file must contain at least file offset, file size, file ID and file name.
+func (pack *Package) OpenFTT(r io.ReadSeeker) (err error) {
 	// go to file start
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
 		return
@@ -446,6 +453,65 @@ func (pack *Package) Read(r io.ReadSeeker) (err error) {
 	}
 	if fttsize != int64(pack.fttsize) {
 		err = ErrSignFTT
+		return
+	}
+	return
+}
+
+// GetPackageInfo returns tagset with package information.
+// It's a quick function to get info from the file.
+func GetPackageInfo(r io.ReadSeeker) (ts *Tagset_t, err error) {
+	var hdr Header
+	// go to file start
+	if _, err = r.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	// read header
+	if _, err = hdr.ReadFrom(r); err != nil {
+		return
+	}
+	if err = hdr.IsReady(); err != nil {
+		return
+	}
+
+	// go to file tags table start
+	if _, err = r.Seek(int64(hdr.fttoffset), io.SeekStart); err != nil {
+		return
+	}
+
+	// read first tagset that can be package info,
+	// or some file tagset if info is absent
+	var tsl TSSize_t
+	if err = binary.Read(r, binary.LittleEndian, &tsl); err != nil {
+		return
+	}
+	if tsl == 0 {
+		return // end marker was reached
+	}
+
+	var data = make([]byte, tsl)
+	if _, err = r.Read(data); err != nil {
+		return
+	}
+
+	ts = &Tagset_t{data}
+	var tsi = ts.Iterator()
+	for tsi.Next() {
+	}
+	if tsi.Failed() {
+		err = io.ErrUnexpectedEOF
+		return
+	}
+
+	// get file key
+	var ok bool
+	var fpath string
+	if fpath, ok = ts.String(TIDpath); !ok {
+		err = ErrNoPath
+		return
+	}
+	if fpath != "" {
+		ts = nil // info is not found
 		return
 	}
 	return

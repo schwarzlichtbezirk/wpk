@@ -457,7 +457,7 @@ func wpkload(ls *lua.LState) int {
 
 		pack.path = pkgpath
 
-		if err = pack.Read(src); err != nil {
+		if err = pack.OpenFTT(src); err != nil {
 			return
 		}
 	}(); err != nil {
@@ -592,7 +592,7 @@ func wpkglob(ls *lua.LState) int {
 
 func wpkhasfile(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fkey = wpk.Normalize(ls.CheckString(2))
+	var fkey = ls.CheckString(2)
 
 	var _, ok = pack.Tagset(fkey)
 
@@ -602,7 +602,7 @@ func wpkhasfile(ls *lua.LState) int {
 
 func wpkfilesize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fkey = wpk.Normalize(ls.CheckString(2))
+	var fkey = ls.CheckString(2)
 
 	var ts *wpk.Tagset_t
 	var ok bool
@@ -718,7 +718,7 @@ func wpkdelalias(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
 
-	var ok = pack.DelAlias(kpath)
+	var _, ok = pack.GetDelTagset(kpath)
 	ls.Push(lua.LBool(ok))
 	return 1
 }
@@ -727,7 +727,7 @@ func wpkdelalias(ls *lua.LState) int {
 // (in numeric or string representation).
 func wpkhastag(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fkey = wpk.Normalize(ls.CheckString(2))
+	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
 	var err error
@@ -753,7 +753,7 @@ func wpkhastag(ls *lua.LState) int {
 // Returns single tag with specified identifier from tagset of given file.
 func wpkgettag(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fkey = wpk.Normalize(ls.CheckString(2))
+	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
 	var err error
@@ -784,7 +784,7 @@ func wpkgettag(ls *lua.LState) int {
 // Set tag with given identifier to tagset of specified file.
 func wpksettag(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fkey = wpk.Normalize(ls.CheckString(2))
+	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 	var v = ls.Get(4)
 
@@ -821,7 +821,7 @@ func wpksettag(ls *lua.LState) int {
 // Delete tag with given identifier from tagset of specified file.
 func wpkdeltag(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fkey = wpk.Normalize(ls.CheckString(2))
+	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
 	var err error
@@ -851,7 +851,7 @@ func wpkdeltag(ls *lua.LState) int {
 
 func wpkgettags(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fkey = wpk.Normalize(ls.CheckString(2))
+	var fkey = ls.CheckString(2)
 
 	var ts, ok = pack.Tagset(fkey)
 	if !ok {
@@ -876,7 +876,7 @@ func wpkgettags(ls *lua.LState) int {
 // Sets or replaces tags for given file with new tags values.
 func wpksettags(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fkey = wpk.Normalize(ls.CheckString(2))
+	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
 	var err error
@@ -917,7 +917,7 @@ func wpksettags(ls *lua.LState) int {
 // Returns number of added tags.
 func wpkaddtags(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fkey = wpk.Normalize(ls.CheckString(2))
+	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
 	var err error
@@ -953,7 +953,7 @@ func wpkaddtags(ls *lua.LState) int {
 // tags table ignored. Returns number of deleted tags.
 func wpkdeltags(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var fkey = wpk.Normalize(ls.CheckString(2))
+	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
 	var err error

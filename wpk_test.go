@@ -26,7 +26,7 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 	var err error
 	var pack wpk.Writer
 
-	if err = pack.Read(fwpk); err != nil {
+	if err = pack.OpenFTT(fwpk); err != nil {
 		t.Fatal(err)
 	}
 
@@ -95,6 +95,67 @@ func CheckPackage(t *testing.T, fwpk *os.File, tagsnum int) {
 	}
 }
 
+// Test package Info function and GetPackageInfo.
+func TestInfo(t *testing.T) {
+	var err error
+	var pack wpk.Writer
+	var fwpk *os.File
+
+	const (
+		label  = "empty-package"
+		link   = "github.com/schwarzlichtbezirk/wpk"
+		author = "schwarzlichtbezirk"
+	)
+
+	defer os.Remove(testpack)
+
+	// open temporary file for read/write
+	if fwpk, err = os.OpenFile(testpack, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
+		t.Fatal(err)
+	}
+	defer fwpk.Close()
+
+	// starts new package
+	if err = pack.Begin(fwpk); err != nil {
+		t.Fatal(err)
+	}
+	// put package info somewhere before finalize
+	pack.Info().
+		Put(wpk.TIDlabel, wpk.TagString(label)).
+		Put(wpk.TIDlink, wpk.TagString(link)).
+		Put(wpk.TIDauthor, wpk.TagString(author))
+	// finalize
+	if err = pack.Finalize(fwpk); err != nil {
+		t.Fatal(err)
+	}
+
+	// at the end checkup package info
+	var ts *wpk.Tagset_t
+	if ts, err = wpk.GetPackageInfo(fwpk); err != nil {
+		t.Fatal(err)
+	}
+	var ok bool
+	var str string
+	if str, ok = ts.String(wpk.TIDlabel); !ok {
+		t.Fatal("label tag not found in package info")
+	}
+	if str != label {
+		t.Fatal("label in package info is not equal to original")
+	}
+	if str, ok = ts.String(wpk.TIDlink); !ok {
+		t.Fatal("link tag not found in package info")
+	}
+	if str != link {
+		t.Fatal("link in package info is not equal to original")
+	}
+	if str, ok = ts.String(wpk.TIDauthor); !ok {
+		t.Fatal("author tag not found in package info")
+	}
+	if str != author {
+		t.Fatal("author in package info is not equal to original")
+	}
+}
+
 // Test PackDir function work.
 func TestPackDir(t *testing.T) {
 	var err error
@@ -114,6 +175,9 @@ func TestPackDir(t *testing.T) {
 	if err = pack.Begin(fwpk); err != nil {
 		t.Fatal(err)
 	}
+	// put package info somewhere before finalize
+	pack.Info().
+		Put(wpk.TIDlabel, wpk.TagString("packed-dir"))
 	// put media directory to file
 	if err = pack.PackDir(fwpk, mediadir, "", func(fi os.FileInfo, fname, fpath string) bool {
 		if !fi.IsDir() {
@@ -124,9 +188,6 @@ func TestPackDir(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// put package info
-	pack.Info().
-		Put(wpk.TIDlabel, wpk.TagString("packed-dir"))
 	// finalize
 	if err = pack.Finalize(fwpk); err != nil {
 		t.Fatal(err)
@@ -182,7 +243,7 @@ func TestPutFiles(t *testing.T) {
 		t.Logf("put alias '%s' to '%s'", newname, oldname)
 	}
 	var delalias = func(name string) {
-		if ok := pack.DelAlias(name); !ok {
+		if _, ok := pack.GetDelTagset(name); !ok {
 			t.Fatalf("alias '%s' not deleted", name)
 		}
 		tagsnum--
@@ -367,7 +428,7 @@ func TestAppendDiscrete(t *testing.T) {
 		// pack value already contains data from previous step
 		// and this call can be skipped,
 		// but we want to test here read functionality
-		if err = pack.Read(fwpk); err != nil {
+		if err = pack.OpenFTT(fwpk); err != nil {
 			t.Fatal(err)
 		}
 

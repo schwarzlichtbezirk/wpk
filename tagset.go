@@ -215,7 +215,7 @@ func (ts *Tagset_t) Get(tid TID_t) (Tag_t, bool) {
 	for tsi.Next() && tsi.tid != tid {
 	}
 	if tsi.Failed() {
-		return nil, false // io.EOF
+		return nil, false // io.ErrUnexpectedEOF
 	}
 	if tsi.tid != tid {
 		return nil, false // ErrNoTag

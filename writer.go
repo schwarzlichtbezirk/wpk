@@ -94,10 +94,9 @@ func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 
 // PackData puts data streamed by given reader into package as a file
 // and associate keyname "kpath" with it.
-func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (ts *Tagset_t, err error) {
-	var fkey = Normalize(kpath)
-	if _, ok := pack.Tagset(fkey); ok {
-		err = &fs.PathError{Op: "packdata", Path: kpath, Err: fs.ErrExist}
+func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *Tagset_t, err error) {
+	if _, ok := pack.Tagset(fpath); ok {
+		err = &fs.PathError{Op: "packdata", Path: fpath, Err: fs.ErrExist}
 		return
 	}
 
@@ -125,8 +124,8 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (ts *T
 		Put(TIDoffset, TagFOffset(FOffset_t(offset))).
 		Put(TIDsize, TagFSize(FSize_t(size))).
 		Put(TIDfid, TagFID(fid)).
-		Put(TIDpath, TagString(ToSlash(kpath)))
-	pack.SetTagset(fkey, ts)
+		Put(TIDpath, TagString(ToSlash(fpath)))
+	pack.SetTagset(fpath, ts)
 	return
 }
 
@@ -198,32 +197,28 @@ func (pack *Writer) PackDir(w io.WriteSeeker, dirname, prefix string, filter Pac
 // Rename tagset with file name 'oldname' to 'newname'.
 // Keeps link to original file name.
 func (pack *Writer) Rename(oldname, newname string) error {
-	var fkey1 = Normalize(oldname)
-	var fkey2 = Normalize(newname)
-	var ts, ok = pack.Tagset(fkey1)
+	var ts, ok = pack.Tagset(oldname)
 	if !ok {
 		return &fs.PathError{Op: "rename", Path: oldname, Err: fs.ErrNotExist}
 	}
-	if _, ok = pack.Tagset(fkey2); ok {
+	if _, ok = pack.Tagset(newname); ok {
 		return &fs.PathError{Op: "rename", Path: newname, Err: fs.ErrExist}
 	}
 
 	ts.Set(TIDpath, TagString(ToSlash(newname)))
-	pack.DelTagset(fkey1)
-	pack.SetTagset(fkey2, ts)
+	pack.DelTagset(oldname)
+	pack.SetTagset(newname, ts)
 	return nil
 }
 
 // PutAlias makes clone tagset with file name 'oldname' and replace name tag
 // in it to 'newname'. Keeps link to original file name.
 func (pack *Writer) PutAlias(oldname, newname string) error {
-	var fkey1 = Normalize(oldname)
-	var fkey2 = Normalize(newname)
-	var ts1, ok = pack.Tagset(fkey1)
+	var ts1, ok = pack.Tagset(oldname)
 	if !ok {
 		return &fs.PathError{Op: "putalias", Path: oldname, Err: fs.ErrNotExist}
 	}
-	if _, ok = pack.Tagset(fkey2); ok {
+	if _, ok = pack.Tagset(newname); ok {
 		return &fs.PathError{Op: "putalias", Path: newname, Err: fs.ErrExist}
 	}
 
@@ -236,18 +231,8 @@ func (pack *Writer) PutAlias(oldname, newname string) error {
 			ts2.Put(TIDpath, TagString(ToSlash(newname)))
 		}
 	}
-	pack.SetTagset(fkey2, ts2)
+	pack.SetTagset(newname, ts2)
 	return nil
-}
-
-// DelAlias delete tagset with specified file name. Data block is still remains.
-func (pack *Writer) DelAlias(name string) bool {
-	var fkey = Normalize(name)
-	var _, ok = pack.Tagset(fkey)
-	if ok {
-		pack.DelTagset(fkey)
-	}
-	return ok
 }
 
 // The End.

@@ -107,7 +107,7 @@ func PathExists(path string) (bool, error) {
 var ToSlash = filepath.ToSlash
 
 // Normalize brings file path to normalized form. It makes argument lowercase,
-// change back slashes to normal slashes. Normalized path is the key to FTTMap.
+// change back slashes to normal slashes. Normalized path is the key to FTT map.
 func Normalize(fpath string) string {
 	return strings.ToLower(ToSlash(fpath))
 }

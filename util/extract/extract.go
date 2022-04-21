@@ -92,15 +92,15 @@ func readpackage() (err error) {
 		if func() {
 			switch PkgMode {
 			case "bulk":
-				if pack, err = bulk.OpenImage(pkgpath); err != nil {
+				if pack, err = bulk.OpenPackage(pkgpath); err != nil {
 					return
 				}
 			case "mmap":
-				if pack, err = mmap.OpenImage(pkgpath); err != nil {
+				if pack, err = mmap.OpenPackage(pkgpath); err != nil {
 					return
 				}
 			case "fsys":
-				if pack, err = fsys.OpenImage(pkgpath); err != nil {
+				if pack, err = fsys.OpenPackage(pkgpath); err != nil {
 					return
 				}
 			default:

@@ -25,7 +25,7 @@ func CheckPackage(t *testing.T, wpkname string) {
 	}
 	defer fwpk.Close()
 
-	if err = pack.Read(fwpk); err != nil {
+	if err = pack.OpenFTT(fwpk); err != nil {
 		t.Fatal(err)
 	}
 

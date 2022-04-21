@@ -52,8 +52,8 @@ func (pack *PackDir) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewSliceFile(pack, ts)
 }
 
-// OpenImage opens WPK-file package by given file name.
-func OpenImage(fname string) (pack *PackDir, err error) {
+// OpenPackage opens WPK-file package by given file name.
+func OpenPackage(fname string) (pack *PackDir, err error) {
 	pack = &PackDir{Package: &wpk.Package{}}
 	pack.workspace = "."
 
@@ -62,7 +62,7 @@ func OpenImage(fname string) (pack *PackDir, err error) {
 		return
 	}
 	pack.bulk = bulk
-	if err = pack.Read(bytes.NewReader(bulk)); err != nil {
+	if err = pack.OpenFTT(bytes.NewReader(bulk)); err != nil {
 		return
 	}
 	return
@@ -112,7 +112,7 @@ func (pack *PackDir) Stat(name string) (fs.FileInfo, error) {
 	}
 	var ts *wpk.Tagset_t
 	var is bool
-	if ts, is = pack.Tagset(wpk.Normalize(path.Join(pack.workspace, name))); !is {
+	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
 	}
 	return ts, nil
@@ -126,7 +126,7 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	}
 	var ts *wpk.Tagset_t
 	var is bool
-	if ts, is = pack.Tagset(wpk.Normalize(path.Join(pack.workspace, name))); !is {
+	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
 	var offset, _ = ts.FOffset()
@@ -152,7 +152,7 @@ func (pack *PackDir) Open(dir string) (fs.File, error) {
 	}
 
 	var fullname = path.Join(pack.workspace, dir)
-	if ts, is := pack.Tagset(wpk.Normalize(fullname)); is {
+	if ts, is := pack.Tagset(fullname); is {
 		return NewSliceFile(pack, ts)
 	}
 	return wpk.OpenDir(pack, fullname)

@@ -9,7 +9,7 @@ import (
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
-func ExamplePackage_Read() {
+func ExamplePackage_OpenFTT() {
 	var err error
 
 	// Open package file for reading
@@ -19,9 +19,9 @@ func ExamplePackage_Read() {
 	}
 	defer f.Close()
 
-	// Read package files tags table
+	// Open package files tags table
 	var pack wpk.Package
-	if err = pack.Read(f); err != nil {
+	if err = pack.OpenFTT(f); err != nil {
 		log.Fatal(err)
 	}
 
@@ -60,9 +60,9 @@ func ExamplePackage_Glob() {
 	}
 	defer f.Close()
 
-	// Read package files tags table
+	// Open package files tags table
 	var pack wpk.Package
-	if err = pack.Read(f); err != nil {
+	if err = pack.OpenFTT(f); err != nil {
 		log.Fatal(err)
 	}
 
