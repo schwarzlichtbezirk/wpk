@@ -121,7 +121,7 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, kpath string) (ts *T
 
 	// insert new entry to tags table
 	var fid = FID_t(atomic.AddUint32(&pack.LastFID, 1))
-	ts = NewTagset().
+	ts = (&Tagset_t{}).
 		Put(TIDoffset, TagFOffset(FOffset_t(offset))).
 		Put(TIDsize, TagFSize(FSize_t(size))).
 		Put(TIDfid, TagFID(fid)).

@@ -17,11 +17,11 @@ func TestTagset(t *testing.T) {
 		fkey   = `dir/filename.ext`
 		mime   = "image/jpeg"
 	)
-	var ts wpk.Tagset_t
-	ts.Put(wpk.TIDoffset, wpk.TagFOffset(offset))
-	ts.Put(wpk.TIDsize, wpk.TagFSize(size))
-	ts.Put(wpk.TIDfid, wpk.TagFID(fid))
-	ts.Put(wpk.TIDpath, wpk.TagString(wpk.ToSlash(kpath1)))
+	var ts = (&wpk.Tagset_t{}).
+		Put(wpk.TIDoffset, wpk.TagFOffset(offset)).
+		Put(wpk.TIDsize, wpk.TagFSize(size)).
+		Put(wpk.TIDfid, wpk.TagFID(fid)).
+		Put(wpk.TIDpath, wpk.TagString(wpk.ToSlash(kpath1)))
 
 	if wpk.Normalize(kpath1) != fkey || wpk.Normalize(kpath2) != fkey {
 		t.Fatal("normalize test failed")

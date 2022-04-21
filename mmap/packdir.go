@@ -66,8 +66,8 @@ type PackDir struct {
 	filewpk   *os.File // open package file descriptor
 }
 
-// OpenTags creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenTags(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
+// OpenTagset creates file object to give access to nested into package file by given tagset.
+func (pack *PackDir) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewMappedFile(pack, ts)
 }
 

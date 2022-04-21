@@ -144,7 +144,31 @@ func tostringPack(ls *lua.LState) int {
 		n++
 		return true
 	})
-	var s = fmt.Sprintf("records: %d, aliases: %d, datasize: %d", pack.LastFID, n, pack.DataSize())
+	var items []string
+	items = append(items, fmt.Sprintf("records: %d", pack.LastFID))
+	items = append(items, fmt.Sprintf("aliases: %d", n))
+	if ts, ok := pack.Tagset(""); ok {
+		if size, ok := ts.FSize(); ok {
+			items = append(items, fmt.Sprintf("datasize: %d", size))
+		}
+		if str, ok := ts.String(wpk.TIDlabel); ok {
+			items = append(items, fmt.Sprintf("label: %s", str))
+		}
+		if str, ok := ts.String(wpk.TIDlink); ok {
+			items = append(items, fmt.Sprintf("link: %s", str))
+		}
+		if str, ok := ts.String(wpk.TIDversion); ok {
+			items = append(items, fmt.Sprintf("version: %s", str))
+		}
+		if str, ok := ts.String(wpk.TIDauthor); ok {
+			items = append(items, fmt.Sprintf("author: %s", str))
+		}
+		if str, ok := ts.String(wpk.TIDcomment); ok {
+			items = append(items, fmt.Sprintf("comment: %s", str))
+		}
+	}
+	var s = strings.Join(items, ", ")
+
 	ls.Push(lua.LString(s))
 	return 1
 }
@@ -247,8 +271,14 @@ func gettagnum(ls *lua.LState) int {
 
 func getdatasize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LNumber(pack.DataSize()))
-	return 1
+
+	if ts, ok := pack.Tagset(""); ok {
+		if size, ok := ts.FSize(); ok {
+			ls.Push(lua.LNumber(size))
+			return 1
+		}
+	}
+	return 0
 }
 
 func getautomime(ls *lua.LState) int {

@@ -102,16 +102,14 @@ type NestedFile interface {
 
 // Tagger provides file tags access.
 type Tagger interface {
+	OpenTagset(*Tagset_t) (NestedFile, error)
 	Tagset(string) (*Tagset_t, bool)
 	Enum(func(string, *Tagset_t) bool)
 }
 
 // Packager refers to package data access management implementation.
 type Packager interface {
-	DataSize() FSize_t
 	Tagger
-
-	OpenTags(*Tagset_t) (NestedFile, error)
 	io.Closer
 	fs.SubFS
 	fs.StatFS
@@ -154,14 +152,6 @@ func (pack *Header) Reset() {
 	pack.fttoffset = HeaderSize
 	pack.fttsize = 0
 	pack.typesize = PackageTypeSizes
-}
-
-// DataSize returns sum size of all real stored records in package.
-func (pack *Header) DataSize() FSize_t {
-	if pack.fttoffset > HeaderSize {
-		return FSize_t(pack.fttoffset - HeaderSize)
-	}
-	return 0
 }
 
 // IsReady determines that package is ready for read the data.
@@ -255,13 +245,14 @@ func (ftt *FTT_t) DelTagset(fkey string) {
 	ftt.Delete(fkey)
 }
 
+var emptyinfo = (&Tagset_t{}).
+	Put(TIDfid, TagFID(0)).
+	Put(TIDpath, TagString(""))
+
 // Info returns package information tagset,
 // and stores if it not present before.
 func (ftt *FTT_t) Info() *Tagset_t {
-	var val, _ = ftt.LoadOrStore("",
-		NewTagset().
-			Put(TIDfid, TagFID(0)).
-			Put(TIDpath, TagString("")))
+	var val, _ = ftt.LoadOrStore("", &Tagset_t{emptyinfo.data})
 	if val == nil {
 		panic("can not obtain package info")
 	}
@@ -289,7 +280,7 @@ func (ftt *FTT_t) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 		n += int64(tsl)
 
-		var ts = MakeTagset(data)
+		var ts = &Tagset_t{data}
 		var tsi = ts.Iterator()
 		for tsi.Next() {
 		}

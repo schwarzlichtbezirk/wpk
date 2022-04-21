@@ -47,8 +47,8 @@ type PackDir struct {
 	bulk      []byte // slice with whole package content
 }
 
-// OpenTags creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenTags(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
+// OpenTagset creates file object to give access to nested into package file by given tagset.
+func (pack *PackDir) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewSliceFile(pack, ts)
 }
 
@@ -144,7 +144,7 @@ func (pack *PackDir) ReadDir(dir string) ([]fs.DirEntry, error) {
 // fs.FS implementation.
 func (pack *PackDir) Open(dir string) (fs.File, error) {
 	if dir == "wpk" && pack.workspace == "." {
-		var ts = wpk.NewTagset().
+		var ts = (&wpk.Tagset_t{}).
 			Put(wpk.TIDfid, wpk.TagFID(0)).
 			Put(wpk.TIDoffset, wpk.TagFOffset(0)).
 			Put(wpk.TIDsize, wpk.TagFSize(wpk.FSize_t(len(pack.bulk))))

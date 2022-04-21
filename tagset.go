@@ -180,11 +180,6 @@ type Tagset_t struct {
 	data []byte
 }
 
-// NewTagset returns new empty tagset.
-func NewTagset() *Tagset_t {
-	return &Tagset_t{}
-}
-
 // MakeTagset returns tagset with given slice.
 func MakeTagset(data []byte) *Tagset_t {
 	return &Tagset_t{data}
@@ -229,6 +224,7 @@ func (ts *Tagset_t) Get(tid TID_t) (Tag_t, bool) {
 }
 
 // Put appends new tag to tagset.
+// Can be used in chain calls at initialization.
 func (ts *Tagset_t) Put(tid TID_t, tag Tag_t) *Tagset_t {
 	if tid == TIDnone { // special case
 		return ts

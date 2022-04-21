@@ -1,8 +1,10 @@
 package wpk_test
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/schwarzlichtbezirk/wpk"
 )
@@ -22,6 +24,7 @@ func ExamplePackage_Read() {
 	if err = pack.Read(f); err != nil {
 		log.Fatal(err)
 	}
+
 	// How many records at package
 	var n = 0
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
@@ -32,7 +35,19 @@ func ExamplePackage_Read() {
 		n++
 		return true
 	})
-	log.Printf("files: %d, datasize: %d\n", n, pack.DataSize())
+
+	// Format package information
+	var items []string
+	items = append(items, fmt.Sprintf("files: %d", n))
+	if ts, ok := pack.Tagset(""); ok { // get package info if it present
+		if size, ok := ts.FSize(); ok {
+			items = append(items, fmt.Sprintf("datasize: %d", size))
+		}
+		if str, ok := ts.String(wpk.TIDlabel); ok {
+			items = append(items, fmt.Sprintf("label: %s", str))
+		}
+	}
+	log.Println(strings.Join(items, ", "))
 }
 
 func ExamplePackage_Glob() {

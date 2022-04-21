@@ -53,8 +53,8 @@ type PackDir struct {
 	fname     string // package filename
 }
 
-// OpenTags creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenTags(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
+// OpenTagset creates file object to give access to nested into package file by given tagset.
+func (pack *PackDir) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewChunkFile(pack.fname, ts)
 }
 
