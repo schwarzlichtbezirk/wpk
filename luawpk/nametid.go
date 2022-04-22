@@ -13,12 +13,10 @@ var NameTid = map[string]wpk.TID_t{
 	"offset":  wpk.TIDoffset,
 	"size":    wpk.TIDsize,
 	"fid":     wpk.TIDfid,
-	"name":    wpk.TIDpath,
 	"path":    wpk.TIDpath,
-	"time":    wpk.TIDcreated,
 	"created": wpk.TIDcreated,
-	"crt":     wpk.TIDcreated,
 	"mime":    wpk.TIDmime,
+	"attr":    wpk.TIDattr,
 
 	"crc32":     wpk.TIDcrc32c,
 	"crc32ieee": wpk.TIDcrc32ieee,
@@ -34,6 +32,8 @@ var NameTid = map[string]wpk.TID_t{
 	"sha384": wpk.TIDsha384,
 	"sha512": wpk.TIDsha512,
 
+	"tmbimg":   wpk.TIDtmbimg,
+	"tmbmime":  wpk.TIDtmbmime,
 	"label":    wpk.TIDlabel,
 	"link":     wpk.TIDlink,
 	"keywords": wpk.TIDkeywords,
@@ -42,6 +42,15 @@ var NameTid = map[string]wpk.TID_t{
 	"author":   wpk.TIDauthor,
 	"comment":  wpk.TIDcomment,
 }
+
+// TidName helps format Lua-tables with string keys associated to TID_t values.
+var TidName = func() map[wpk.TID_t]string {
+	var tn = map[wpk.TID_t]string{}
+	for name, tid := range NameTid {
+		tn[tid] = name
+	}
+	return tn
+}()
 
 // ErrKeyUndef represents error on tag identifiers string presentation.
 type ErrKeyUndef struct {

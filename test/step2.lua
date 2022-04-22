@@ -69,9 +69,10 @@ pkg.sha384 = true
 -- put sample text file created from string
 packdata("sample.txt", "The quick brown fox jumps over the lazy dog", "fox;dog")
 
-logfmt("packaged %d files on sum %d bytes", pkg.recnum, pkg.datasize)
+logfmt("packaged %d files on sum %s bytes", pkg.recnum, pkg.datasize or "N/A")
 
 -- write records table, tags table and finalize wpk-file
 pkg:finalize()
 
+log(tostring(pkg))
 log "done step 2."

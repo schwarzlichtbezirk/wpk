@@ -30,9 +30,10 @@ packfile("bounty.jpg", "beach")
 packfile("img1/qarataslar.jpg", "beach;rock")
 packfile("img1/claustral.jpg", "beach;rock")
 
-log(string.format("packaged %d files on sum %d bytes", pkg.recnum, pkg.datasize))
+log(string.format("packaged %d files on sum %s bytes", pkg.recnum, pkg.datasize or "N/A"))
 
 -- write records table, tags table and finalize wpk-file
 pkg:finalize()
 
+log(tostring(pkg))
 log "done step 1."

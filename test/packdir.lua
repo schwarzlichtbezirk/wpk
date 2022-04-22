@@ -5,6 +5,11 @@ pkg.automime = true -- put MIME type for each file if it is not given explicit
 pkg.secret = "package-private-key" -- private key to sign cryptographic hashes for each file
 pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 pkg.sha256 = true -- generate SHA256 hash for each file
+pkg:setinfo{ -- setup package info
+	label="packed-directory",
+	link="github.com/schwarzlichtbezirk/wpk",
+	author="schwarzlichtbezirk"
+}
 
 -- open wpk-file for write
 pkg:begin(path.join(tmpdir, "packdir.wpk"))
@@ -67,9 +72,9 @@ local function packdir(prefix, dir)
 end
 
 packdir("", path.join(scrdir, "media").."/")
-log(tostring(pkg))
 
 -- write records table, tags table and finalize wpk-file
 pkg:finalize()
 
+log(tostring(pkg))
 log "done."

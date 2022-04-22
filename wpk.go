@@ -28,7 +28,7 @@ const (
 	TIDlastwrite  TID_t = 6 // uint64
 	TIDlastaccess TID_t = 7 // uint64
 	TIDmime       TID_t = 8 // string
-	TIDfileattr   TID_t = 9 // uint32
+	TIDattr       TID_t = 9 // uint32
 
 	TIDconst TID_t = 4 // marker of tags that should be unchanged
 	TIDsys   TID_t = 8 // system protection marker

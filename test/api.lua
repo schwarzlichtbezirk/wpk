@@ -51,8 +51,8 @@ to build wpk-packages.
 	enum(dir, n) - enumerates all files of given directory, returns result as table.
 		If n > 0, returns at most n file names. If n <= 0, returns all the
 		file names from the directory. 'n' is optional parameter, -1 by default.
-	envfmt(fpath) - replaces all entries "$(envname)" in path, where 'envname' is
-		an environment variable, to it's value.
+	envfmt(fpath) - replaces all entries "${envname}" or "$envname" or "%envname%"
+		in path, where 'envname' is an environment variable, to it's value.
 
 
 *tag* userdata:
@@ -89,11 +89,13 @@ to build wpk-packages.
 	new() - creates new empty object.
 
 	properties:
-	label - getter/setter for package label.
+	label - getter/setter for package label in package info. Getter returns
+		nothing if label is absent. If setter was called, it creates package
+		info table in case if it was absent before.
 	path - getter only, returns path to opened wpk-file.
 	recnum - getter only, returns number of records in file allocation table.
-	tagnum - getter only, returns number of records in tags table.
-	datasize - getter only, returns package data size.
+	tagnum - getter only, counts number of records in tags table.
+	datasize - getter only, returns package data size from current file position.
 	automime - get/set mode to put for each new file tag with its MIME
 		determined by file extension, if it does not issued explicitly.
 	nolink - get/set mode to exclude link from tagset. Exclude on 'true'.
@@ -173,6 +175,7 @@ to build wpk-packages.
 	deltags(fkey, tags) - receive table with numeric tags IDs or string
 		representation of tags ID, which should be removed. Values of table does
 		not matter.
+	getinfo() - returns table with package info, if it present.
 
 ]]
 
@@ -226,7 +229,7 @@ end
 pkg:safealias("img1/claustral.jpg", "jasper.jpg")
 pkg:settag("jasper.jpg", "comment", "beach between basalt cliffs")
 
-logfmt("total package data size: %d bytes", pkg.datasize)
+logfmt("total package data size: %s bytes", pkg.datasize or "N/A")
 logfmt("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum)
 
 -- write records table, tags table and finalize wpk-file

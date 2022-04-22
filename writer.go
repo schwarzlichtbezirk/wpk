@@ -62,7 +62,7 @@ func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 
 	// get tags table offset as actual end of file
 	var pos1, pos2 int64
-	if pos1, err = w.Seek(0, io.SeekEnd); err != nil {
+	if pos1, err = w.Seek(0, io.SeekCurrent); err != nil {
 		return
 	}
 	// update package info if it has
@@ -75,7 +75,7 @@ func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
 		return
 	}
 	// get writer end marker and setup the file tags table size
-	if pos2, err = w.Seek(0, io.SeekEnd); err != nil {
+	if pos2, err = w.Seek(0, io.SeekCurrent); err != nil {
 		return
 	}
 
