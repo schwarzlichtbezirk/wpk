@@ -52,6 +52,20 @@ func TagByte(val byte) Tag_t {
 	return buf[:]
 }
 
+// Uint8 is 8-bit unsigned int tag converter.
+func (t Tag_t) Uint8() (uint8, bool) {
+	if len(t) == 1 {
+		return t[0], true
+	}
+	return 0, false
+}
+
+// TagUint8 is 8-bit unsigned int tag constructor.
+func TagUint8(val uint8) Tag_t {
+	var buf = [1]byte{val}
+	return buf[:]
+}
+
 // Uint16 is 16-bit unsigned int tag converter.
 func (t Tag_t) Uint16() (uint16, bool) {
 	if len(t) == 2 {

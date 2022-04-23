@@ -134,6 +134,9 @@ func TestInfo(t *testing.T) {
 	if ts, err = wpk.GetPackageInfo(fwpk); err != nil {
 		t.Fatal(err)
 	}
+	if ts == nil {
+		t.Fatal("package info not found")
+	}
 	var ok bool
 	var str string
 	if str, ok = ts.String(wpk.TIDlabel); !ok {

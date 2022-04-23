@@ -64,7 +64,7 @@ local function packdir(prefix, dir)
 				pkg:putfile(fkey, fpath)
 				pkg:settag(fkey, "author", "schwarzlichtbezirk")
 				logfmt("#%d %s, %d bytes, %s",
-					pkg:gettag(fkey, "fid").uint32, fkey,
+					pkg:gettag(fkey, "fid").uint, fkey,
 					pkg:filesize(fkey), pkg:gettag(fkey, "mime").string)
 			end
 		end

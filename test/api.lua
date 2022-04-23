@@ -76,6 +76,7 @@ to build wpk-packages.
 	base64 - get/set base64 encoded representation of binary value
 	string - get/set UTF-8 string value
 	bool   - get/set boolean data, 1 byte
+	uint8  - get/set uint8 data, 1 byte
 	uint16 - get/set uint16 data, 2 bytes
 	uint32 - get/set uint32 data, 4 bytes
 	uint64 - get/set uint64 data, 8 bytes
@@ -95,6 +96,7 @@ to build wpk-packages.
 	path - getter only, returns path to opened wpk-file.
 	recnum - getter only, returns number of records in file allocation table.
 	tagnum - getter only, counts number of records in tags table.
+	fftsize - getter only, calculates size of file tags table.
 	datasize - getter only, returns package data size from current file position.
 	automime - get/set mode to put for each new file tag with its MIME
 		determined by file extension, if it does not issued explicitly.
@@ -194,7 +196,7 @@ function wpk.create(fpath)-- additional wpk-constructor
 end
 function wpk:logfile(fkey) -- write record log
 	logfmt("#%d %s, %d bytes, crc=%s",
-		self:gettag(fkey, "fid").uint32, fkey,
+		self:gettag(fkey, "fid").uint, fkey,
 		self:filesize(fkey), self:gettag(fkey, "crc32").hex)
 end
 function wpk:safealias(fname1, fname2) -- make 2 file name aliases to 1 file

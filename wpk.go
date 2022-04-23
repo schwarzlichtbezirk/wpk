@@ -133,14 +133,23 @@ type Header struct {
 	typesize  [8]byte // sizes of package types
 }
 
+const (
+	PTSfoffset = iota
+	PTSfsize
+	PTSfid
+	PTStid
+	PTStsize
+	PTStssize
+)
+
 // PackageTypeSizes - list of type sizes used for package streaming.
 var PackageTypeSizes = [8]byte{
-	FOffset_l,
-	FSize_l,
-	FID_l,
-	TID_l,
-	TSize_l,
-	TSSize_l,
+	FOffset_l, // can be: 4, 8
+	FSize_l,   // can be: 4, 8
+	FID_l,     // can be: 2, 4, 8
+	TID_l,     // can be: 1, 2, 4
+	TSize_l,   // can be: 1, 2, 4
+	TSSize_l,  // can be: 2, 4
 	0,
 	0,
 }

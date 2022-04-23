@@ -30,7 +30,7 @@ local function logfmt(...) -- write to log formatted string
 end
 local function logfile(fkey) -- write record log
 	logfmt("#%d file %s, crc=%s",
-		pkg:gettag(fkey, "fid").uint32, fkey,
+		pkg:gettag(fkey, "fid").uint, fkey,
 		tostring(pkg:gettag(fkey, "crc32")))
 end
 local function packfile(fkey, keywords) -- pack given file with common preset
@@ -69,7 +69,7 @@ pkg.sha384 = true
 -- put sample text file created from string
 packdata("sample.txt", "The quick brown fox jumps over the lazy dog", "fox;dog")
 
-logfmt("packaged %d files on sum %s bytes", pkg.recnum, pkg.datasize or "N/A")
+log(string.format("packed %d files, fft %d bytes, data %s bytes", pkg.recnum, pkg.fftsize, pkg.datasize))
 
 -- write records table, tags table and finalize wpk-file
 pkg:finalize()

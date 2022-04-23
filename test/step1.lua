@@ -17,7 +17,7 @@ local function packfile(fkey, keywords)
 	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
 	pkg:addtags(fkey, {keywords=keywords, [104]="schwarzlichtbezirk"})
 	log(string.format("#%d file %s, crc=%s",
-		pkg:gettag(fkey, "fid").uint32, fkey,
+		pkg:gettag(fkey, "fid").uint, fkey,
 		tostring(pkg:gettag(fkey, "crc32"))))
 end
 
@@ -30,7 +30,7 @@ packfile("bounty.jpg", "beach")
 packfile("img1/qarataslar.jpg", "beach;rock")
 packfile("img1/claustral.jpg", "beach;rock")
 
-log(string.format("packaged %d files on sum %s bytes", pkg.recnum, pkg.datasize or "N/A"))
+log(string.format("packed %d files, fft %d bytes, data %s bytes", pkg.recnum, pkg.fftsize, pkg.datasize))
 
 -- write records table, tags table and finalize wpk-file
 pkg:finalize()

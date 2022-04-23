@@ -185,6 +185,7 @@ var propertiesPack = []struct {
 	{"path", getpath, nil},
 	{"recnum", getrecnum, nil},
 	{"tagnum", gettagnum, nil},
+	{"fftsize", getfftsize, nil},
 	{"datasize", getdatasize, nil},
 	{"automime", getautomime, setautomime},
 	{"nolink", getnolink, setnolink},
@@ -266,7 +267,7 @@ func getrecnum(ls *lua.LState) int {
 
 func gettagnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var n = 0
+	var n int
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if fkey != "" { // skip package info
 			n++
@@ -274,6 +275,19 @@ func gettagnum(ls *lua.LState) int {
 		return true
 	})
 	ls.Push(lua.LNumber(n))
+	return 1
+}
+
+func getfftsize(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	var size int
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
+		if fkey != "" { // skip package info
+			size += len(ts.Data())
+		}
+		return true
+	})
+	ls.Push(lua.LNumber(size))
 	return 1
 }
 
