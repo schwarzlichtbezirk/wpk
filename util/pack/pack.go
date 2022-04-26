@@ -21,6 +21,7 @@ var (
 	DstFile string
 	PutMIME bool
 	ShowLog bool
+	Split   bool
 )
 
 func parseargs() {
@@ -28,6 +29,7 @@ func parseargs() {
 	flag.StringVar(&DstFile, "dst", "", "full path to output package file")
 	flag.BoolVar(&PutMIME, "mime", false, "put content MIME type defined by file extension")
 	flag.BoolVar(&ShowLog, "sl", true, "show process log for each extracting file")
+	flag.BoolVar(&Split, "split", false, "write package to splitted files")
 	flag.Parse()
 }
 
@@ -69,66 +71,83 @@ func checkargs() int {
 
 func writepackage() (err error) {
 	var pack wpk.Writer
-	var fwpk *os.File
+	var fwpk, fwpd wpk.WriteSeekCloser
 
 	// open package file to write
-	if fwpk, err = os.OpenFile(DstFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
+	if fwpk, err = os.OpenFile(DstFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
 		return
 	}
 	defer fwpk.Close()
-	log.Printf("destination file: %s", DstFile)
+
+	if Split {
+		var ext = filepath.Ext(DstFile)
+		var datfile = DstFile[:len(DstFile)-len(ext)] + ".wpf"
+		if fwpd, err = os.OpenFile(datfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
+			return
+		}
+		defer fwpd.Close()
+
+		log.Printf("destination tags part:  %s\n", DstFile)
+		log.Printf("destination files part: %s\n", datfile)
+	} else {
+		log.Printf("destination file: %s\n", DstFile)
+	}
 
 	// starts new package
 	if err = pack.Begin(fwpk); err != nil {
 		return
 	}
 
+	// data writer
+	var w = fwpk
+	if fwpd != nil {
+		w = fwpd
+	}
+
 	// write all source folders
 	for i, path := range SrcList {
 		log.Printf("source folder #%d: %s", i+1, path)
-		var sum int64
-		if err = pack.PackDir(fwpk, path, "", func(fi os.FileInfo, fname, fpath string) bool {
-			var size = fi.Size()
-			if ShowLog && !fi.IsDir() {
+		var num, sum int64
+		if err = pack.PackDir(w, path, "", func(r io.ReadSeeker, ts *wpk.Tagset_t) error {
+			var size = ts.Size()
+			var fname, _ = ts.String(wpk.TIDpath)
+			if ShowLog {
 				log.Printf("#%-4d %7d bytes   %s", pack.LastFID, size, fname)
 			}
+			num++
 			sum += size
-			return true
+
+			// adjust tags
+			if PutMIME {
+				const sniffLen = 512
+				var ctype = mime.TypeByExtension(filepath.Ext(fname))
+				if ctype == "" {
+					// rewind to file start
+					if _, err = r.Seek(0, io.SeekStart); err != nil {
+						return err
+					}
+					// read a chunk to decide between utf-8 text and binary
+					var buf [sniffLen]byte
+					var n int64
+					if n, err = io.CopyN(bytes.NewBuffer(buf[:]), r, sniffLen); err != nil && err != io.EOF {
+						return err
+					}
+					ctype = http.DetectContentType(buf[:n])
+				}
+				if ctype != "" {
+					ts.Put(wpk.TIDmime, wpk.TagString(ctype))
+				}
+			}
+			return nil
 		}); err != nil {
 			return
 		}
-		log.Printf("packed: %d files on %d bytes", pack.LastFID, sum)
-	}
-
-	// adjust tags
-	if PutMIME {
-		log.Printf("put mime type tags")
-		const sniffLen = 512
-		pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-			var ctype = mime.TypeByExtension(filepath.Ext(fkey))
-			if ctype == "" {
-				var offset, _ = ts.FOffset()
-				var size, _ = ts.FSize()
-				// rewind to file start
-				if _, err = fwpk.Seek(int64(offset), io.SeekStart); err != nil {
-					return false
-				}
-				// read a chunk to decide between utf-8 text and binary
-				var buf [sniffLen]byte
-				var n int64
-				if n, err = io.CopyN(bytes.NewBuffer(buf[:]), io.LimitReader(fwpk, int64(size)), sniffLen); err != nil && err != io.EOF {
-					return false
-				}
-				ctype = http.DetectContentType(buf[:n])
-			}
-			ts.Put(wpk.TIDmime, wpk.TagString(ctype))
-			return true
-		})
+		log.Printf("packed: %d files on %d bytes", num, sum)
 	}
 
 	// finalize
 	log.Printf("write tags table")
-	if err = pack.Finalize(fwpk); err != nil {
+	if err = pack.Sync(fwpk, fwpd); err != nil {
 		return
 	}
 

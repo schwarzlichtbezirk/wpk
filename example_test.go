@@ -28,12 +28,10 @@ func ExamplePackage_OpenFTT() {
 	// How many records at package
 	var n = 0
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-		if fkey != "" { // skip package info
-			if n < 5 { // print not more than 5 file names from package
-				log.Println(fkey)
-			}
-			n++
+		if n < 5 { // print not more than 5 file names from package
+			log.Println(fkey)
 		}
+		n++
 		return true
 	})
 

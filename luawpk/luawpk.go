@@ -27,6 +27,7 @@ func (e *ErrProtected) Error() string {
 var (
 	ErrPackOpened = errors.New("package write stream already opened")
 	ErrPackClosed = errors.New("package write stream does not opened")
+	ErrDataClosed = errors.New("package data file is not opened")
 )
 
 // PackMT is "wpk" name of Lua metatable.
@@ -47,8 +48,10 @@ type LuaPackage struct {
 	sha384   bool
 	sha512   bool
 
-	path string
-	w    *os.File
+	pkgpath string
+	datpath string
+	wpt     wpk.WriteSeekCloser // package tags part
+	wpf     wpk.WriteSeekCloser // package files part
 }
 
 // RegPack registers "wpk" userdata into Lua virtual machine.
@@ -80,7 +83,6 @@ func PushPack(ls *lua.LState, v *LuaPackage) {
 // NewPack is LuaPackage constructor.
 func NewPack(ls *lua.LState) int {
 	var pack LuaPackage
-	pack.Reset()
 	PushPack(ls, &pack)
 	return 1
 }
@@ -142,9 +144,7 @@ func tostringPack(ls *lua.LState) int {
 
 	var n = 0
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-		if fkey != "" { // skip package info
-			n++
-		}
+		n++
 		return true
 	})
 	var items []string
@@ -182,7 +182,8 @@ var propertiesPack = []struct {
 	setter lua.LGFunction // setters always must return no values
 }{
 	{"label", getlabel, setlabel},
-	{"path", getpath, nil},
+	{"pkgpath", getpkgpath, nil},
+	{"datpath", getdatpath, nil},
 	{"recnum", getrecnum, nil},
 	{"tagnum", gettagnum, nil},
 	{"fftsize", getfftsize, nil},
@@ -205,6 +206,7 @@ var methodsPack = map[string]lua.LGFunction{
 	"begin":    wpkbegin,
 	"append":   wpkappend,
 	"finalize": wpkfinalize,
+	"flush":    wpkflush,
 	"sumsize":  wpksumsize,
 	"glob":     wpkglob,
 	"hasfile":  wpkhasfile,
@@ -249,13 +251,23 @@ func setlabel(ls *lua.LState) int {
 	return 0
 }
 
-func getpath(ls *lua.LState) int {
+func getpkgpath(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	if pack.w == nil {
+	if pack.wpt == nil {
 		ls.Push(lua.LNil)
 		return 1
 	}
-	ls.Push(lua.LString(pack.path))
+	ls.Push(lua.LString(pack.pkgpath))
+	return 1
+}
+
+func getdatpath(ls *lua.LState) int {
+	var pack = CheckPack(ls, 1)
+	if pack.wpf == nil {
+		ls.Push(lua.LNil)
+		return 1
+	}
+	ls.Push(lua.LString(pack.datpath))
 	return 1
 }
 
@@ -269,9 +281,7 @@ func gettagnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var n int
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-		if fkey != "" { // skip package info
-			n++
-		}
+		n++
 		return true
 	})
 	ls.Push(lua.LNumber(n))
@@ -282,9 +292,7 @@ func getfftsize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var size int
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-		if fkey != "" { // skip package info
-			size += len(ts.Data())
-		}
+		size += len(ts.Data())
 		return true
 	})
 	ls.Push(lua.LNumber(size))
@@ -294,8 +302,13 @@ func getfftsize(ls *lua.LState) int {
 func getdatasize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	if pack.w != nil {
-		if pos, err := pack.w.Seek(0, io.SeekCurrent); err == nil {
+	if pack.wpf != nil { // splitted package files
+		if pos, err := pack.wpf.Seek(0, io.SeekCurrent); err == nil {
+			ls.Push(lua.LNumber(pos))
+			return 1
+		}
+	} else { // single package file
+		if pos, err := pack.wpt.Seek(0, io.SeekCurrent); err == nil {
 			ls.Push(lua.LNumber(pos - wpk.HeaderSize))
 			return 1
 		}
@@ -469,20 +482,21 @@ func wpkload(ls *lua.LState) int {
 	}()
 	var pack = CheckPack(ls, 1)
 	var pkgpath = ls.CheckString(2)
+	var datpath = ls.OptString(3, "")
 
-	if pack.w != nil {
+	if pack.wpt != nil {
 		err = ErrPackOpened
 		return 0
 	}
 
 	// open package file
-	var src *os.File
+	var src io.ReadSeekCloser
 	if src, err = os.Open(pkgpath); err != nil {
 		return 0
 	}
 	defer src.Close()
 
-	pack.path = pkgpath
+	pack.pkgpath, pack.datpath = pkgpath, datpath
 
 	if err = pack.OpenFTT(src); err != nil {
 		return 0
@@ -500,22 +514,28 @@ func wpkbegin(ls *lua.LState) int {
 	}()
 	var pack = CheckPack(ls, 1)
 	var pkgpath = ls.CheckString(2)
+	var datpath = ls.OptString(3, "")
 
-	if pack.w != nil {
+	if pack.wpt != nil {
 		err = ErrPackOpened
 		return 0
 	}
 
 	// create package file
-	var dst *os.File
-	if dst, err = os.OpenFile(pkgpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+	if pack.wpt, err = os.OpenFile(pkgpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
 		return 0
 	}
+	if datpath != "" {
+		if pack.wpf, err = os.OpenFile(datpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+			pack.wpt.Close()
+			pack.wpt = nil
+			return 0
+		}
+	}
 	// setup file representation
-	pack.path = pkgpath
-	pack.w = dst
+	pack.pkgpath, pack.datpath = pkgpath, datpath
 	// starts new package
-	if err = pack.Begin(dst); err != nil {
+	if err = pack.Begin(pack.wpt); err != nil {
 		return 0
 	}
 
@@ -531,20 +551,24 @@ func wpkappend(ls *lua.LState) int {
 	}()
 	var pack = CheckPack(ls, 1)
 
-	if pack.w != nil {
+	if pack.wpt != nil {
 		err = ErrPackOpened
 		return 0
 	}
 
 	// open package file
-	var dst *os.File
-	if dst, err = os.OpenFile(pack.path, os.O_WRONLY, 0755); err != nil {
+	if pack.wpt, err = os.OpenFile(pack.pkgpath, os.O_WRONLY, 0755); err != nil {
 		return 0
 	}
-	// update file representation
-	pack.w = dst
+	if pack.datpath != "" {
+		if pack.wpf, err = os.OpenFile(pack.datpath, os.O_WRONLY, 0755); err != nil {
+			pack.wpt.Close()
+			pack.wpt = nil
+			return 0
+		}
+	}
 	// starts to append files
-	if err = pack.Append(dst); err != nil {
+	if err = pack.Append(pack.wpt, pack.wpf); err != nil {
 		return 0
 	}
 
@@ -560,21 +584,52 @@ func wpkfinalize(ls *lua.LState) int {
 	}()
 	var pack = CheckPack(ls, 1)
 
-	if pack.w == nil {
+	if pack.wpt == nil {
 		err = ErrPackClosed
 		return 0
 	}
 
-	// finalize
-	if err = pack.Finalize(pack.w); err != nil {
+	// sync
+	if err = pack.Sync(pack.wpt, pack.wpf); err != nil {
 		return 0
 	}
 	// close package file
-	if err = pack.w.Close(); err != nil {
+	if err = pack.wpt.Close(); err != nil {
 		return 0
 	}
-	// clear file stream
-	pack.w = nil
+	pack.wpt = nil
+	if pack.wpf != nil {
+		if err = pack.wpf.Close(); err != nil {
+			return 0
+		}
+		pack.wpf = nil
+	}
+
+	return 0
+}
+
+func wpkflush(ls *lua.LState) int {
+	var err error
+	defer func() {
+		if err != nil {
+			ls.RaiseError(err.Error())
+		}
+	}()
+	var pack = CheckPack(ls, 1)
+
+	if pack.wpt == nil {
+		err = ErrPackClosed
+		return 0
+	}
+	if pack.wpf == nil { // can work only for splitted package
+		err = ErrDataClosed
+		return 0
+	}
+
+	// sync
+	if err = pack.Sync(pack.wpt, pack.wpf); err != nil {
+		return 0
+	}
 
 	return 0
 }
@@ -661,15 +716,19 @@ func wpkputdata(ls *lua.LState) int {
 	var kpath = ls.CheckString(2)
 	var data = ls.CheckString(3)
 
-	if pack.w == nil {
+	if pack.wpt == nil {
 		err = ErrPackClosed
 		return 0
 	}
 
 	var r = strings.NewReader(data)
 
+	var w = pack.wpt
+	if pack.wpf != nil {
+		w = pack.wpf
+	}
 	var ts *wpk.Tagset_t
-	if ts, err = pack.PackData(pack.w, r, kpath); err != nil {
+	if ts, err = pack.PackData(w, r, kpath); err != nil {
 		return 0
 	}
 
@@ -691,7 +750,7 @@ func wpkputfile(ls *lua.LState) int {
 	var kpath = ls.CheckString(2)
 	var fpath = ls.CheckString(3)
 
-	if pack.w == nil {
+	if pack.wpt == nil {
 		err = ErrPackClosed
 		return 0
 	}
@@ -702,8 +761,12 @@ func wpkputfile(ls *lua.LState) int {
 	}
 	defer file.Close()
 
+	var w = pack.wpt
+	if pack.wpf != nil {
+		w = pack.wpf
+	}
 	var ts *wpk.Tagset_t
-	if ts, err = pack.PackFile(pack.w, file, kpath); err != nil {
+	if ts, err = pack.PackFile(w, file, kpath); err != nil {
 		return 0
 	}
 

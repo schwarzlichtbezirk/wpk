@@ -119,18 +119,20 @@ type Packager interface {
 }
 
 const (
-	// HeaderSize - package header size in bytes.
-	HeaderSize = 48
 	// SignSize - signature field size.
 	SignSize = 24
+	// HeaderSize - package header size in bytes.
+	HeaderSize = 64
 )
 
 // Header - package header.
 type Header struct {
 	signature [SignSize]byte
+	typesize  [8]byte // sizes of package types
 	fttoffset uint64  // file tags table offset
 	fttsize   uint64  // file tags table size
-	typesize  [8]byte // sizes of package types
+	datoffset uint64  // files data offset
+	datsize   uint64  // files data total size
 }
 
 const (
@@ -154,20 +156,13 @@ var PackageTypeSizes = [8]byte{
 	0,
 }
 
-// Reset initializes fields with zero values and sets
-// prebuild signature. Label remains unchanged.
-func (pack *Header) Reset() {
-	copy(pack.signature[:], Prebuild)
-	pack.fttoffset = HeaderSize
-	pack.fttsize = 0
-	pack.typesize = PackageTypeSizes
-}
-
 // IsReady determines that package is ready for read the data.
 func (pack *Header) IsReady() (err error) {
-	if string(pack.signature[:]) == Prebuild {
+	// can not read file tags table for opened on write single-file package.
+	if string(pack.signature[:]) == Prebuild && !(pack.datoffset == 0 && pack.datsize > 0) {
 		return ErrSignPre
 	}
+	// can not read file tags table on any incorrect signature
 	if string(pack.signature[:]) != Signature {
 		return ErrSignBad
 	}
@@ -180,6 +175,10 @@ func (pack *Header) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 	n += SignSize
+	if _, err = r.Read(pack.typesize[:]); err != nil {
+		return
+	}
+	n += 8
 	if err = binary.Read(r, binary.LittleEndian, &pack.fttoffset); err != nil {
 		return
 	}
@@ -188,7 +187,11 @@ func (pack *Header) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 	n += 8
-	if _, err = r.Read(pack.typesize[:]); err != nil {
+	if err = binary.Read(r, binary.LittleEndian, &pack.datoffset); err != nil {
+		return
+	}
+	n += 8
+	if err = binary.Read(r, binary.LittleEndian, &pack.datsize); err != nil {
 		return
 	}
 	n += 8
@@ -201,6 +204,10 @@ func (pack *Header) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 	n += SignSize
+	if _, err = w.Write(pack.typesize[:]); err != nil {
+		return
+	}
+	n += 8
 	if err = binary.Write(w, binary.LittleEndian, &pack.fttoffset); err != nil {
 		return
 	}
@@ -209,7 +216,11 @@ func (pack *Header) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 	n += 8
-	if _, err = w.Write(pack.typesize[:]); err != nil {
+	if err = binary.Write(w, binary.LittleEndian, &pack.datoffset); err != nil {
+		return
+	}
+	n += 8
+	if err = binary.Write(w, binary.LittleEndian, &pack.datsize); err != nil {
 		return
 	}
 	n += 8
@@ -231,10 +242,10 @@ func (ftt *FTT_t) Tagset(fkey string) (ts *Tagset_t, ok bool) {
 	return
 }
 
-// Enum calls given closure for each tagset in package.
+// Enum calls given closure for each tagset in package. Skips package info.
 func (ftt *FTT_t) Enum(f func(string, *Tagset_t) bool) {
 	ftt.Range(func(key, value interface{}) bool {
-		return f(key.(string), value.(*Tagset_t))
+		return key.(string) == "" || f(key.(string), value.(*Tagset_t))
 	})
 }
 
@@ -325,11 +336,11 @@ func (ftt *FTT_t) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 
 		// check system tags
-		if offset, ok = ts.FOffset(); !ok {
+		if offset, ok = ts.FOffset(); !ok && fpath != "" {
 			err = &ErrTag{ErrNoOffset, fpath, TIDoffset}
 			return
 		}
-		if size, ok = ts.FSize(); !ok {
+		if size, ok = ts.FSize(); !ok && fpath != "" {
 			err = &ErrTag{ErrNoSize, fpath, TIDsize}
 			return
 		}
@@ -381,10 +392,6 @@ func (ftt *FTT_t) WriteTo(w io.Writer) (n int64, err error) {
 
 	// write files tags table
 	ftt.Enum(func(fkey string, ts *Tagset_t) bool {
-		// skip package info
-		if fkey == "" {
-			return true
-		}
 		var tsl = len(ts.Data())
 
 		// write tagset length

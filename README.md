@@ -33,7 +33,7 @@ Compiled binaries of utilities can be downloaded in [Releases](https://github.co
 
 # How to use
 
-At first, install [Golang](https://golang.org/) minimum 1.16 version for last version of this package, and get this package:
+At first, install [Golang](https://golang.org/) minimum 1.17 version for last version of this package, and get this package:
 
 ```batch
 go get github.com/schwarzlichtbezirk/wpk

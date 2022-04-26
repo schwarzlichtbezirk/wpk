@@ -8,6 +8,13 @@ import (
 	"sync/atomic"
 )
 
+// WriteSeekCloser is typical useful interface for package writing.
+type WriteSeekCloser interface {
+	io.Writer
+	io.Seeker
+	io.Closer
+}
+
 // Writer is package writer structure.
 type Writer struct {
 	Package
@@ -16,77 +23,122 @@ type Writer struct {
 }
 
 // Begin writes prebuild header for new empty package.
-func (pack *Writer) Begin(w io.WriteSeeker) (err error) {
+func (pack *Writer) Begin(wpt io.WriteSeeker) (err error) {
 	pack.mux.Lock()
 	defer pack.mux.Unlock()
 
 	// reset header
-	pack.Reset()
+	copy(pack.signature[:], Prebuild)
+	pack.typesize = PackageTypeSizes
+	pack.fttoffset = 0
+	pack.fttsize = 0
+	pack.datoffset = 0
+	pack.datsize = 0
 	// go to file start
-	if _, err = w.Seek(0, io.SeekStart); err != nil {
+	if _, err = wpt.Seek(0, io.SeekStart); err != nil {
 		return
 	}
 	// write prebuild header
-	if _, err = pack.Header.WriteTo(w); err != nil {
+	if _, err = pack.Header.WriteTo(wpt); err != nil {
 		return
 	}
 	return
 }
 
 // Append writes prebuild header for previously opened package to append new files.
-func (pack *Writer) Append(w io.WriteSeeker) (err error) {
+func (pack *Writer) Append(wpt, wpf io.WriteSeeker) (err error) {
 	pack.mux.Lock()
 	defer pack.mux.Unlock()
 
 	// partially reset header
 	copy(pack.signature[:], Prebuild)
 	// go to file start
-	if _, err = w.Seek(0, io.SeekStart); err != nil {
+	if _, err = wpt.Seek(0, io.SeekStart); err != nil {
 		return
 	}
 	// rewrite prebuild header
-	if _, err = pack.Header.WriteTo(w); err != nil {
+	if _, err = pack.Header.WriteTo(wpt); err != nil {
 		return
 	}
 	// go to tags table start to replace it by new data
-	if _, err = w.Seek(int64(pack.fttoffset), io.SeekStart); err != nil {
-		return
+	if wpf != nil { // splitted package files
+		if _, err = wpf.Seek(int64(pack.datoffset+pack.datsize), io.SeekStart); err != nil {
+			return
+		}
+	} else { // single package file
+		if _, err = wpt.Seek(int64(pack.datoffset+pack.datsize), io.SeekStart); err != nil {
+			return
+		}
 	}
 	return
 }
 
-// Finalize finalizes package writing. Writes true signature and header settings.
-func (pack *Writer) Finalize(w io.WriteSeeker) (err error) {
+// Sync writes actual file tags table and true signature with settings.
+func (pack *Writer) Sync(wpt, wpf io.WriteSeeker) (err error) {
 	pack.mux.Lock()
 	defer pack.mux.Unlock()
 
-	// get tags table offset as actual end of file
-	var pos1, pos2 int64
-	if pos1, err = w.Seek(0, io.SeekCurrent); err != nil {
-		return
-	}
-	// update package info if it has
-	if ts, ok := pack.Tagset(""); ok {
-		ts.Set(TIDoffset, TagFOffset(HeaderSize))
-		ts.Set(TIDsize, TagFSize(FSize_t(pos1-HeaderSize)))
-	}
-	// write file tags table
-	if _, err = pack.FTT_t.WriteTo(w); err != nil {
-		return
-	}
-	// get writer end marker and setup the file tags table size
-	if pos2, err = w.Seek(0, io.SeekCurrent); err != nil {
-		return
+	var fftpos, fftend, datpos, datend int64
+
+	if wpf != nil { // splitted package files
+		// get tags table offset as actual end of file
+		datpos = 0
+		if datend, err = wpf.Seek(0, io.SeekCurrent); err != nil {
+			return
+		}
+		fftpos = HeaderSize
+
+		// update package info if it has
+		if ts, ok := pack.Tagset(""); ok {
+			ts.Set(TIDoffset, TagFOffset(FOffset_t(datpos)))
+			ts.Set(TIDsize, TagFSize(FSize_t(datend-datpos)))
+		}
+
+		// write file tags table
+		if _, err = wpt.Seek(fftpos, io.SeekStart); err != nil {
+			return
+		}
+		if _, err = pack.FTT_t.WriteTo(wpt); err != nil {
+			return
+		}
+		// get writer end marker and setup the file tags table size
+		if fftend, err = wpt.Seek(0, io.SeekCurrent); err != nil {
+			return
+		}
+	} else { // single package file
+		// get tags table offset as actual end of file
+		datpos = HeaderSize
+		if datend, err = wpt.Seek(0, io.SeekCurrent); err != nil {
+			return
+		}
+		fftpos = datend
+
+		// update package info if it has
+		if ts, ok := pack.Tagset(""); ok {
+			ts.Set(TIDoffset, TagFOffset(FOffset_t(datpos)))
+			ts.Set(TIDsize, TagFSize(FSize_t(datend-datpos)))
+		}
+
+		// write file tags table
+		if _, err = pack.FTT_t.WriteTo(wpt); err != nil {
+			return
+		}
+		// get writer end marker and setup the file tags table size
+		if fftend, err = wpt.Seek(0, io.SeekCurrent); err != nil {
+			return
+		}
 	}
 
 	// rewrite true header
-	if _, err = w.Seek(0, io.SeekStart); err != nil {
+	if _, err = wpt.Seek(0, io.SeekStart); err != nil {
 		return
 	}
 	copy(pack.signature[:], Signature)
-	pack.fttoffset = uint64(pos1)
-	pack.fttsize = uint64(pos2 - pos1)
-	if _, err = pack.Header.WriteTo(w); err != nil {
+	pack.fttoffset = uint64(fftpos)
+	pack.fttsize = uint64(fftend - fftpos)
+	pack.datoffset = uint64(datpos)
+	pack.datsize = uint64(datend - datpos)
+	if _, err = pack.Header.WriteTo(wpt); err != nil {
 		return
 	}
 	return
@@ -112,8 +164,6 @@ func (pack *Writer) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *T
 		if size, err = io.Copy(w, r); err != nil {
 			return
 		}
-		// update header
-		pack.fttoffset = uint64(offset + size)
 	}(); err != nil {
 		return
 	}
@@ -144,14 +194,13 @@ func (pack *Writer) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ts 
 	return
 }
 
-// PackDirFilter is function called before each file or directory with its parameters
-// during PackDir processing. Returns whether to process the file or directory.
-// Can be used as filter and logger.
-type PackDirFilter = func(fi os.FileInfo, kpath, fpath string) bool
+// PackDirLogger is function called during PackDir processing after each
+// file with OS file object and inserted tagset, that can be modified.
+type PackDirLogger = func(r io.ReadSeeker, ts *Tagset_t) error
 
 // PackDir puts all files of given folder and it's subfolders into package.
-// Filter function can be nil.
-func (pack *Writer) PackDir(w io.WriteSeeker, dirname, prefix string, filter PackDirFilter) (err error) {
+// Logger function can be nil.
+func (pack *Writer) PackDir(w io.WriteSeeker, dirname, prefix string, logger PackDirLogger) (err error) {
 	var fis []os.FileInfo
 	if func() {
 		var dir *os.File
@@ -170,24 +219,26 @@ func (pack *Writer) PackDir(w io.WriteSeeker, dirname, prefix string, filter Pac
 		if fi != nil {
 			var kpath = prefix + fi.Name()
 			var fpath = dirname + fi.Name()
-			if filter == nil || filter(fi, kpath, fpath) {
-				if fi.IsDir() {
-					if err = pack.PackDir(w, fpath+"/", kpath+"/", filter); err != nil {
-						return
-					}
-				} else if func() {
-					var file *os.File
-					if file, err = os.Open(fpath); err != nil {
-						return
-					}
-					defer file.Close()
-
-					if _, err = pack.PackFile(w, file, kpath); err != nil {
-						return
-					}
-				}(); err != nil {
+			if fi.IsDir() {
+				if err = pack.PackDir(w, fpath+"/", kpath+"/", logger); err != nil {
 					return
 				}
+			} else if func() {
+				var file *os.File
+				var ts *Tagset_t
+				if file, err = os.Open(fpath); err != nil {
+					return
+				}
+				defer file.Close()
+
+				if ts, err = pack.PackFile(w, file, kpath); err != nil {
+					return
+				}
+				if err = logger(file, ts); err != nil {
+					return
+				}
+			}(); err != nil {
+				return
 			}
 		}
 	}

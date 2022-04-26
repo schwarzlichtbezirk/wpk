@@ -13,7 +13,7 @@ pkg:setinfo{ -- setup package info
 
 -- open wpk-file for write
 pkg:begin(path.join(tmpdir, "packdir.wpk"))
-log("starts: "..pkg.path)
+log("starts: "..pkg.pkgpath)
 
 -- write to log formatted string
 local function logfmt(...)

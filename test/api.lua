@@ -93,7 +93,10 @@ to build wpk-packages.
 	label - getter/setter for package label in package info. Getter returns
 		nothing if label is absent. If setter was called, it creates package
 		info table in case if it was absent before.
-	path - getter only, returns path to opened wpk-file.
+	pkgpath - getter only, returns path to opened single wpk-file, or to header
+		part file on case of splitted package.
+	datpath - getter only, returns path to opened package data part file of
+		splitted package.
 	recnum - getter only, returns number of records in file allocation table.
 	tagnum - getter only, counts number of records in tags table.
 	fftsize - getter only, calculates size of file tags table.
@@ -120,14 +123,21 @@ to build wpk-packages.
 		signed by 'secret' key.
 
 	methods:
-	load(fpath) - read allocation table and tags table by specified wpk-file path.
-		File descriptor is closed after this function call.
-	begin(fpath) - start to write new empty package with given path.
-		Package can not be used until writing will be 'finalize'. If package with
-		given path is already exist, it will be rewritten.
+	load(pkgpath, datpath) - read allocation table and tags table by specified
+		wpk-file path. File descriptor is closed after this function call.
+		'datpath' can be skipped for package in single file.
+	begin(pkgpath, datpath) - start to write new empty package with given paths.
+		If package should be splitten on tags table and data files, 'pkgpath' points
+		to file with tags table, and 'datpath' points to data file. If package should
+		be written to single file, 'pkgpath' only is givens, and 'datpath' is nil.
+		Package in single file can not be used until writing will be 'finalize'.
+		Splitted package can be used after each update by 'flush' during writing.
+		If package with given path is already exist, it will be rewritten.
 	append() - start to append new files to already existing package, opened by
 		previous call to 'load'. Package can not be used until writing will be 'finalize'.
 	finalize() - write allocation table and tags table, and finalize package writing.
+	flush() - only for splitted package writes allocation table and tags table,
+		and continue common files writing workflow.
 	sumsize() - return size sum of all data records. Some files may refer to shared
 		data, so sumsize can be more then datasize.
 	glob(pattern) - returns the names of all files in package matching pattern or nil
@@ -191,7 +201,7 @@ function wpk.create(fpath)-- additional wpk-constructor
 	pkg.nolink = true -- exclude links
 	pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 	pkg:begin(fpath) -- open wpk-file for write
-	log("starts: "..pkg.path)
+	log("starts: "..pkg.pkgpath)
 	return pkg
 end
 function wpk:logfile(fkey) -- write record log
