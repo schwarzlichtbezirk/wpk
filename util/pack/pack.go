@@ -72,25 +72,27 @@ func checkargs() int {
 func writepackage() (err error) {
 	var pack wpk.Writer
 	var fwpk, fwpd wpk.WriteSeekCloser
+	var pkgfile, datfile = DstFile, DstFile
+	if Split {
+		pkgfile, datfile = wpk.MakeTagsPath(pkgfile), wpk.MakeDataPath(datfile)
+	}
 
 	// open package file to write
-	if fwpk, err = os.OpenFile(DstFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
+	if fwpk, err = os.OpenFile(pkgfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
 		return
 	}
 	defer fwpk.Close()
 
 	if Split {
-		var ext = filepath.Ext(DstFile)
-		var datfile = DstFile[:len(DstFile)-len(ext)] + ".wpf"
 		if fwpd, err = os.OpenFile(datfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
 			return
 		}
 		defer fwpd.Close()
 
-		log.Printf("destination tags part:  %s\n", DstFile)
+		log.Printf("destination tags part:  %s\n", pkgfile)
 		log.Printf("destination files part: %s\n", datfile)
 	} else {
-		log.Printf("destination file: %s\n", DstFile)
+		log.Printf("destination file: %s\n", pkgfile)
 	}
 
 	// starts new package

@@ -11,6 +11,20 @@ import (
 	"strings"
 )
 
+// MakeTagsPath receives file path and returns it with ".wpt" extension.
+// It hepls to open splitted package.
+func MakeTagsPath(fpath string) string {
+	var ext = filepath.Ext(fpath)
+	return fpath[:len(fpath)-len(ext)] + ".wpt"
+}
+
+// MakeDataPath receives file path and returns it with ".wpf" extension.
+// It hepls to open splitted package.
+func MakeDataPath(fpath string) string {
+	var ext = filepath.Ext(fpath)
+	return fpath[:len(fpath)-len(ext)] + ".wpf"
+}
+
 // DirEntry is directory representation of nested into package files.
 // No any reader for directory implementation.
 // fs.DirEntry interface implementation.

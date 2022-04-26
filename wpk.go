@@ -156,10 +156,20 @@ var PackageTypeSizes = [8]byte{
 	0,
 }
 
+// DataPos returns data files block offset and size.
+func (pack *Header) DataPos() (uint64, uint64) {
+	return pack.datoffset, pack.datsize
+}
+
+// IsSplitted returns true if package is splitted on tags and data files.
+func (pack *Header) IsSplitted() bool {
+	return pack.datoffset == 0 && pack.datsize > 0
+}
+
 // IsReady determines that package is ready for read the data.
 func (pack *Header) IsReady() (err error) {
 	// can not read file tags table for opened on write single-file package.
-	if string(pack.signature[:]) == Prebuild && !(pack.datoffset == 0 && pack.datsize > 0) {
+	if string(pack.signature[:]) == Prebuild && !pack.IsSplitted() {
 		return ErrSignPre
 	}
 	// can not read file tags table on any incorrect signature

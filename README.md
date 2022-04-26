@@ -1,5 +1,5 @@
 
-Build and use data files package.
+Library to build and use data files packages.
 
 # Preamble
 
@@ -10,23 +10,32 @@ Package keeps all files together with warranty that no any file will be deleted,
 # Structure
 
 Library have root **`wpk`** module that used by any code working with `.wpk` packages. And modules to build utilities for packing/unpacking data files to package:
- - **wpk**
+
+- **wpk**
 Places data files into single package, extracts them, and gives API for access to package.
- - **wpk/bulk**
+
+- **wpk/bulk**
 Wrapper for package to hold WPK-file whole content as a slice. Actual for small packages (size is much less than the amount of RAM).
- - **wpk/mmap**
+
+- **wpk/mmap**
 Wrapper for package to get access to nested files as to memory mapped blocks. Actual for medium size packages (size correlates with the RAM amount).
- - **wpk/fsys**
+
+- **wpk/fsys**
 Wrapper for package to get access to nested files by OS files. Actual for large packages (size is much exceeds the amount of RAM) or large nested files.
- - **wpk/luawpk**
+
+- **wpk/luawpk**
 Package writer with package building process scripting using [Lua 5.1]([https://www.lua.org/manual/5.1/](https://www.lua.org/manual/5.1/)). Typical script workflow is to create package for writing, setup some options, put group of files to package, and finalize it.
- - **wpk/test**
+
+- **wpk/test**
 Contains some Lua-scripts to test **`wpk/luawpk`** module and learn scripting API opportunities.
- - **wpk/util/pack**
+
+- **wpk/util/pack**
 Small simple utility designed to pack a directory, or a list of directories into an package.
- - **wpk/util/extract**
+
+- **wpk/util/extract**
 Small simple utility designed to extract all packed files from package, or list of packages to given directory.
- - **wpk/util/build**
+
+- **wpk/util/build**
 Utility for the packages programmable building, based on **`wpk/luawpk`** module.
 
 Compiled binaries of utilities can be downloaded in [Releases](https://github.com/schwarzlichtbezirk/wpk/releases) section.
@@ -66,11 +75,16 @@ and see `build.wpk` file in binary directory near compiled output.
 # WPK-format
 
 Package consist of 3 sections:
- 1. **Header**, constantly 60 bytes. Starts with signature (24 bytes), then follow label (24 bytes), file tags table offset (8 bytes), and records number (4 bytes).
- 2. **Bare data files blocks**.
- 3. **Tags sets**. Contains list of tagset for each file alias. Each tagset must contain some requered fields: it's ID, file size, file offset in package, file name (path), creation time.
+
+1. **Header**, constantly 64 bytes. Starts with signature (24 bytes), then follow 8 bytes with used at package types sizes, file tags table offset and table size (8+8 bytes), and bata block offset and size (8+8 bytes).
+
+2. **Bare data files blocks**.
+
+3. **File tags set table**. Contains list of tagset for each file alias. Each tagset must contain some requered fields: it's ID, file size, file offset in package, file name (path), creation time. Package can have common description stored as tagset with empty name. This tagset is placed as first record in file tags table.
 
 Existing package can be opened to append new files, in this case new files blocks will be posted to *tags sets* old place.
+
+Package can be splitted in two files: 1) file with header and tags table, `.wpt`-file, it's a short file in most common, and 2) file with data files block, typically `.wpf`-file. In this case package is able for reading during new files packing to package. If process of packing new files will be broken by any case, package remains accessible with information pointed at last header record.
 
 # Script API
 

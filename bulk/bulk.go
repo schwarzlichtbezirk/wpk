@@ -1,6 +1,7 @@
-package fsys
+package bulk
 
 import (
+	"bytes"
 	"io"
 	"io/fs"
 	"os"
@@ -10,83 +11,92 @@ import (
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
-// ChunkFile structure gives access to nested into package file.
+// SliceFile structure gives access to nested into package file.
 // wpk.NestedFile interface implementation.
-type ChunkFile struct {
+type SliceFile struct {
 	wpk.FileReader
 	tags *wpk.Tagset_t // has fs.FileInfo interface
-	wpkf *os.File
 }
 
-// NewChunkFile creates ChunkFile file structure based on given tags slice.
-func NewChunkFile(fname string, ts *wpk.Tagset_t) (f *ChunkFile, err error) {
-	var wpkf *os.File
-	if wpkf, err = os.Open(fname); err != nil {
-		return
-	}
+// NewSliceFile creates SliceFile file structure based on given tags slice.
+func NewSliceFile(pack *Package, ts *wpk.Tagset_t) (f *SliceFile, err error) {
 	var offset, _ = ts.FOffset()
 	var size, _ = ts.FSize()
-	f = &ChunkFile{
+	f = &SliceFile{
 		tags:       ts,
-		FileReader: io.NewSectionReader(wpkf, int64(offset), int64(size)),
-		wpkf:       wpkf,
+		FileReader: bytes.NewReader(pack.bulk[offset : offset+wpk.FOffset_t(size)]),
 	}
 	return
 }
 
 // Stat is for fs.File interface compatibility.
-func (f *ChunkFile) Stat() (fs.FileInfo, error) {
+func (f *SliceFile) Stat() (fs.FileInfo, error) {
 	return f.tags, nil
 }
 
-// Close closes associated wpk-file handle.
-func (f *ChunkFile) Close() error {
-	return f.wpkf.Close()
+// Close is for fs.File interface compatibility.
+func (f *SliceFile) Close() error {
+	return nil
 }
 
-// PackDir is wrapper for package to get access to nested files as to memory mapped blocks.
+// Package is wrapper for package to hold WPK-file whole content as a slice.
 // Gives access to pointed directory in package.
 // fs.FS interface implementation.
-type PackDir struct {
+type Package struct {
 	*wpk.Package
 	workspace string // workspace directory in package
-	fname     string // package filename
+	bulk      []byte // slice with whole package content
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
-func (pack *PackDir) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
-	return NewChunkFile(pack.fname, ts)
+func (pack *Package) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
+	return NewSliceFile(pack, ts)
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage(fname string) (pack *PackDir, err error) {
-	pack = &PackDir{Package: &wpk.Package{}}
+func OpenPackage(fname string) (pack *Package, err error) {
+	pack = &Package{Package: &wpk.Package{}}
 	pack.workspace = "."
-	pack.fname = fname
 
-	var filewpk *os.File
-	if filewpk, err = os.Open(fname); err != nil {
+	var r io.ReadSeekCloser
+	if r, err = os.Open(fname); err != nil {
 		return
 	}
-	defer filewpk.Close()
+	defer r.Close()
 
-	if err = pack.OpenFTT(filewpk); err != nil {
+	if err = pack.OpenFTT(r); err != nil {
 		return
 	}
+
+	var bulk []byte
+	if pack.IsSplitted() {
+		if bulk, err = os.ReadFile(wpk.MakeDataPath(fname)); err != nil {
+			return
+		}
+	} else {
+		var offset, size = pack.DataPos()
+		bulk = make([]byte, offset+size)
+		if _, err = r.Seek(0, io.SeekStart); err != nil {
+			return
+		}
+		if _, err = r.Read(bulk); err != nil {
+			return
+		}
+	}
+	pack.bulk = bulk
 	return
 }
 
-// Close file handle. This function must be called only for root object,
-// not subdirectories.
+// Close does nothing, there is no any opened handles.
+// Useful for interface compatibility.
 // io.Closer implementation.
-func (pack *PackDir) Close() error {
+func (pack *Package) Close() error {
 	return nil
 }
 
 // Sub clones object and gives access to pointed subdirectory.
-// Copies file handle, so it must be closed only once for root object.
 // fs.SubFS implementation.
-func (pack *PackDir) Sub(dir string) (df fs.FS, err error) {
+func (pack *Package) Sub(dir string) (df fs.FS, err error) {
 	if !fs.ValidPath(dir) {
 		err = &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrInvalid}
 		return
@@ -98,10 +108,10 @@ func (pack *PackDir) Sub(dir string) (df fs.FS, err error) {
 	}
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefixdir) {
-			df, err = &PackDir{
+			df, err = &Package{
 				pack.Package,
 				workspace,
-				pack.fname,
+				pack.bulk,
 			}, nil
 			return false
 		}
@@ -115,7 +125,7 @@ func (pack *PackDir) Sub(dir string) (df fs.FS, err error) {
 
 // Stat returns a fs.FileInfo describing the file.
 // fs.StatFS implementation.
-func (pack *PackDir) Stat(name string) (fs.FileInfo, error) {
+func (pack *Package) Stat(name string) (fs.FileInfo, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrInvalid}
 	}
@@ -128,9 +138,8 @@ func (pack *PackDir) Stat(name string) (fs.FileInfo, error) {
 }
 
 // ReadFile returns slice with nested into package file content.
-// Makes content copy to prevent ambiguous access to closed mapped memory block.
 // fs.ReadFileFS implementation.
-func (pack *PackDir) ReadFile(name string) ([]byte, error) {
+func (pack *Package) ReadFile(name string) ([]byte, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
 	}
@@ -139,34 +148,31 @@ func (pack *PackDir) ReadFile(name string) ([]byte, error) {
 	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
-	var f, err = NewChunkFile(pack.fname, ts)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
+	var offset, _ = ts.FOffset()
 	var size, _ = ts.FSize()
-	var buf = make([]byte, size)
-	_, err = f.Read(buf)
-	return buf, err
+	return pack.bulk[offset : offset+wpk.FOffset_t(size)], nil
 }
 
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
-func (pack *PackDir) ReadDir(dir string) ([]fs.DirEntry, error) {
+func (pack *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
 	return wpk.ReadDir(pack, path.Join(pack.workspace, dir), -1)
 }
 
 // Open implements access to nested into package file or directory by keyname.
 // fs.FS implementation.
-func (pack *PackDir) Open(dir string) (fs.File, error) {
+func (pack *Package) Open(dir string) (fs.File, error) {
 	if dir == "wpk" && pack.workspace == "." {
-		return os.Open(pack.fname)
+		var ts = (&wpk.Tagset_t{}).
+			Put(wpk.TIDfid, wpk.TagFID(0)).
+			Put(wpk.TIDoffset, wpk.TagFOffset(0)).
+			Put(wpk.TIDsize, wpk.TagFSize(wpk.FSize_t(len(pack.bulk))))
+		return NewSliceFile(pack, ts)
 	}
 
 	var fullname = path.Join(pack.workspace, dir)
 	if ts, is := pack.Tagset(fullname); is {
-		return NewChunkFile(pack.fname, ts)
+		return NewSliceFile(pack, ts)
 	}
 	return wpk.OpenDir(pack, fullname)
 }
