@@ -52,6 +52,7 @@ local function checkname(name)
 	return true
 end
 -- pack given directory and add to each file name given prefix
+local n = 0
 local function packdir(prefix, dir)
 	for i, name in ipairs(path.enum(dir)) do
 		local fkey = prefix..name
@@ -63,8 +64,8 @@ local function packdir(prefix, dir)
 			else
 				pkg:putfile(fkey, fpath)
 				pkg:settag(fkey, "author", "schwarzlichtbezirk")
-				logfmt("#%d %s, %d bytes, %s",
-					pkg:gettag(fkey, "fid").uint, fkey,
+				n = n + 1
+				logfmt("#%d %s, %d bytes, %s", n, fkey,
 					pkg:filesize(fkey), pkg:gettag(fkey, "mime").string)
 			end
 		end

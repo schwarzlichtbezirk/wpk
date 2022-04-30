@@ -79,7 +79,6 @@ var (
 
 	ErrNoTag    = errors.New("tag with given ID not found")
 	ErrNoPath   = errors.New("file name is absent")
-	ErrNoFID    = errors.New("file ID is absent")
 	ErrNoOffset = errors.New("file offset is absent")
 	ErrOutOff   = errors.New("file offset is out of bounds")
 	ErrNoSize   = errors.New("file size is absent")
@@ -354,10 +353,6 @@ func (ftt *FTT_t) ReadFrom(r io.Reader) (n int64, err error) {
 			err = &ErrTag{ErrNoSize, fpath, TIDsize}
 			return
 		}
-		if !ts.Has(TIDfid) {
-			err = &ErrTag{ErrNoFID, fpath, TIDfid}
-			return
-		}
 
 		// setup whole package offset and size
 		if fpath == "" {
@@ -432,6 +427,7 @@ func (ftt *FTT_t) WriteTo(w io.Writer) (n int64, err error) {
 type Package struct {
 	Header
 	FTT_t
+	mux sync.Mutex // writer mutex
 }
 
 // Glob returns the names of all files in package matching pattern or nil

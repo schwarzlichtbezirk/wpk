@@ -35,7 +35,7 @@ const PackMT = "wpk"
 
 // LuaPackage is "wpk" userdata structure.
 type LuaPackage struct {
-	wpk.Writer
+	wpk.Package
 	automime bool
 	nolink   bool
 	secret   string
@@ -142,13 +142,17 @@ func setterPack(ls *lua.LState) int {
 func tostringPack(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
+	var m = map[wpk.FOffset_t]struct{}{}
 	var n = 0
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
+		if offset, ok := ts.FOffset(); ok {
+			m[offset] = struct{}{}
+		}
 		n++
 		return true
 	})
 	var items []string
-	items = append(items, fmt.Sprintf("records: %d", pack.LastFID))
+	items = append(items, fmt.Sprintf("records: %d", len(m)))
 	items = append(items, fmt.Sprintf("aliases: %d", n))
 	if ts, ok := pack.Tagset(""); ok {
 		if size, ok := ts.FSize(); ok {
@@ -273,7 +277,14 @@ func getdatpath(ls *lua.LState) int {
 
 func getrecnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LNumber(pack.LastFID))
+	var m = map[wpk.FOffset_t]struct{}{}
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
+		if offset, ok := ts.FOffset(); ok {
+			m[offset] = struct{}{}
+		}
+		return true
+	})
+	ls.Push(lua.LNumber(len(m)))
 	return 1
 }
 

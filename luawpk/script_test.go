@@ -16,7 +16,7 @@ var mediadir = scrdir + "media/"
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, wpkname string) {
 	var err error
-	var pack wpk.Writer
+	var pack wpk.Package
 	var fwpk *os.File
 
 	// open temporary file for read/write

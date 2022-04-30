@@ -19,9 +19,9 @@ type ChunkFile struct {
 }
 
 // NewChunkFile creates ChunkFile file structure based on given tags slice.
-func NewChunkFile(fname string, ts *wpk.Tagset_t) (f *ChunkFile, err error) {
+func NewChunkFile(fpath string, ts *wpk.Tagset_t) (f *ChunkFile, err error) {
 	var wpkf *os.File
-	if wpkf, err = os.Open(fname); err != nil {
+	if wpkf, err = os.Open(fpath); err != nil {
 		return
 	}
 	var offset, _ = ts.FOffset()
@@ -45,26 +45,37 @@ func (f *ChunkFile) Close() error {
 }
 
 // Package is wrapper for package to get access to nested files as to memory mapped blocks.
-// Gives access to pointed directory in package.
+// Gives access to pointed directory in package. This type of package can be used for write.
 // fs.FS interface implementation.
 type Package struct {
 	*wpk.Package
 	workspace string // workspace directory in package
-	fname     string // package filename
+	fpath     string // package filename
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
 func (pack *Package) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
-	return NewChunkFile(pack.fname, ts)
+	return NewChunkFile(pack.fpath, ts)
+}
+
+// NewPackage creates new package with given data-part file.
+func NewPackage(datpath string) *Package {
+	return &Package{
+		Package:   &wpk.Package{},
+		workspace: ".",
+		fpath:     datpath,
+	}
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage(fname string) (pack *Package, err error) {
-	pack = &Package{Package: &wpk.Package{}}
-	pack.workspace = "."
+func OpenPackage(fpath string) (pack *Package, err error) {
+	pack = &Package{
+		Package:   &wpk.Package{},
+		workspace: ".",
+	}
 
 	var r io.ReadSeekCloser
-	if r, err = os.Open(fname); err != nil {
+	if r, err = os.Open(fpath); err != nil {
 		return
 	}
 	defer r.Close()
@@ -74,9 +85,9 @@ func OpenPackage(fname string) (pack *Package, err error) {
 	}
 
 	if pack.IsSplitted() {
-		pack.fname = wpk.MakeDataPath(fname)
+		pack.fpath = wpk.MakeDataPath(fpath)
 	} else {
-		pack.fname = fname
+		pack.fpath = fpath
 	}
 	return
 }
@@ -106,7 +117,7 @@ func (pack *Package) Sub(dir string) (df fs.FS, err error) {
 			df, err = &Package{
 				pack.Package,
 				workspace,
-				pack.fname,
+				pack.fpath,
 			}, nil
 			return false
 		}
@@ -144,7 +155,7 @@ func (pack *Package) ReadFile(name string) ([]byte, error) {
 	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
-	var f, err = NewChunkFile(pack.fname, ts)
+	var f, err = NewChunkFile(pack.fpath, ts)
 	if err != nil {
 		return nil, err
 	}
@@ -166,12 +177,12 @@ func (pack *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
 // fs.FS implementation.
 func (pack *Package) Open(dir string) (fs.File, error) {
 	if dir == "wpk" && pack.workspace == "." {
-		return os.Open(pack.fname)
+		return os.Open(pack.fpath)
 	}
 
 	var fullname = path.Join(pack.workspace, dir)
 	if ts, is := pack.Tagset(fullname); is {
-		return NewChunkFile(pack.fname, ts)
+		return NewChunkFile(pack.fpath, ts)
 	}
 	return wpk.OpenDir(pack, fullname)
 }

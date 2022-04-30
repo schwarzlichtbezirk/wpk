@@ -55,8 +55,10 @@ func (pack *Package) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 
 // OpenPackage opens WPK-file package by given file name.
 func OpenPackage(fname string) (pack *Package, err error) {
-	pack = &Package{Package: &wpk.Package{}}
-	pack.workspace = "."
+	pack = &Package{
+		Package:   &wpk.Package{},
+		workspace: ".",
+	}
 
 	var r io.ReadSeekCloser
 	if r, err = os.Open(fname); err != nil {

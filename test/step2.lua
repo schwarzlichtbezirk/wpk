@@ -28,19 +28,21 @@ end
 local function logfmt(...) -- write to log formatted string
 	log(string.format(...))
 end
+local n = 0
 local function logfile(fkey) -- write record log
-	logfmt("#%d file %s, crc=%s",
-		pkg:gettag(fkey, "fid").uint, fkey,
+	logfmt("#%d file %s, crc=%s", n, fkey,
 		tostring(pkg:gettag(fkey, "crc32")))
 end
 local function packfile(fkey, keywords) -- pack given file with common preset
 	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
 	pkg:addtags(fkey, {keywords=keywords, author="schwarzlichtbezirk"})
+	n = n + 1
 	logfile(fkey)
 end
 local function packdata(fkey, data, keywords) -- put text file created from given string
 	pkg:putdata(fkey, data)
 	pkg:settags(fkey, {keywords=keywords, mime="text/plain;charset=utf-8"})
+	n = n + 1
 	logfile(fkey)
 end
 local function safealias(fname1, fname2) -- make 2 file name aliases to 1 file

@@ -70,7 +70,7 @@ func checkargs() int {
 }
 
 func writepackage() (err error) {
-	var pack wpk.Writer
+	var pack wpk.Package
 	var fwpk, fwpd wpk.WriteSeekCloser
 	var pkgfile, datfile = DstFile, DstFile
 	if Split {
@@ -113,11 +113,11 @@ func writepackage() (err error) {
 		if err = pack.PackDir(w, path, "", func(r io.ReadSeeker, ts *wpk.Tagset_t) error {
 			var size = ts.Size()
 			var fname, _ = ts.String(wpk.TIDpath)
-			if ShowLog {
-				log.Printf("#%-4d %7d bytes   %s", pack.LastFID, size, fname)
-			}
 			num++
 			sum += size
+			if ShowLog {
+				log.Printf("#%-4d %7d bytes   %s", num, size, fname)
+			}
 
 			// adjust tags
 			if PutMIME {

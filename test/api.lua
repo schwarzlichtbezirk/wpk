@@ -97,8 +97,8 @@ to build wpk-packages.
 		part file on case of splitted package.
 	datpath - getter only, returns path to opened package data part file of
 		splitted package.
-	recnum - getter only, returns number of records in file allocation table.
-	tagnum - getter only, counts number of records in tags table.
+	recnum - getter only, counts number of unique records in file allocation table.
+	tagnum - getter only, counts number of records in tags table, i.e. all aliases.
 	fftsize - getter only, calculates size of file tags table.
 	datasize - getter only, returns package data size from current file position.
 	automime - get/set mode to put for each new file tag with its MIME

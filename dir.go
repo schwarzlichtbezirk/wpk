@@ -34,7 +34,7 @@ type DirEntry struct {
 
 // Type is for fs.DirEntry interface compatibility.
 func (f *DirEntry) Type() fs.FileMode {
-	if f.Has(TIDfid) { // file ID is absent for dir
+	if f.Has(TIDsize) { // file size is absent for dir
 		return 0444
 	}
 	return fs.ModeDir

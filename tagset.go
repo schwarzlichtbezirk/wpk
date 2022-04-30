@@ -409,7 +409,7 @@ func (ts *Tagset_t) Size() int64 {
 
 // Mode is for fs.FileInfo interface compatibility.
 func (ts *Tagset_t) Mode() fs.FileMode {
-	if ts.Has(TIDfid) { // file ID is absent for dir
+	if ts.Has(TIDsize) { // file size is absent for dir
 		return 0444
 	}
 	return fs.ModeDir
@@ -425,7 +425,7 @@ func (ts *Tagset_t) ModTime() time.Time {
 // IsDir detects that object presents a directory. Directory can not have file ID.
 // fs.FileInfo implementation.
 func (ts *Tagset_t) IsDir() bool {
-	return !ts.Has(TIDfid) // file ID is absent for dir
+	return !ts.Has(TIDsize) // file size is absent for dir
 }
 
 // Sys is for fs.FileInfo interface compatibility.

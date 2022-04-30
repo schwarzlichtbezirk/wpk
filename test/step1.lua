@@ -13,11 +13,12 @@ pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 pkg.md5 = true -- generate MD5 hash for each file
 
 -- pack given file with common preset
+local n = 0
 local function packfile(fkey, keywords)
 	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
 	pkg:addtags(fkey, {keywords=keywords, [104]="schwarzlichtbezirk"})
-	log(string.format("#%d file %s, crc=%s",
-		pkg:gettag(fkey, "fid").uint, fkey,
+	n = n + 1
+	log(string.format("#%d file %s, crc=%s", n, fkey,
 		tostring(pkg:gettag(fkey, "crc32"))))
 end
 
