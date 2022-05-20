@@ -297,10 +297,58 @@ func (ftt *FTT_t) Info() *Tagset_t {
 	return val.(*Tagset_t)
 }
 
+type filepos struct {
+	offset FOffset_t
+	size   FSize_t
+}
+
+func (ftt *FTT_t) checkTagset(ts *Tagset_t, lim *filepos) (fpath string, err error) {
+	var ok bool
+	var pos filepos
+
+	// get file key
+	if fpath, ok = ts.String(TIDpath); !ok {
+		err = &ErrTag{ErrNoPath, "", TIDpath}
+		return
+	}
+	if ftt.HasTagset(fpath) { // prevent same file from repeating
+		err = &ErrTag{fs.ErrExist, fpath, TIDpath}
+		return
+	}
+
+	// check system tags
+	if pos.offset, ok = ts.FOffset(); !ok && fpath != "" {
+		err = &ErrTag{ErrNoOffset, fpath, TIDoffset}
+		return
+	}
+	if pos.size, ok = ts.FSize(); !ok && fpath != "" {
+		err = &ErrTag{ErrNoSize, fpath, TIDsize}
+		return
+	}
+
+	// setup whole package offset and size
+	if fpath == "" {
+		lim.offset, lim.size = pos.offset, pos.size
+	}
+
+	// check up offset and tag if package info is provided
+	if lim.size > 0 {
+		if pos.offset < lim.offset || pos.offset > lim.offset+FOffset_t(lim.size) {
+			err = &ErrTag{ErrOutOff, fpath, TIDoffset}
+			return
+		}
+		if pos.offset+FOffset_t(pos.size) > lim.offset+FOffset_t(lim.size) {
+			err = &ErrTag{ErrOutSize, fpath, TIDsize}
+			return
+		}
+	}
+
+	return
+}
+
 // ReadFrom reads file tags table whole content from the given stream.
 func (ftt *FTT_t) ReadFrom(r io.Reader) (n int64, err error) {
-	var dataoffset FOffset_t
-	var datasize FSize_t
+	var limits filepos
 	for {
 		var tsl TSSize_t
 		if err = binary.Read(r, binary.LittleEndian, &tsl); err != nil {
@@ -327,48 +375,9 @@ func (ftt *FTT_t) ReadFrom(r io.Reader) (n int64, err error) {
 			return
 		}
 
-		var (
-			ok     bool
-			offset FOffset_t
-			size   FSize_t
-			fpath  string
-		)
-
-		// get file key
-		if fpath, ok = ts.String(TIDpath); !ok {
-			err = &ErrTag{ErrNoPath, "", TIDpath}
+		var fpath string
+		if fpath, err = ftt.checkTagset(ts, &limits); err != nil {
 			return
-		}
-		if ftt.HasTagset(fpath) { // prevent same file from repeating
-			err = &ErrTag{fs.ErrExist, fpath, TIDpath}
-			return
-		}
-
-		// check system tags
-		if offset, ok = ts.FOffset(); !ok && fpath != "" {
-			err = &ErrTag{ErrNoOffset, fpath, TIDoffset}
-			return
-		}
-		if size, ok = ts.FSize(); !ok && fpath != "" {
-			err = &ErrTag{ErrNoSize, fpath, TIDsize}
-			return
-		}
-
-		// setup whole package offset and size
-		if fpath == "" {
-			dataoffset, datasize = offset, size
-		}
-
-		// check up offset and tag if package info is provided
-		if datasize > 0 {
-			if offset < dataoffset || offset > dataoffset+FOffset_t(datasize) {
-				err = &ErrTag{ErrOutOff, fpath, TIDoffset}
-				return
-			}
-			if offset+FOffset_t(size) > dataoffset+FOffset_t(datasize) {
-				err = &ErrTag{ErrOutSize, fpath, TIDsize}
-				return
-			}
 		}
 
 		ftt.SetTagset(fpath, ts)

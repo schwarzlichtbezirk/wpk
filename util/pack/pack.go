@@ -69,6 +69,41 @@ func checkargs() int {
 	return ec
 }
 
+var num, sum int64
+
+func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
+	var size = ts.Size()
+	var fname, _ = ts.String(wpk.TIDpath)
+	num++
+	sum += size
+	if ShowLog {
+		log.Printf("#%-4d %7d bytes   %s", num, size, fname)
+	}
+
+	// adjust tags
+	if PutMIME {
+		const sniffLen = 512
+		var ctype = mime.TypeByExtension(filepath.Ext(fname))
+		if ctype == "" {
+			// rewind to file start
+			if _, err = r.Seek(0, io.SeekStart); err != nil {
+				return err
+			}
+			// read a chunk to decide between utf-8 text and binary
+			var buf [sniffLen]byte
+			var n int64
+			if n, err = io.CopyN(bytes.NewBuffer(buf[:]), r, sniffLen); err != nil && err != io.EOF {
+				return err
+			}
+			ctype = http.DetectContentType(buf[:n])
+		}
+		if ctype != "" {
+			ts.Put(wpk.TIDmime, wpk.TagString(ctype))
+		}
+	}
+	return nil
+}
+
 func writepackage() (err error) {
 	var pack wpk.Package
 	var fwpk, fwpd wpk.WriteSeekCloser
@@ -107,41 +142,10 @@ func writepackage() (err error) {
 	}
 
 	// write all source folders
-	for i, path := range SrcList {
-		log.Printf("source folder #%d: %s", i+1, path)
-		var num, sum int64
-		if err = pack.PackDir(w, path, "", func(r io.ReadSeeker, ts *wpk.Tagset_t) error {
-			var size = ts.Size()
-			var fname, _ = ts.String(wpk.TIDpath)
-			num++
-			sum += size
-			if ShowLog {
-				log.Printf("#%-4d %7d bytes   %s", num, size, fname)
-			}
-
-			// adjust tags
-			if PutMIME {
-				const sniffLen = 512
-				var ctype = mime.TypeByExtension(filepath.Ext(fname))
-				if ctype == "" {
-					// rewind to file start
-					if _, err = r.Seek(0, io.SeekStart); err != nil {
-						return err
-					}
-					// read a chunk to decide between utf-8 text and binary
-					var buf [sniffLen]byte
-					var n int64
-					if n, err = io.CopyN(bytes.NewBuffer(buf[:]), r, sniffLen); err != nil && err != io.EOF {
-						return err
-					}
-					ctype = http.DetectContentType(buf[:n])
-				}
-				if ctype != "" {
-					ts.Put(wpk.TIDmime, wpk.TagString(ctype))
-				}
-			}
-			return nil
-		}); err != nil {
+	for i, fpath := range SrcList {
+		log.Printf("source folder #%d: %s", i+1, fpath)
+		num, sum = 0, 0
+		if err = pack.PackDir(w, fpath, "", packdirclosure); err != nil {
 			return
 		}
 		log.Printf("packed: %d files on %d bytes", num, sum)

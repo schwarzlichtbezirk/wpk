@@ -8,4 +8,4 @@ require (
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
 )
 
-require golang.org/x/sys v0.0.0-20220519141025-dcacdad47464 // indirect
+require golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
