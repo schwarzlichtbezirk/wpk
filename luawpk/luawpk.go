@@ -38,7 +38,7 @@ type LuaPackage struct {
 	wpk.Package
 	automime bool
 	nolink   bool
-	secret   string
+	secret   []byte
 	crc32    bool
 	crc64    bool
 	md5      bool
@@ -366,7 +366,7 @@ func setsecret(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var val = ls.CheckString(2)
 
-	pack.secret = val
+	pack.secret = []byte(val)
 	return 0
 }
 

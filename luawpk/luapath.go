@@ -156,7 +156,6 @@ func pathenum(ls *lua.LState) int {
 	var tb = ls.CreateTable(len(names), 0)
 	for i, name := range names {
 		tb.RawSetInt(i+1, lua.LString(name))
-		i++
 	}
 	ls.Push(tb)
 	return 1

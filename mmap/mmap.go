@@ -8,7 +8,7 @@ import (
 	"path"
 	"strings"
 
-	mm "github.com/schwarzlichtbezirk/mmap-go"
+	mm "github.com/edsrzf/mmap-go"
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
@@ -36,7 +36,7 @@ func NewMappedFile(pack *Package, ts *wpk.Tagset_t) (f *MappedFile, err error) {
 	var sizex = size + wpk.FSize_t(pgoff)
 	// create mapped memory block
 	var mmap mm.MMap
-	if mmap, err = mm.MapRegion(pack.filewpk, int64(offsetx), int64(sizex), mm.RDONLY, 0); err != nil {
+	if mmap, err = mm.MapRegion(pack.filewpk, int(sizex), mm.RDONLY, 0, int64(offsetx)); err != nil {
 		return
 	}
 	f = &MappedFile{

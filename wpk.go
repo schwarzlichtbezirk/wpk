@@ -339,7 +339,7 @@ func (ftt *FTT_t) ReadFrom(r io.Reader) (n int64, err error) {
 			err = &ErrTag{ErrNoPath, "", TIDpath}
 			return
 		}
-		if ftt.HasTagset(fpath) {
+		if ftt.HasTagset(fpath) { // prevent same file from repeating
 			err = &ErrTag{fs.ErrExist, fpath, TIDpath}
 			return
 		}

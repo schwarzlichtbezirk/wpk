@@ -1,6 +1,9 @@
 
 Library to build and use data files packages.
 
+[![GoDoc](https://pkg.go.dev/badge/github.com/schwarzlichtbezirk/wpk?utm_source=godoc)](https://pkg.go.dev/github.com/schwarzlichtbezirk/wpk)
+[![Go Report Card](https://goreportcard.com/badge/github.com/schwarzlichtbezirk/wpk)](https://goreportcard.com/report/github.com/schwarzlichtbezirk/wpk)
+
 # Preamble
 
 Software often uses a lot of data files and needs effective method to manage them and get quick access. Stitch them to single package and then get access by mapped memory is a good resolution.

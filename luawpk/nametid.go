@@ -69,7 +69,7 @@ var (
 
 // ValueToTID converts LValue to uint16 tag identifier.
 // Numbers converts explicitly, strings converts to uint16
-// values wich they presents. Error returns on any other case.
+// values which they presents. Error returns on any other case.
 func ValueToTID(k lua.LValue) (tid wpk.TID_t, err error) {
 	if n, ok := k.(lua.LNumber); ok {
 		tid = wpk.TID_t(n)

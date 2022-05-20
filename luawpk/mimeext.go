@@ -1,26 +1,26 @@
 package luawpk
 
 const (
-	jsoncontent = "application/json;charset=utf-8"
-	htmlcontent = "text/html;charset=utf-8"
-	csscontent  = "text/css;charset=utf-8"
-	jscontent   = "text/javascript;charset=utf-8"
+	htmlcontent = "text/html; charset=utf-8"
+	csscontent  = "text/css; charset=utf-8"
+	jscontent   = "text/javascript; charset=utf-8"
 )
 
 // MimeExt - map of files extensions and associated MIME types.
 var MimeExt = map[string]string{
 	// Web content
-	".json":  jsoncontent,
+	".json":  "application/json",
+	".yaml":  "application/x-yaml",
+	".xml":   "application/xml",
+	".xhtml": "application/xhtml+xml",
 	".html":  htmlcontent,
 	".htm":   htmlcontent,
 	".css":   csscontent,
 	".js":    jscontent,
 	".mjs":   jscontent,
-	".map":   jsoncontent,
-	".xml":   "text/xml",
-	".xhtml": "application/xhtml+xml",
+	".map":   "application/json",
 	// Text files
-	".txt": "text/plain;charset=utf-8",
+	".txt": "text/plain; charset=utf-8",
 	".csv": "text/csv",
 	".ics": "text/calendar",
 	".sh":  "application/x-sh",

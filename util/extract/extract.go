@@ -84,27 +84,34 @@ func checkargs() int {
 	return ec
 }
 
+func openpackage(pkgpath string) (pack wpk.Packager, err error) {
+	switch PkgMode {
+	case "bulk":
+		if pack, err = bulk.OpenPackage(pkgpath); err != nil {
+			return
+		}
+	case "mmap":
+		if pack, err = mmap.OpenPackage(pkgpath); err != nil {
+			return
+		}
+	case "fsys":
+		if pack, err = fsys.OpenPackage(pkgpath); err != nil {
+			return
+		}
+	default:
+		panic("no way to here")
+	}
+	return
+}
+
 func readpackage() (err error) {
 	log.Printf("destination path: %s", DstPath)
 
 	for _, pkgpath := range SrcList {
 		log.Printf("source package: %s", pkgpath)
-		if func() {
-			switch PkgMode {
-			case "bulk":
-				if pack, err = bulk.OpenPackage(pkgpath); err != nil {
-					return
-				}
-			case "mmap":
-				if pack, err = mmap.OpenPackage(pkgpath); err != nil {
-					return
-				}
-			case "fsys":
-				if pack, err = fsys.OpenPackage(pkgpath); err != nil {
-					return
-				}
-			default:
-				panic("no way to here")
+		func() {
+			if pack, err = openpackage(pkgpath); err != nil {
+				return
 			}
 			defer pack.Close()
 
@@ -146,7 +153,8 @@ func readpackage() (err error) {
 				return
 			})
 			log.Printf("unpacked: %d files on %d bytes", num, sum)
-		}(); err != nil {
+		}()
+		if err != nil {
 			return
 		}
 	}

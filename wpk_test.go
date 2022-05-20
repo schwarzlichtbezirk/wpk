@@ -95,7 +95,7 @@ func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 		return true
 	})
 	if realtagsnum != tagsnum {
-		t.Fatalf("expected %d entries in package, realy got %d entries", tagsnum, realtagsnum)
+		t.Fatalf("expected %d entries in package, really got %d entries", tagsnum, realtagsnum)
 	}
 }
 

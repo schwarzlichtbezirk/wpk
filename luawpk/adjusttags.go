@@ -10,130 +10,195 @@ import (
 	"hash/crc64"
 	"io"
 	"mime"
-	"net/http"
 	"path/filepath"
+	"strings"
 
+	"github.com/h2non/filetype"
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
-const sniffLen = 512
-
-func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
-	if ok := ts.Has(wpk.TIDmime); !ok && pack.automime {
-		var kext = filepath.Ext(ts.Path())
-		var ctype = mime.TypeByExtension(kext)
-		if ctype == "" {
-			if ctype, ok = MimeExt[kext]; !ok {
-				// rewind to file start
-				if _, err = r.Seek(0, io.SeekStart); err != nil {
-					return
-				}
-				// read a chunk to decide between utf-8 text and binary
-				var buf [sniffLen]byte
-				var n int
-				if n, err = io.ReadFull(r, buf[:]); err != nil {
-					if err == io.ErrUnexpectedEOF {
-						err = nil
-					} else {
-						return
-					}
-				}
-				ctype = http.DetectContentType(buf[:n])
+func adjustmime(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool) (err error) {
+	var ok bool
+	if ok = ts.Has(wpk.TIDmime); ok || skip {
+		return
+	}
+	var ext = strings.ToLower(filepath.Ext(ts.Path()))
+	var ctype string
+	if ctype = mime.TypeByExtension(ext); ctype == "" {
+		if ctype, ok = MimeExt[ext]; !ok {
+			if _, err = r.Seek(0, io.SeekStart); err != nil {
+				return
+			}
+			if kind, err := filetype.MatchReader(r); err == nil && kind != filetype.Unknown {
+				ctype = kind.MIME.Value
+			} else {
+				ctype = "application/octet-stream"
 			}
 		}
-		ts.Put(wpk.TIDmime, wpk.TagString(ctype))
+	}
+	ts.Put(wpk.TIDmime, wpk.TagString(ctype))
+	return
+}
+
+func adjustcrc32c(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool) (err error) {
+	if ok := ts.Has(wpk.TIDcrc32c); ok || skip {
+		return
+	}
+	if _, err = r.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	var h = crc32.New(crc32.MakeTable(crc32.Castagnoli))
+	if _, err = io.Copy(h, r); err != nil {
+		return
+	}
+	ts.Put(wpk.TIDcrc32c, h.Sum(nil))
+	return
+}
+
+func adjustcrc64iso(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool) (err error) {
+	if ok := ts.Has(wpk.TIDcrc64iso); ok && skip {
+		return
+	}
+	if _, err = r.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	var h = crc64.New(crc64.MakeTable(crc64.ISO))
+	if _, err = io.Copy(h, r); err != nil {
+		return
+	}
+	ts.Put(wpk.TIDcrc64iso, h.Sum(nil))
+	return
+}
+
+func adjustmd5(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err error) {
+	if ok := ts.Has(wpk.TIDmd5); ok && skip {
+		return
+	}
+	if _, err = r.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	var mac = hmac.New(md5.New, secret)
+	if _, err = io.Copy(mac, r); err != nil {
+		return
+	}
+	ts.Put(wpk.TIDmd5, mac.Sum(nil))
+	return
+}
+
+func adjustsha1(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err error) {
+	if ok := ts.Has(wpk.TIDsha1); ok && skip {
+		return
+	}
+	if _, err = r.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	var mac = hmac.New(sha1.New, secret)
+	if _, err = io.Copy(mac, r); err != nil {
+		return
+	}
+	ts.Put(wpk.TIDsha1, mac.Sum(nil))
+	return
+}
+
+func adjustsha224(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err error) {
+	if ok := ts.Has(wpk.TIDsha224); ok && skip {
+		return
+	}
+	if _, err = r.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	var mac = hmac.New(sha256.New224, secret)
+	if _, err = io.Copy(mac, r); err != nil {
+		return
+	}
+	ts.Put(wpk.TIDsha224, mac.Sum(nil))
+	return
+}
+
+func adjustsha256(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err error) {
+	if ok := ts.Has(wpk.TIDsha256); ok && skip {
+		return
+	}
+	if _, err = r.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	var mac = hmac.New(sha256.New, secret)
+	if _, err = io.Copy(mac, r); err != nil {
+		return
+	}
+	ts.Put(wpk.TIDsha256, mac.Sum(nil))
+	return
+}
+
+func adjustsha384(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err error) {
+	if ok := ts.Has(wpk.TIDsha384); ok && skip {
+		return
+	}
+	if _, err = r.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	var mac = hmac.New(sha512.New384, secret)
+	if _, err = io.Copy(mac, r); err != nil {
+		return
+	}
+	ts.Put(wpk.TIDsha384, mac.Sum(nil))
+	return
+}
+
+func adjustsha512(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err error) {
+	if ok := ts.Has(wpk.TIDsha512); ok && skip {
+		return
+	}
+	if _, err = r.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	var mac = hmac.New(sha512.New, secret)
+	if _, err = io.Copy(mac, r); err != nil {
+		return
+	}
+	ts.Put(wpk.TIDsha512, mac.Sum(nil))
+	return
+}
+
+func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
+	if err = adjustmime(ts, r, !pack.automime); err != nil {
+		return
 	}
 
 	if pack.nolink {
 		ts.Del(wpk.TIDlink)
 	}
 
-	if ok := ts.Has(wpk.TIDcrc32c); !ok && pack.crc32 {
-		if _, err = r.Seek(0, io.SeekStart); err != nil {
-			return
-		}
-		var h = crc32.New(crc32.MakeTable(crc32.Castagnoli))
-		if _, err = io.Copy(h, r); err != nil {
-			return
-		}
-		ts.Put(wpk.TIDcrc32c, h.Sum(nil))
+	if err = adjustcrc32c(ts, r, !pack.crc32); err != nil {
+		return
 	}
 
-	if ok := ts.Has(wpk.TIDcrc64iso); !ok && pack.crc64 {
-		if _, err = r.Seek(0, io.SeekStart); err != nil {
-			return
-		}
-		var h = crc64.New(crc64.MakeTable(crc64.ISO))
-		if _, err = io.Copy(h, r); err != nil {
-			return
-		}
-		ts.Put(wpk.TIDcrc64iso, h.Sum(nil))
+	if err = adjustcrc64iso(ts, r, !pack.crc64); err != nil {
+		return
 	}
 
-	if ok := ts.Has(wpk.TIDmd5); !ok && pack.md5 {
-		if _, err = r.Seek(0, io.SeekStart); err != nil {
-			return
-		}
-		var mac = hmac.New(md5.New, []byte(pack.secret))
-		if _, err = io.Copy(mac, r); err != nil {
-			return
-		}
-		ts.Put(wpk.TIDmd5, mac.Sum(nil))
+	if err = adjustmd5(ts, r, !pack.md5, pack.secret); err != nil {
+		return
 	}
 
-	if ok := ts.Has(wpk.TIDsha1); !ok && pack.sha1 {
-		if _, err = r.Seek(0, io.SeekStart); err != nil {
-			return
-		}
-		var mac = hmac.New(sha1.New, []byte(pack.secret))
-		if _, err = io.Copy(mac, r); err != nil {
-			return
-		}
-		ts.Put(wpk.TIDsha1, mac.Sum(nil))
+	if err = adjustsha1(ts, r, !pack.sha1, pack.secret); err != nil {
+		return
 	}
 
-	if ok := ts.Has(wpk.TIDsha224); !ok && pack.sha224 {
-		if _, err = r.Seek(0, io.SeekStart); err != nil {
-			return
-		}
-		var mac = hmac.New(sha256.New224, []byte(pack.secret))
-		if _, err = io.Copy(mac, r); err != nil {
-			return
-		}
-		ts.Put(wpk.TIDsha224, mac.Sum(nil))
+	if err = adjustsha224(ts, r, !pack.sha224, pack.secret); err != nil {
+		return
 	}
 
-	if ok := ts.Has(wpk.TIDsha256); !ok && pack.sha256 {
-		if _, err = r.Seek(0, io.SeekStart); err != nil {
-			return
-		}
-		var mac = hmac.New(sha256.New, []byte(pack.secret))
-		if _, err = io.Copy(mac, r); err != nil {
-			return
-		}
-		ts.Put(wpk.TIDsha256, mac.Sum(nil))
+	if err = adjustsha256(ts, r, !pack.sha256, pack.secret); err != nil {
+		return
 	}
 
-	if ok := ts.Has(wpk.TIDsha384); !ok && pack.sha384 {
-		if _, err = r.Seek(0, io.SeekStart); err != nil {
-			return
-		}
-		var mac = hmac.New(sha512.New384, []byte(pack.secret))
-		if _, err = io.Copy(mac, r); err != nil {
-			return
-		}
-		ts.Put(wpk.TIDsha384, mac.Sum(nil))
+	if err = adjustsha384(ts, r, !pack.sha384, pack.secret); err != nil {
+		return
 	}
 
-	if ok := ts.Has(wpk.TIDsha512); !ok && pack.sha512 {
-		if _, err = r.Seek(0, io.SeekStart); err != nil {
-			return
-		}
-		var mac = hmac.New(sha512.New, []byte(pack.secret))
-		if _, err = io.Copy(mac, r); err != nil {
-			return
-		}
-		ts.Put(wpk.TIDsha512, mac.Sum(nil))
+	if err = adjustsha512(ts, r, !pack.sha512, pack.secret); err != nil {
+		return
 	}
 
 	return

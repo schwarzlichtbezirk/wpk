@@ -3,8 +3,9 @@ module github.com/schwarzlichtbezirk/wpk
 go 1.17
 
 require (
-	github.com/schwarzlichtbezirk/mmap-go v1.0.2
-	github.com/yuin/gopher-lua v0.0.0-20220413183635-c841877397d8
+	github.com/edsrzf/mmap-go v1.1.0
+	github.com/h2non/filetype v1.1.3
+	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
 )
 
-require golang.org/x/sys v0.0.0-20220422013727-9388b58f7150 // indirect
+require golang.org/x/sys v0.0.0-20220519141025-dcacdad47464 // indirect
