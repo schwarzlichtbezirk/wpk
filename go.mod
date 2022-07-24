@@ -6,6 +6,7 @@ require (
 	github.com/edsrzf/mmap-go v1.1.0
 	github.com/h2non/filetype v1.1.3
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
+	gopkg.in/djherbis/times.v1 v1.3.0
 )
 
-require golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+require golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect

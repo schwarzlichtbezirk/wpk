@@ -4,6 +4,8 @@ import (
 	"io"
 	"io/fs"
 	"os"
+
+	"gopkg.in/djherbis/times.v1"
 )
 
 // WriteSeekCloser is typical useful interface for package writing.
@@ -178,7 +180,16 @@ func (pack *Package) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ts
 		return
 	}
 
-	ts.Put(TIDcreated, TagUint64(uint64(fi.ModTime().Unix())))
+	//ts.Put(TIDmtime, TagTime(fi.ModTime()))
+	var tsp = times.Get(fi)
+	ts.Put(TIDmtime, TagTime(tsp.ModTime()))
+	ts.Put(TIDatime, TagTime(tsp.AccessTime()))
+	if tsp.HasChangeTime() {
+		ts.Put(TIDctime, TagTime(tsp.ChangeTime()))
+	}
+	if tsp.HasBirthTime() {
+		ts.Put(TIDbtime, TagTime(tsp.BirthTime()))
+	}
 	ts.Put(TIDlink, TagString(ToSlash(kpath)))
 	return
 }

@@ -920,7 +920,7 @@ func wpksettag(ls *lua.LState) int {
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
-	if tid < wpk.TIDsys {
+	if tid <= wpk.TIDsys {
 		err = &ErrProtected{fkey, tid}
 		return 0
 	}
@@ -957,7 +957,7 @@ func wpkdeltag(ls *lua.LState) int {
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
-	if tid < wpk.TIDsys {
+	if tid <= wpk.TIDsys {
 		err = &ErrProtected{fkey, tid}
 		return 0
 	}
@@ -1026,7 +1026,7 @@ func wpksettags(ls *lua.LState) int {
 	var optsi = opts.Iterator()
 	for optsi.Next() {
 		var tid = optsi.TID()
-		if tid < wpk.TIDsys {
+		if tid <= wpk.TIDsys {
 			err = &ErrProtected{fkey, tid}
 			return 0
 		}
@@ -1105,7 +1105,7 @@ func wpkdeltags(ls *lua.LState) int {
 	var optsi = opts.Iterator()
 	for optsi.Next() {
 		var tid = optsi.TID()
-		if tid < wpk.TIDsys {
+		if tid <= wpk.TIDsys {
 			err = &ErrProtected{fkey, tid}
 			return 0
 		}

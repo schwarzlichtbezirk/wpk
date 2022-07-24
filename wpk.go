@@ -20,22 +20,23 @@ const (
 const (
 	TIDnone TID_t = 0
 
-	TIDoffset     TID_t = 1 // required, uint64
-	TIDsize       TID_t = 2 // required, uint64
-	TIDfid        TID_t = 3 // required, uint32
-	TIDpath       TID_t = 4 // required, unique, string
-	TIDcreated    TID_t = 5 // required for files, uint64
-	TIDlastwrite  TID_t = 6 // uint64
-	TIDlastaccess TID_t = 7 // uint64
-	TIDmime       TID_t = 8 // string
-	TIDattr       TID_t = 9 // uint32
+	TIDoffset TID_t = 1  // required, uint64
+	TIDsize   TID_t = 2  // required, uint64
+	TIDfid    TID_t = 3  // required, uint32
+	TIDpath   TID_t = 4  // required, unique, string
+	TIDmtime  TID_t = 5  // required for files, 8/12 bytes (mod-time)
+	TIDatime  TID_t = 6  // 8/12 bytes (access-time)
+	TIDctime  TID_t = 7  // 8/12 bytes (change-time)
+	TIDbtime  TID_t = 8  // 8/12 bytes (birth-time)
+	TIDattr   TID_t = 9  // uint32
+	TIDmime   TID_t = 10 // string
 
 	TIDconst TID_t = 4 // marker of tags that should be unchanged
 	TIDsys   TID_t = 8 // system protection marker
 
-	TIDcrc32ieee TID_t = 10 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
-	TIDcrc32c    TID_t = 11 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1
-	TIDcrc32k    TID_t = 12 // uint32, (Koopman), poly = 0x741B8CD7, init = -1
+	TIDcrc32ieee TID_t = 11 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
+	TIDcrc32c    TID_t = 12 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1
+	TIDcrc32k    TID_t = 13 // uint32, (Koopman), poly = 0x741B8CD7, init = -1
 	TIDcrc64iso  TID_t = 14 // uint64, poly = 0xD800000000000000, init = -1
 
 	TIDmd5    TID_t = 20 // [16]byte

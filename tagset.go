@@ -141,6 +141,35 @@ func TagNumber(val float64) Tag_t {
 	return buf[:]
 }
 
+// Time is 8/12-bytes time tag converter.
+func (t Tag_t) Time() (time.Time, bool) {
+	switch len(t) {
+	case 8:
+		var sec = int64(binary.LittleEndian.Uint64(t))
+		return time.Unix(sec, 0), true
+	case 12:
+		var sec = int64(binary.LittleEndian.Uint64(t[:8]))
+		var nsec = int64(binary.LittleEndian.Uint32(t[8:]))
+		return time.Unix(sec, nsec), true
+	}
+	return time.Time{}, false
+}
+
+// TagUnix is 8-bytes time tag constructor.
+func TagUnix(val time.Time) Tag_t {
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], uint64(val.Unix()))
+	return buf[:]
+}
+
+// TagTime is 12-bytes time tag constructor.
+func TagTime(val time.Time) Tag_t {
+	var buf [12]byte
+	binary.LittleEndian.PutUint64(buf[:8], uint64(val.Unix()))
+	binary.LittleEndian.PutUint32(buf[8:], uint32(val.Nanosecond()))
+	return buf[:]
+}
+
 // FOffset is FOffset_t tag converter.
 func (t Tag_t) FOffset() (FOffset_t, bool) {
 	if len(t) == FOffset_l {
@@ -362,6 +391,14 @@ func (ts *Tagset_t) Number(tid TID_t) (float64, bool) {
 	return 0, false
 }
 
+// Time is time tag getter.
+func (ts *Tagset_t) Time(tid TID_t) (time.Time, bool) {
+	if data, ok := ts.Get(tid); ok {
+		return data.Time()
+	}
+	return time.Time{}, false
+}
+
 // FOffset returns offset of nested into package file.
 func (ts *Tagset_t) FOffset() (FOffset_t, bool) {
 	if data, ok := ts.Get(TIDoffset); ok && len(data) == FOffset_l {
@@ -415,11 +452,11 @@ func (ts *Tagset_t) Mode() fs.FileMode {
 	return fs.ModeDir
 }
 
-// ModTime returns file timestamp of nested into package file.
-// fs.FileInfo implementation.
+// ModTime returns file modification timestamp of nested into package file.
+// fs.FileInfo & times.Timespec implementation.
 func (ts *Tagset_t) ModTime() time.Time {
-	var crt, _ = ts.Uint64(TIDcreated)
-	return time.Unix(int64(crt), 0)
+	var t, _ = ts.Time(TIDmtime)
+	return t
 }
 
 // IsDir detects that object presents a directory. Directory can not have file ID.
@@ -431,6 +468,39 @@ func (ts *Tagset_t) IsDir() bool {
 // Sys is for fs.FileInfo interface compatibility.
 func (ts *Tagset_t) Sys() interface{} {
 	return nil
+}
+
+// AccessTime returns file access timestamp of nested into package file.
+// times.Timespec implementation.
+func (ts *Tagset_t) AccessTime() time.Time {
+	var t, _ = ts.Uint64(TIDatime)
+	return time.Unix(int64(t), 0)
+}
+
+// ChangeTime returns file change timestamp of nested into package file.
+// times.Timespec implementation.
+func (ts *Tagset_t) ChangeTime() time.Time {
+	var t, _ = ts.Uint64(TIDctime)
+	return time.Unix(int64(t), 0)
+}
+
+// BirthTime returns file access timestamp of nested into package file.
+// times.Timespec implementation.
+func (ts *Tagset_t) BirthTime() time.Time {
+	var t, _ = ts.Uint64(TIDbtime)
+	return time.Unix(int64(t), 0)
+}
+
+// HasChangeTime is times.Timespec interface implementation.
+// Returns whether change timestamp is present.
+func (ts *Tagset_t) HasChangeTime() bool {
+	return ts.Has(TIDctime)
+}
+
+// HasBirthTime is times.Timespec interface implementation.
+// Returns whether birth timestamp is present.
+func (ts *Tagset_t) HasBirthTime() bool {
+	return ts.Has(TIDbtime)
 }
 
 // Iterator clones this tagset to iterate through all tags.

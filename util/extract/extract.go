@@ -21,6 +21,7 @@ var (
 	SrcList []string
 	DstPath string
 	MkDst   bool
+	OrgTime bool
 	ShowLog bool
 	PkgMode string
 )
@@ -33,6 +34,7 @@ func parseargs() {
 	flag.StringVar(&srcfile, "src", "", "package full file name, or list of files divided by ';'")
 	flag.StringVar(&DstPath, "dst", "", "full destination path for output extracted files")
 	flag.BoolVar(&MkDst, "md", false, "create destination path if it does not exist")
+	flag.BoolVar(&OrgTime, "ft", false, "change the access and modification times of extracted files to original file times")
 	flag.BoolVar(&ShowLog, "sl", true, "show process log for each extracting file")
 	flag.StringVar(&PkgMode, "pm", "mmap", "package opening mode, can be \"bulk\", \"mmap\" and \"fsys\"")
 	flag.Parse()
@@ -137,6 +139,13 @@ func readpackage() (err error) {
 				if dst, err = os.OpenFile(fullpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
 					return
 				}
+				if OrgTime {
+					var atime, aok = ts.Time(wpk.TIDatime)
+					var mtime, mok = ts.Time(wpk.TIDmtime)
+					if aok && mok {
+						defer os.Chtimes(fullpath, atime, mtime)
+					}
+				}
 				defer dst.Close()
 
 				var n int64
@@ -147,8 +156,7 @@ func readpackage() (err error) {
 				sum += n
 
 				if ShowLog {
-					var fid, _ = ts.FID()
-					log.Printf("#%-3d %6d bytes   %s", fid, n, fpath)
+					log.Printf("#%-3d %6d bytes   %s", num, n, fpath)
 				}
 				return
 			})

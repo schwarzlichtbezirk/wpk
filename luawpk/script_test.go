@@ -43,7 +43,7 @@ func CheckPackage(t *testing.T, wpkname string) {
 		var fpath = ts.Path()
 		n++
 
-		if ok = ts.Has(wpk.TIDcreated); !ok {
+		if ok = ts.Has(wpk.TIDmtime); !ok {
 			t.Logf("found packed data #%d '%s'", n, fpath)
 			return true // skip packed data
 		}

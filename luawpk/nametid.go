@@ -10,13 +10,16 @@ import (
 
 // NameTid helps convert Lua-table string keys to associated TID_t values.
 var NameTid = map[string]wpk.TID_t{
-	"offset":  wpk.TIDoffset,
-	"size":    wpk.TIDsize,
-	"fid":     wpk.TIDfid,
-	"path":    wpk.TIDpath,
-	"created": wpk.TIDcreated,
-	"mime":    wpk.TIDmime,
-	"attr":    wpk.TIDattr,
+	"offset": wpk.TIDoffset,
+	"size":   wpk.TIDsize,
+	"fid":    wpk.TIDfid,
+	"path":   wpk.TIDpath,
+	"mtime":  wpk.TIDmtime,
+	"atime":  wpk.TIDatime,
+	"ctime":  wpk.TIDctime,
+	"btime":  wpk.TIDbtime,
+	"attr":   wpk.TIDattr,
+	"mime":   wpk.TIDmime,
 
 	"crc32":     wpk.TIDcrc32c,
 	"crc32ieee": wpk.TIDcrc32ieee,
