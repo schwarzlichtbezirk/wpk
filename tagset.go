@@ -145,8 +145,8 @@ func TagNumber(val float64) Tag_t {
 func (t Tag_t) Time() (time.Time, bool) {
 	switch len(t) {
 	case 8:
-		var sec = int64(binary.LittleEndian.Uint64(t))
-		return time.Unix(sec, 0), true
+		var milli = int64(binary.LittleEndian.Uint64(t))
+		return time.Unix(milli/1000, (milli%1000)*1000000), true
 	case 12:
 		var sec = int64(binary.LittleEndian.Uint64(t[:8]))
 		var nsec = int64(binary.LittleEndian.Uint32(t[8:]))
@@ -155,14 +155,14 @@ func (t Tag_t) Time() (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// TagUnix is 8-bytes time tag constructor.
+// TagUnix is 8-bytes UNIX time in milliseconds tag constructor.
 func TagUnix(val time.Time) Tag_t {
 	var buf [8]byte
-	binary.LittleEndian.PutUint64(buf[:], uint64(val.Unix()))
+	binary.LittleEndian.PutUint64(buf[:], uint64(val.UnixMilli()))
 	return buf[:]
 }
 
-// TagTime is 12-bytes time tag constructor.
+// TagTime is 12-bytes UNIX time tag constructor.
 func TagTime(val time.Time) Tag_t {
 	var buf [12]byte
 	binary.LittleEndian.PutUint64(buf[:8], uint64(val.Unix()))

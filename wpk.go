@@ -65,7 +65,7 @@ type ErrTag struct {
 }
 
 func (e *ErrTag) Error() string {
-	return fmt.Sprintf("key '%s', tag ID %d: %s", e.Key, e.TID, e.What)
+	return fmt.Sprintf("key '%s', tag ID %d: %s", e.Key, e.TID, e.What.Error())
 }
 
 func (e *ErrTag) Unwrap() error {

@@ -1,8 +1,10 @@
 package wpk_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/schwarzlichtbezirk/wpk"
 )
@@ -201,6 +203,34 @@ func TestTagset(t *testing.T) {
 			t.Fatal(check.msg)
 		}
 	}
+}
+
+func ExampleTagsetIterator_Next() {
+	var ts = (&wpk.Tagset_t{}).
+		Put(wpk.TIDpath, wpk.TagString("picture.jpg")).
+		Put(wpk.TIDmtime, wpk.TagTime(time.Now())).
+		Put(wpk.TIDmime, wpk.TagString("image/jpeg"))
+	var tsi = ts.Iterator()
+	for tsi.Next() {
+		fmt.Printf("tid=%d, len=%d\n", tsi.TID(), tsi.TagLen())
+	}
+	// Output:
+	// tid=4, len=11
+	// tid=5, len=12
+	// tid=10, len=10
+}
+
+func ExampleTagsetIterator_Passed() {
+	var slice = []byte{
+		3, 0, 4, 0, 10, 0, 0, 0,
+		4, 0, 12, 0, 115, 111, 109, 101, 102, 105, 108, 101, 46, 100, 97, 116,
+	}
+	var tsi = wpk.MakeTagset(slice).Iterator()
+	for tsi.Next() {
+		// place some handler code here
+	}
+	fmt.Println(tsi.Passed())
+	// Output: true
 }
 
 // The End.
