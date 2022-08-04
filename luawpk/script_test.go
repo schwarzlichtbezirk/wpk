@@ -10,13 +10,19 @@ import (
 	lw "github.com/schwarzlichtbezirk/wpk/luawpk"
 )
 
+type (
+	TID_t    = uint16
+	TSize_t  = uint16
+	TSSize_t = uint16
+)
+
 var scrdir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/")
 var mediadir = scrdir + "media/"
 
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, wpkname string) {
 	var err error
-	var pack wpk.Package
+	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
 	var fwpk *os.File
 
 	// open temporary file for read/write
@@ -36,7 +42,7 @@ func CheckPackage(t *testing.T, wpkname string) {
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 	var n = 0
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
 		var ok bool
 		var offset, _ = ts.FOffset()
 		var size, _ = ts.FSize()

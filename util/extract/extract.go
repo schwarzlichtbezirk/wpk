@@ -15,6 +15,12 @@ import (
 	"github.com/schwarzlichtbezirk/wpk/mmap"
 )
 
+type (
+	TID_t    = uint16
+	TSize_t  = uint16
+	TSSize_t = uint16
+)
+
 // command line settings
 var (
 	srcfile string
@@ -27,7 +33,7 @@ var (
 )
 
 var (
-	pack wpk.Packager
+	pack wpk.Packager[TID_t, TSize_t]
 )
 
 func parseargs() {
@@ -86,18 +92,18 @@ func checkargs() int {
 	return ec
 }
 
-func openpackage(pkgpath string) (pack wpk.Packager, err error) {
+func openpackage(pkgpath string) (pack wpk.Packager[TID_t, TSize_t], err error) {
 	switch PkgMode {
 	case "bulk":
-		if pack, err = bulk.OpenPackage(pkgpath); err != nil {
+		if pack, err = bulk.OpenPackage[TID_t, TSize_t, TSSize_t](pkgpath); err != nil {
 			return
 		}
 	case "mmap":
-		if pack, err = mmap.OpenPackage(pkgpath); err != nil {
+		if pack, err = mmap.OpenPackage[TID_t, TSize_t, TSSize_t](pkgpath); err != nil {
 			return
 		}
 	case "fsys":
-		if pack, err = fsys.OpenPackage(pkgpath); err != nil {
+		if pack, err = fsys.OpenPackage[TID_t, TSize_t, TSSize_t](pkgpath); err != nil {
 			return
 		}
 	default:
@@ -118,7 +124,7 @@ func readpackage() (err error) {
 			defer pack.Close()
 
 			var num, sum int64
-			pack.Enum(func(fkey string, ts *wpk.Tagset_t) (next bool) {
+			pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) (next bool) {
 				defer func() {
 					next = err == nil
 				}()

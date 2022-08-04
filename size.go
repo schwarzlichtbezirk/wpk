@@ -7,48 +7,115 @@ import (
 // Size-dependent types definitions.
 
 type (
-	// FOffset_t - nested file offset type.
-	FOffset_t uint64 // can be 32, 64 bit integer.
-	// FSize_t - nested file size type.
-	FSize_t uint64 // can be 32, 64 bit integer.
-	// FID_t - file index/identifier type.
-	FID_t uint32 // can be 16, 32, 64 bit integer.
-	// TID_t - tag identifier type.
-	TID_t uint16 // can be 8, 16, 32 bit integer.
-	// TSize_t - tag size type.
-	TSize_t uint16 // can be 8, 16, 32 bit integer.
-	// TSSize_t - tagset size/offset type.
-	TSSize_t uint16 // can be 16, 32 bit integer.
+	FOffset_t = uint64
+	FSize_t   = uint64
+	FID_t     = uint32
+	// FOffset_i - nested file offset type, can be 32, 64 bit integer. FOffset_t >= FSize_t.
+	FOffset_i interface{ uint32 | uint64 }
+	// FSize_i - nested file size type, can be 32, 64 bit integer.
+	FSize_i interface{ uint32 | uint64 }
+	// FID_i - file index/identifier type, can be 16, 32, 64 bit integer.
+	FID_i interface{ uint16 | uint32 | uint64 }
+	// TID_i - tag identifier type, can be 8, 16, 32 bit integer. TID_t <= TSSize_t.
+	TID_i interface{ uint8 | uint16 | uint32 }
+	// TSize_i - tag size type, can be 8, 16, 32 bit integer. TSize_t <= TSSize_t.
+	TSize_i interface{ uint8 | uint16 | uint32 }
+	// TSSize_i - tagset size/offset type, can be 16, 32 bit integer.
+	TSSize_i interface{ uint16 | uint32 }
 )
 
-const (
-	// FOffset_l - nested file type length; FOffset_l >= FSize_l.
-	FOffset_l = 8
-	// FSize_l - nested file size type length.
-	FSize_l = 8
-	// FID_l - file index/identifier type length.
-	FID_l = 4
-	// TID_l - tag identifier type length; TID_l <= TSSize_l.
-	TID_l = 2
-	// TSize_l - tag size type length; TSize_l <= TSize_l.
-	TSize_l = 2
-	// TSSize_l - tagset size/offset type length.
-	TSSize_l = 2
-)
+func Uint_l[T uint8 | uint16 | uint32 | uint64]() int {
+	var v T
+	switch any(v).(type) {
+	case uint8:
+		return 1
+	case uint16:
+		return 2
+	case uint32:
+		return 4
+	case uint64:
+		return 8
+	default:
+		panic("unreachable condition")
+	}
+}
 
-var (
-	FOffset_r = func(b []byte) FOffset_t { return FOffset_t(binary.LittleEndian.Uint64(b)) }
-	FSize_r   = func(b []byte) FSize_t { return FSize_t(binary.LittleEndian.Uint64(b)) }
-	FID_r     = func(b []byte) FID_t { return FID_t(binary.LittleEndian.Uint32(b)) }
-	TID_r     = func(b []byte) TID_t { return TID_t(binary.LittleEndian.Uint16(b)) }
-	TSize_r   = func(b []byte) TSize_t { return TSize_t(binary.LittleEndian.Uint16(b)) }
-	TSSize_r  = func(b []byte) TSSize_t { return TSSize_t(binary.LittleEndian.Uint16(b)) }
-	FOffset_w = func(b []byte, v FOffset_t) { binary.LittleEndian.PutUint64(b, uint64(v)) }
-	FSize_w   = func(b []byte, v FSize_t) { binary.LittleEndian.PutUint64(b, uint64(v)) }
-	FID_w     = func(b []byte, v FID_t) { binary.LittleEndian.PutUint32(b, uint32(v)) }
-	TID_w     = func(b []byte, v TID_t) { binary.LittleEndian.PutUint16(b, uint16(v)) }
-	TSize_w   = func(b []byte, v TSize_t) { binary.LittleEndian.PutUint16(b, uint16(v)) }
-	TSSize_w  = func(b []byte, v TSSize_t) { binary.LittleEndian.PutUint16(b, uint16(v)) }
-)
+func Uint_r[T uint8 | uint16 | uint32 | uint64](b []byte) (ret T) {
+	switch any(ret).(type) {
+	case uint8:
+		return T(b[0])
+	case uint16:
+		return T(binary.LittleEndian.Uint16(b))
+	case uint32:
+		return T(binary.LittleEndian.Uint32(b))
+	case uint64:
+		return T(binary.LittleEndian.Uint64(b))
+	default:
+		panic("unreachable condition")
+	}
+}
+
+func FOffset_r[T FOffset_i](b []byte) (ret T) {
+	return Uint_r[T](b)
+}
+
+func FSize_r[T FSize_i](b []byte) (ret T) {
+	return Uint_r[T](b)
+}
+
+func FID_r[T FID_i](b []byte) (ret T) {
+	return Uint_r[T](b)
+}
+
+func TID_r[T TID_i](b []byte) (ret T) {
+	return Uint_r[T](b)
+}
+
+func TSize_r[T TSize_i](b []byte) (ret T) {
+	return Uint_r[T](b)
+}
+
+func TSSize_r[T TSSize_i](b []byte) (ret T) {
+	return Uint_r[T](b)
+}
+
+func Uint_w[T uint8 | uint16 | uint32 | uint64](b []byte, v T) {
+	switch v := any(v).(type) {
+	case uint8:
+		b[0] = v
+	case uint16:
+		binary.LittleEndian.PutUint16(b, v)
+	case uint32:
+		binary.LittleEndian.PutUint32(b, v)
+	case uint64:
+		binary.LittleEndian.PutUint64(b, v)
+	default:
+		panic("unreachable condition")
+	}
+}
+
+func FOffset_w[T FOffset_i](b []byte, v T) {
+	Uint_w(b, v)
+}
+
+func FSize_w[T FSize_i](b []byte, v T) {
+	Uint_w(b, v)
+}
+
+func FID_w[T FID_i](b []byte, v T) {
+	Uint_w(b, v)
+}
+
+func TID_w[T TID_i](b []byte, v T) {
+	Uint_w(b, v)
+}
+
+func TSize_w[T TSize_i](b []byte, v T) {
+	Uint_w(b, v)
+}
+
+func TSSize_w[T TSSize_i](b []byte, v T) {
+	Uint_w(b, v)
+}
 
 // The End.

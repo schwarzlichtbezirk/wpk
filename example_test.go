@@ -20,7 +20,7 @@ func ExamplePackage_OpenFTT() {
 	defer f.Close()
 
 	// Open package files tags table
-	var pack wpk.Package
+	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
 	if err = pack.OpenFTT(f); err != nil {
 		log.Fatal(err)
 	}
@@ -28,7 +28,7 @@ func ExamplePackage_OpenFTT() {
 	// How many records in package
 	var m = map[wpk.FOffset_t]struct{}{}
 	var n = 0
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
 		if n < 5 { // print not more than 5 file names from package
 			log.Println(fkey)
 		}
@@ -65,7 +65,7 @@ func ExamplePackage_Glob() {
 	defer f.Close()
 
 	// Open package files tags table
-	var pack wpk.Package
+	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
 	if err = pack.OpenFTT(f); err != nil {
 		log.Fatal(err)
 	}

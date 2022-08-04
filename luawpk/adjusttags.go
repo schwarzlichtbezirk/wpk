@@ -17,7 +17,7 @@ import (
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
-func adjustmime(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool) (err error) {
+func adjustmime[TID_t wpk.TID_i, TSize_t wpk.TSize_i](ts *wpk.Tagset_t[TID_t, TSize_t], r io.ReadSeeker, skip bool) (err error) {
 	var ok bool
 	if ok = ts.Has(wpk.TIDmime); ok || skip {
 		return
@@ -40,7 +40,7 @@ func adjustmime(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool) (err error) {
 	return
 }
 
-func adjustcrc32c(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool) (err error) {
+func adjustcrc32c[TID_t wpk.TID_i, TSize_t wpk.TSize_i](ts *wpk.Tagset_t[TID_t, TSize_t], r io.ReadSeeker, skip bool) (err error) {
 	if ok := ts.Has(wpk.TIDcrc32c); ok || skip {
 		return
 	}
@@ -55,7 +55,7 @@ func adjustcrc32c(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool) (err error) {
 	return
 }
 
-func adjustcrc64iso(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool) (err error) {
+func adjustcrc64iso[TID_t wpk.TID_i, TSize_t wpk.TSize_i](ts *wpk.Tagset_t[TID_t, TSize_t], r io.ReadSeeker, skip bool) (err error) {
 	if ok := ts.Has(wpk.TIDcrc64iso); ok && skip {
 		return
 	}
@@ -70,7 +70,7 @@ func adjustcrc64iso(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool) (err error) {
 	return
 }
 
-func adjustmd5(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err error) {
+func adjustmd5[TID_t wpk.TID_i, TSize_t wpk.TSize_i](ts *wpk.Tagset_t[TID_t, TSize_t], r io.ReadSeeker, skip bool, secret []byte) (err error) {
 	if ok := ts.Has(wpk.TIDmd5); ok && skip {
 		return
 	}
@@ -85,7 +85,7 @@ func adjustmd5(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err
 	return
 }
 
-func adjustsha1(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err error) {
+func adjustsha1[TID_t wpk.TID_i, TSize_t wpk.TSize_i](ts *wpk.Tagset_t[TID_t, TSize_t], r io.ReadSeeker, skip bool, secret []byte) (err error) {
 	if ok := ts.Has(wpk.TIDsha1); ok && skip {
 		return
 	}
@@ -100,7 +100,7 @@ func adjustsha1(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (er
 	return
 }
 
-func adjustsha224(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err error) {
+func adjustsha224[TID_t wpk.TID_i, TSize_t wpk.TSize_i](ts *wpk.Tagset_t[TID_t, TSize_t], r io.ReadSeeker, skip bool, secret []byte) (err error) {
 	if ok := ts.Has(wpk.TIDsha224); ok && skip {
 		return
 	}
@@ -115,7 +115,7 @@ func adjustsha224(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (
 	return
 }
 
-func adjustsha256(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err error) {
+func adjustsha256[TID_t wpk.TID_i, TSize_t wpk.TSize_i](ts *wpk.Tagset_t[TID_t, TSize_t], r io.ReadSeeker, skip bool, secret []byte) (err error) {
 	if ok := ts.Has(wpk.TIDsha256); ok && skip {
 		return
 	}
@@ -130,7 +130,7 @@ func adjustsha256(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (
 	return
 }
 
-func adjustsha384(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err error) {
+func adjustsha384[TID_t wpk.TID_i, TSize_t wpk.TSize_i](ts *wpk.Tagset_t[TID_t, TSize_t], r io.ReadSeeker, skip bool, secret []byte) (err error) {
 	if ok := ts.Has(wpk.TIDsha384); ok && skip {
 		return
 	}
@@ -145,7 +145,7 @@ func adjustsha384(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (
 	return
 }
 
-func adjustsha512(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (err error) {
+func adjustsha512[TID_t wpk.TID_i, TSize_t wpk.TSize_i](ts *wpk.Tagset_t[TID_t, TSize_t], r io.ReadSeeker, skip bool, secret []byte) (err error) {
 	if ok := ts.Has(wpk.TIDsha512); ok && skip {
 		return
 	}
@@ -160,7 +160,7 @@ func adjustsha512(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool, secret []byte) (
 	return
 }
 
-func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
+func (pack *LuaPackage) adjusttagset(r io.ReadSeeker, ts *wpk.Tagset_t[TID_t, TSize_t]) (err error) {
 	if err = adjustmime(ts, r, !pack.automime); err != nil {
 		return
 	}

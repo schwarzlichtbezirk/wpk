@@ -1,6 +1,6 @@
 module github.com/schwarzlichtbezirk/wpk
 
-go 1.17
+go 1.18
 
 require (
 	github.com/edsrzf/mmap-go v1.1.0

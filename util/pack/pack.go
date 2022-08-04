@@ -14,6 +14,12 @@ import (
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
+type (
+	TID_t    = uint16
+	TSize_t  = uint16
+	TSSize_t = uint16
+)
+
 // command line settings
 var (
 	srcpath string
@@ -71,7 +77,7 @@ func checkargs() int {
 
 var num, sum int64
 
-func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
+func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t[TID_t, TSize_t]) (err error) {
 	var size = ts.Size()
 	var fname, _ = ts.String(wpk.TIDpath)
 	num++
@@ -105,7 +111,7 @@ func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
 }
 
 func writepackage() (err error) {
-	var pack wpk.Package
+	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
 	var fwpk, fwpd wpk.WriteSeekCloser
 	var pkgfile, datfile = DstFile, DstFile
 	if Split {

@@ -19,7 +19,7 @@ func TestTagset(t *testing.T) {
 		fkey   = `dir/filename.ext`
 		mime   = "image/jpeg"
 	)
-	var ts = (&wpk.Tagset_t{}).
+	var ts = (&wpk.Tagset_t[TID_t, TSize_t]{}).
 		Put(wpk.TIDoffset, wpk.TagFOffset(offset)).
 		Put(wpk.TIDsize, wpk.TagFSize(size)).
 		Put(wpk.TIDfid, wpk.TagFID(fid)).
@@ -107,7 +107,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { return tsi.TID() != wpk.TIDpath },
 			"tag #4 is not 'path'",
 		},
-		{func() bool { return tsi.TagLen() != wpk.TSSize_t(len(kpath1)) },
+		{func() bool { return tsi.TagLen() != len(kpath1) },
 			"length of 'path' tag does not equal to original length",
 		},
 		{func() bool { tag = tsi.Tag(); return tag == nil },
@@ -206,7 +206,7 @@ func TestTagset(t *testing.T) {
 }
 
 func ExampleTagsetIterator_Next() {
-	var ts = (&wpk.Tagset_t{}).
+	var ts = (&wpk.Tagset_t[TID_t, TSize_t]{}).
 		Put(wpk.TIDpath, wpk.TagString("picture.jpg")).
 		Put(wpk.TIDmtime, wpk.TagTime(time.Now())).
 		Put(wpk.TIDmime, wpk.TagString("image/jpeg"))
@@ -225,7 +225,7 @@ func ExampleTagsetIterator_Passed() {
 		3, 0, 4, 0, 10, 0, 0, 0,
 		4, 0, 12, 0, 115, 111, 109, 101, 102, 105, 108, 101, 46, 100, 97, 116,
 	}
-	var tsi = wpk.MakeTagset(slice).Iterator()
+	var tsi = wpk.MakeTagset[TID_t, TSize_t](slice).Iterator()
 	for tsi.Next() {
 		// place some handler code here
 	}
