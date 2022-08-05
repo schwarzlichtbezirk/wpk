@@ -151,7 +151,7 @@ func tostringPack(ls *lua.LState) int {
 	var m = map[wpk.FOffset_t]struct{}{}
 	var n = 0
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
-		if offset, ok := ts.FOffset(); ok {
+		if offset, ok := wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset); ok {
 			m[offset] = struct{}{}
 		}
 		n++
@@ -161,7 +161,7 @@ func tostringPack(ls *lua.LState) int {
 	items = append(items, fmt.Sprintf("records: %d", len(m)))
 	items = append(items, fmt.Sprintf("aliases: %d", n))
 	if ts, ok := pack.Tagset(""); ok {
-		if size, ok := ts.FSize(); ok {
+		if size, ok := wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize); ok {
 			items = append(items, fmt.Sprintf("datasize: %d", size))
 		}
 		if str, ok := ts.String(wpk.TIDlabel); ok {
@@ -285,7 +285,7 @@ func getrecnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var m = map[wpk.FOffset_t]struct{}{}
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
-		if offset, ok := ts.FOffset(); ok {
+		if offset, ok := wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset); ok {
 			m[offset] = struct{}{}
 		}
 		return true
@@ -654,9 +654,9 @@ func wpkflush(ls *lua.LState) int {
 func wpksumsize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	var sum wpk.FSize_t
+	var sum int64
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
-		var size, _ = ts.FSize()
+		var size = ts.Size()
 		sum += size
 		return true
 	})
@@ -717,7 +717,7 @@ func wpkfilesize(ls *lua.LState) int {
 		return 0
 	}
 
-	var size, _ = ts.FSize()
+	var size = ts.Size()
 	ls.Push(lua.LNumber(size))
 	return 1
 }

@@ -20,8 +20,8 @@ type SliceFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i] struct {
 
 // NewSliceFile creates SliceFile file structure based on given tags slice.
 func NewSliceFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i, TSSize_t wpk.TSSize_i](pack *Package[TID_t, TSize_t, TSSize_t], ts *wpk.Tagset_t[TID_t, TSize_t]) (f *SliceFile[TID_t, TSize_t], err error) {
-	var offset, _ = ts.FOffset()
-	var size, _ = ts.FSize()
+	var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
+	var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
 	f = &SliceFile[TID_t, TSize_t]{
 		tags:       ts,
 		FileReader: bytes.NewReader(pack.bulk[offset : offset+wpk.FOffset_t(size)]),
@@ -150,8 +150,8 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) ReadFile(name string) ([]byte, er
 	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
-	var offset, _ = ts.FOffset()
-	var size, _ = ts.FSize()
+	var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
+	var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
 	return pack.bulk[offset : offset+wpk.FOffset_t(size)], nil
 }
 
@@ -166,9 +166,9 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) ReadDir(dir string) ([]fs.DirEntr
 func (pack *Package[TID_t, TSize_t, TSSize_t]) Open(dir string) (fs.File, error) {
 	if dir == "wpk" && pack.workspace == "." {
 		var ts = (&wpk.Tagset_t[TID_t, TSize_t]{}).
-			Put(wpk.TIDfid, wpk.TagFID(0)).
-			Put(wpk.TIDoffset, wpk.TagFOffset(0)).
-			Put(wpk.TIDsize, wpk.TagFSize(wpk.FSize_t(len(pack.bulk))))
+			Put(wpk.TIDoffset, wpk.TagUint(wpk.FOffset_t(0))).
+			Put(wpk.TIDsize, wpk.TagUint(wpk.FSize_t(len(pack.bulk)))).
+			Put(wpk.TIDfid, wpk.TagUint(wpk.FID_t(0)))
 		return NewSliceFile(pack, ts)
 	}
 

@@ -20,9 +20,9 @@ func TestTagset(t *testing.T) {
 		mime   = "image/jpeg"
 	)
 	var ts = (&wpk.Tagset_t[TID_t, TSize_t]{}).
-		Put(wpk.TIDoffset, wpk.TagFOffset(offset)).
-		Put(wpk.TIDsize, wpk.TagFSize(size)).
-		Put(wpk.TIDfid, wpk.TagFID(fid)).
+		Put(wpk.TIDoffset, wpk.TagUint(wpk.FOffset_t(offset))).
+		Put(wpk.TIDsize, wpk.TagUint(wpk.FSize_t(size))).
+		Put(wpk.TIDfid, wpk.TagUint(wpk.FID_t(fid))).
 		Put(wpk.TIDpath, wpk.TagString(wpk.ToSlash(kpath1)))
 	var tsi = ts.Iterator()
 
@@ -59,7 +59,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { tag = tsi.Tag(); return tag == nil },
 			"can not get 'offset' tag",
 		},
-		{func() bool { ov, ok = tag.FOffset(); return !ok },
+		{func() bool { ov, ok = wpk.UintTag[wpk.FOffset_t](tag); return !ok },
 			"can not convert 'offset' tag to value",
 		},
 		{func() bool { return ov != offset },
@@ -76,7 +76,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { tag = tsi.Tag(); return tag == nil },
 			"can not get 'size' tag",
 		},
-		{func() bool { sv, ok = tag.FSize(); return !ok },
+		{func() bool { sv, ok = wpk.UintTag[wpk.FSize_t](tag); return !ok },
 			"can not convert 'size' tag to value",
 		},
 		{func() bool { return sv != size },
@@ -93,7 +93,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { tag = tsi.Tag(); return tag == nil },
 			"can not get 'fid' tag",
 		},
-		{func() bool { fv, ok = tag.FID(); return !ok },
+		{func() bool { fv, ok = wpk.UintTag[wpk.FID_t](tag); return !ok },
 			"can not convert 'fid' tag to value",
 		},
 		{func() bool { return fv != fid },
@@ -145,14 +145,23 @@ func TestTagset(t *testing.T) {
 		},
 
 		// check up helpers functions
-		{func() bool { v, ok := ts.FID(); return !ok || v != fid },
-			"'FID' function does not work correctly",
+		{func() bool {
+			v, ok := wpk.UintTagset[TID_t, TSize_t, wpk.FID_t](ts, wpk.TIDfid)
+			return !ok || v != fid
 		},
-		{func() bool { v, ok := ts.FOffset(); return !ok || v != offset },
-			"'FOffset' function does not work correctly",
+			"FID getter does not work correctly",
 		},
-		{func() bool { v, ok := ts.FSize(); return !ok || v != size },
-			"'FSize' function does not work correctly",
+		{func() bool {
+			v, ok := wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
+			return !ok || v != offset
+		},
+			"FOffset getter does not work correctly",
+		},
+		{func() bool {
+			v, ok := wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
+			return !ok || v != size
+		},
+			"FSize getter does not work correctly",
 		},
 		{func() bool { return ts.Path() != wpk.ToSlash(kpath1) },
 			"'Path' function does not work correctly",

@@ -9,4 +9,4 @@ require (
 	gopkg.in/djherbis/times.v1 v1.3.0
 )
 
-require golang.org/x/sys v0.0.0-20220803195053-6e608f9ce704 // indirect
+require golang.org/x/sys v0.0.0-20220804214406-8e32c043e418 // indirect

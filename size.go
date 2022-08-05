@@ -55,30 +55,6 @@ func Uint_r[T uint8 | uint16 | uint32 | uint64](b []byte) (ret T) {
 	}
 }
 
-func FOffset_r[T FOffset_i](b []byte) (ret T) {
-	return Uint_r[T](b)
-}
-
-func FSize_r[T FSize_i](b []byte) (ret T) {
-	return Uint_r[T](b)
-}
-
-func FID_r[T FID_i](b []byte) (ret T) {
-	return Uint_r[T](b)
-}
-
-func TID_r[T TID_i](b []byte) (ret T) {
-	return Uint_r[T](b)
-}
-
-func TSize_r[T TSize_i](b []byte) (ret T) {
-	return Uint_r[T](b)
-}
-
-func TSSize_r[T TSSize_i](b []byte) (ret T) {
-	return Uint_r[T](b)
-}
-
 func Uint_w[T uint8 | uint16 | uint32 | uint64](b []byte, v T) {
 	switch v := any(v).(type) {
 	case uint8:
@@ -92,30 +68,6 @@ func Uint_w[T uint8 | uint16 | uint32 | uint64](b []byte, v T) {
 	default:
 		panic("unreachable condition")
 	}
-}
-
-func FOffset_w[T FOffset_i](b []byte, v T) {
-	Uint_w(b, v)
-}
-
-func FSize_w[T FSize_i](b []byte, v T) {
-	Uint_w(b, v)
-}
-
-func FID_w[T FID_i](b []byte, v T) {
-	Uint_w(b, v)
-}
-
-func TID_w[T TID_i](b []byte, v T) {
-	Uint_w(b, v)
-}
-
-func TSize_w[T TSize_i](b []byte, v T) {
-	Uint_w(b, v)
-}
-
-func TSSize_w[T TSSize_i](b []byte, v T) {
-	Uint_w(b, v)
 }
 
 // The End.

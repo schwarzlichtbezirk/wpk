@@ -36,16 +36,16 @@ func CheckPackage(t *testing.T, wpkname string) {
 	}
 
 	if ts, ok := pack.Tagset(""); ok {
-		var offset, _ = ts.FOffset()
-		var size, _ = ts.FSize()
+		var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
+		var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
 		var label, _ = ts.String(wpk.TIDlabel)
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 	var n = 0
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
 		var ok bool
-		var offset, _ = ts.FOffset()
-		var size, _ = ts.FSize()
+		var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
+		var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
 		var fpath = ts.Path()
 		n++
 

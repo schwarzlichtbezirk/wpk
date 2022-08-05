@@ -94,8 +94,8 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) Sync(wpt, wpf io.WriteSeeker) (er
 
 		// update package info if it has
 		if ts, ok := pack.Tagset(""); ok {
-			ts.Set(TIDoffset, TagFOffset(FOffset_t(datpos)))
-			ts.Set(TIDsize, TagFSize(FSize_t(datend-datpos)))
+			ts.Set(TIDoffset, TagUint(FOffset_t(datpos)))
+			ts.Set(TIDsize, TagUint(FSize_t(datend-datpos)))
 		}
 
 		// write file tags table
@@ -119,8 +119,8 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) Sync(wpt, wpf io.WriteSeeker) (er
 
 		// update package info if it has
 		if ts, ok := pack.Tagset(""); ok {
-			ts.Set(TIDoffset, TagFOffset(FOffset_t(datpos)))
-			ts.Set(TIDsize, TagFSize(FSize_t(datend-datpos)))
+			ts.Set(TIDoffset, TagUint(FOffset_t(datpos)))
+			ts.Set(TIDsize, TagUint(FSize_t(datend-datpos)))
 		}
 
 		// write file tags table
@@ -174,8 +174,8 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) PackData(w io.WriteSeeker, r io.R
 
 	// insert new entry to tags table
 	ts = (&Tagset_t[TID_t, TSize_t]{}).
-		Put(TIDoffset, TagFOffset(FOffset_t(offset))).
-		Put(TIDsize, TagFSize(FSize_t(size))).
+		Put(TIDoffset, TagUint(FOffset_t(offset))).
+		Put(TIDsize, TagUint(FSize_t(size))).
 		Put(TIDpath, TagString(ToSlash(fpath)))
 	pack.SetTagset(fpath, ts)
 	return

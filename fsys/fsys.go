@@ -24,8 +24,8 @@ func NewChunkFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fpath string, ts *wpk.Ta
 	if wpkf, err = os.Open(fpath); err != nil {
 		return
 	}
-	var offset, _ = ts.FOffset()
-	var size, _ = ts.FSize()
+	var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
+	var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
 	f = &ChunkFile[TID_t, TSize_t]{
 		tags:       ts,
 		FileReader: io.NewSectionReader(wpkf, int64(offset), int64(size)),
@@ -161,7 +161,7 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) ReadFile(name string) ([]byte, er
 	}
 	defer f.Close()
 
-	var size, _ = ts.FSize()
+	var size = ts.Size()
 	var buf = make([]byte, size)
 	_, err = f.Read(buf)
 	return buf, err

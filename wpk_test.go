@@ -40,17 +40,17 @@ func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 	}
 
 	if ts, ok := pack.Tagset(""); ok {
-		var offset, _ = ts.FOffset()
-		var size, _ = ts.FSize()
+		var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
+		var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
 		var label, _ = ts.String(wpk.TIDlabel)
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 
 	var realtagsnum int
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
-		var offset, _ = ts.FOffset()
-		var size, _ = ts.FSize()
-		var fid, _ = ts.FID()
+		var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
+		var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
+		var fid, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FID_t](ts, wpk.TIDfid)
 		var fpath = ts.Path()
 		realtagsnum++
 
@@ -196,7 +196,7 @@ func TestPackDir(t *testing.T) {
 	if err = pack.PackDir(fwpk, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t[TID_t, TSize_t]) error {
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagFID(fidcount))
+		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
 		var fname, _ = ts.String(wpk.TIDpath)
 		t.Logf("put file #%d '%s', %d bytes", fidcount, fname, ts.Size())
 		return nil
@@ -246,7 +246,7 @@ func TestPackDirSplit(t *testing.T) {
 	if err = pack.PackDir(fwpd, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t[TID_t, TSize_t]) error {
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagFID(fidcount))
+		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
 		var fname, _ = ts.String(wpk.TIDpath)
 		t.Logf("put file #%d '%s', %d bytes", fidcount, fname, ts.Size())
 		return nil
@@ -287,8 +287,8 @@ func TestPutFiles(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagFID(fidcount))
-		var size, _ = ts.FSize()
+		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
 	var putdata = func(name string, data []byte) {
@@ -301,8 +301,8 @@ func TestPutFiles(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagFID(fidcount))
-		var size, _ = ts.FSize()
+		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		var size = ts.Size()
 		t.Logf("put data #%d '%s', %d bytes", fidcount, name, size)
 	}
 	var putalias = func(oldname, newname string) {
@@ -386,8 +386,8 @@ func TestAppendContinues(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagFID(fidcount))
-		var size, _ = ts.FSize()
+		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
 
@@ -460,8 +460,8 @@ func TestAppendDiscrete(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagFID(fidcount))
-		var size, _ = ts.FSize()
+		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
 

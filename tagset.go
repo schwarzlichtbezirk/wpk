@@ -126,6 +126,53 @@ func (t Tag_t) Uint() (uint, bool) {
 	return 0, false
 }
 
+// UintTag is unspecified size unsigned int tag converter.
+func UintTag[T uint8 | uint16 | uint32 | uint64](t Tag_t) (ret T, ok bool) {
+	switch any(ret).(type) {
+	case uint8:
+		if len(t) == 1 {
+			return T(t[0]), true
+		}
+	case uint16:
+		if len(t) == 2 {
+			return T(binary.LittleEndian.Uint16(t)), true
+		}
+	case uint32:
+		if len(t) == 4 {
+			return T(binary.LittleEndian.Uint32(t)), true
+		}
+	case uint64:
+		if len(t) == 8 {
+			return T(binary.LittleEndian.Uint64(t)), true
+		}
+	}
+	return 0, false
+}
+
+// TagUint is unspecified size unsigned int tag constructor.
+func TagUint[T uint8 | uint16 | uint32 | uint64](val T) Tag_t {
+	switch val := any(val).(type) {
+	case uint8:
+		var buf [1]byte
+		buf[0] = val
+		return buf[:]
+	case uint16:
+		var buf [2]byte
+		binary.LittleEndian.PutUint16(buf[:], val)
+		return buf[:]
+	case uint32:
+		var buf [4]byte
+		binary.LittleEndian.PutUint32(buf[:], val)
+		return buf[:]
+	case uint64:
+		var buf [8]byte
+		binary.LittleEndian.PutUint64(buf[:], val)
+		return buf[:]
+	default:
+		panic("unreachable condition")
+	}
+}
+
 // Number is 64-bit float tag converter.
 func (t Tag_t) Number() (float64, bool) {
 	if len(t) == 8 {
@@ -168,51 +215,6 @@ func TagTime(val time.Time) Tag_t {
 	binary.LittleEndian.PutUint64(buf[:8], uint64(val.Unix()))
 	binary.LittleEndian.PutUint32(buf[8:], uint32(val.Nanosecond()))
 	return buf[:]
-}
-
-// FOffset is FOffset_t tag converter.
-func (t Tag_t) FOffset() (FOffset_t, bool) {
-	if len(t) == Uint_l[FOffset_t]() {
-		return FOffset_r[FOffset_t](t), true
-	}
-	return 0, false
-}
-
-// TagFOffset FOffset_t tag constructor.
-func TagFOffset(val FOffset_t) Tag_t {
-	var buf = make([]byte, Uint_l[FOffset_t]())
-	FOffset_w(buf, val)
-	return buf
-}
-
-// FSize is FSize_t tag converter.
-func (t Tag_t) FSize() (FSize_t, bool) {
-	if len(t) == Uint_l[FSize_t]() {
-		return FSize_r[FSize_t](t), true
-	}
-	return 0, false
-}
-
-// TagFSize is 64-bit unsigned int tag constructor.
-func TagFSize(val FSize_t) Tag_t {
-	var buf = make([]byte, Uint_l[FSize_t]())
-	FSize_w(buf, val)
-	return buf
-}
-
-// FID is FID_t tag converter.
-func (t Tag_t) FID() (FID_t, bool) {
-	if len(t) == Uint_l[FID_t]() {
-		return FID_r[FID_t](t), true
-	}
-	return 0, false
-}
-
-// TagFID is FID_t tag constructor.
-func TagFID(val FID_t) Tag_t {
-	var buf = make([]byte, Uint_l[FID_t]())
-	FID_w(buf, val)
-	return buf
 }
 
 // Tagset_t is slice of bytes with tags set. Length of slice can be
@@ -274,8 +276,8 @@ func (ts *Tagset_t[TID_t, TSize_t]) Put(tid TID_t, tag Tag_t) *Tagset_t[TID_t, T
 	}
 
 	var buf = make([]byte, Uint_l[TID_t]()+Uint_l[TSize_t]())
-	TID_w(buf[:Uint_l[TID_t]()], tid)
-	TSize_w(buf[Uint_l[TID_t]():], TSize_t(len(tag)))
+	Uint_w(buf[:Uint_l[TID_t]()], tid)
+	Uint_w(buf[Uint_l[TID_t]():], TSize_t(len(tag)))
 	ts.data = append(ts.data, buf...)
 	ts.data = append(ts.data, tag...)
 	return ts
@@ -300,7 +302,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Set(tid TID_t, tag Tag_t) bool {
 	if tl == TSize_t(tsi.pos-tsi.tag) {
 		copy(ts.data[tsi.tag:tsi.pos], tag)
 	} else {
-		TSize_w(ts.data[tsi.tag-Uint_l[TSize_t]():tsi.tag], tl) // set tag length
+		Uint_w(ts.data[tsi.tag-Uint_l[TSize_t]():tsi.tag], tl) // set tag length
 		var suff = ts.data[tsi.pos:]
 		ts.data = append(ts.data[:tsi.tag], tag...)
 		ts.data = append(ts.data, suff...)
@@ -375,6 +377,14 @@ func (ts *Tagset_t[TID_t, TSize_t]) Uint64(tid TID_t) (uint64, bool) {
 	return 0, false
 }
 
+// UintTagset is unspecified size unsigned int tag getter.
+func UintTagset[TID_t TID_i, TSize_t TSize_i, T uint8 | uint16 | uint32 | uint64](ts *Tagset_t[TID_t, TSize_t], tid TID_t) (ret T, ok bool) {
+	if data, ok := ts.Get(tid); ok {
+		return UintTag[T](data)
+	}
+	return 0, false
+}
+
 // Uint is unspecified size unsigned int tag getter.
 func (ts *Tagset_t[TID_t, TSize_t]) Uint(tid TID_t) (uint, bool) {
 	if data, ok := ts.Get(tid); ok {
@@ -399,31 +409,6 @@ func (ts *Tagset_t[TID_t, TSize_t]) Time(tid TID_t) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// FOffset returns offset of nested into package file.
-func (ts *Tagset_t[TID_t, TSize_t]) FOffset() (FOffset_t, bool) {
-	if data, ok := ts.Get(TIDoffset); ok && len(data) == Uint_l[FOffset_t]() {
-		return FOffset_r[FOffset_t](data), true
-	}
-	return 0, false
-}
-
-// FSize returns size of nested into package file.
-// fs.FileInfo implementation.
-func (ts *Tagset_t[TID_t, TSize_t]) FSize() (FSize_t, bool) {
-	if data, ok := ts.Get(TIDsize); ok && len(data) == Uint_l[FSize_t]() {
-		return FSize_r[FSize_t](data), true
-	}
-	return 0, false
-}
-
-// FID returns file ID.
-func (ts *Tagset_t[TID_t, TSize_t]) FID() (FID_t, bool) {
-	if data, ok := ts.Get(TIDfid); ok && len(data) == Uint_l[FID_t]() {
-		return FID_r[FID_t](data), true
-	}
-	return 0, false
-}
-
 // Path returns path of nested into package file.
 func (ts *Tagset_t[TID_t, TSize_t]) Path() string {
 	var fpath, _ = ts.String(TIDpath)
@@ -440,7 +425,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Name() string {
 // Size returns size of nested into package file.
 // fs.FileInfo implementation.
 func (ts *Tagset_t[TID_t, TSize_t]) Size() int64 {
-	var size, _ = ts.FSize()
+	var size, _ = UintTagset[TID_t, TSize_t, FSize_t](ts, TIDsize)
 	return int64(size)
 }
 
@@ -570,13 +555,13 @@ func (tsi *TagsetIterator[TID_t, TSize_t]) Next() (ok bool) {
 	if tsi.pos += Uint_l[TID_t](); tsi.pos > tsl {
 		return
 	}
-	var tid = TID_r[TID_t](tsi.data[tsi.pos-Uint_l[TID_t]():])
+	var tid = Uint_r[TID_t](tsi.data[tsi.pos-Uint_l[TID_t]():])
 
 	// get tag length
 	if tsi.pos += Uint_l[TSize_t](); tsi.pos > tsl {
 		return
 	}
-	var len = TSize_r[TSize_t](tsi.data[tsi.pos-Uint_l[TSize_t]():])
+	var len = Uint_r[TSize_t](tsi.data[tsi.pos-Uint_l[TSize_t]():])
 	// store tag content position
 	var tag = tsi.pos
 
