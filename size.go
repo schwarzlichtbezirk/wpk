@@ -10,20 +10,17 @@ import (
 type (
 	FOffset_t = uint64
 	FSize_t   = uint64
-	FID_t     = uint32
 	// FOffset_i - nested file offset type, can be 32, 64 bit integer. FOffset >= FSize.
 	FOffset_i interface{ uint32 | uint64 }
 	// FSize_i - nested file size type, can be 32, 64 bit integer.
 	FSize_i interface{ uint32 | uint64 }
-	// FID_i - file index/identifier type, can be 16, 32, 64 bit integer.
-	FID_i interface{ uint16 | uint32 | uint64 }
 	// TID_i - tag identifier type, can be 8, 16, 32 bit integer. TID <= TSSize.
 	TID_i interface{ uint8 | uint16 | uint32 }
 	// TSize_i - tag size type, can be 8, 16, 32 bit integer. TSize <= TSSize.
 	TSize_i interface{ uint8 | uint16 | uint32 }
 )
 
-func Uint_l[T uint8 | uint16 | uint32 | uint64]() int {
+func Uint_l[T uint8 | uint16 | uint32 | uint64]() byte {
 	var v T
 	switch any(v).(type) {
 	case uint8:
@@ -86,14 +83,21 @@ func ReadUintBuf(b []byte) uint {
 
 func WriteUintBuf(b []byte, v uint) {
 	switch len(b) {
+	case 8:
+		b[7] = byte(v >> 56)
+		b[6] = byte(v >> 48)
+		b[5] = byte(v >> 40)
+		b[4] = byte(v >> 32)
+		fallthrough
+	case 4:
+		b[3] = byte(v >> 24)
+		b[2] = byte(v >> 16)
+		fallthrough
+	case 2:
+		b[1] = byte(v >> 8)
+		fallthrough
 	case 1:
 		b[0] = byte(v)
-	case 2:
-		binary.LittleEndian.PutUint16(b, uint16(v))
-	case 4:
-		binary.LittleEndian.PutUint32(b, uint32(v))
-	case 8:
-		binary.LittleEndian.PutUint64(b, uint64(v))
 	default:
 		panic("undefined condition")
 	}

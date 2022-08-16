@@ -21,11 +21,10 @@ func (pack *Package[TID_t, TSize_t]) Begin(wpt io.WriteSeeker) (err error) {
 	defer pack.mux.Unlock()
 
 	if err = pack.typesize.Checkup(
-		byte(Uint_l[FOffset_t]()),
-		byte(Uint_l[FSize_t]()),
-		byte(Uint_l[FID_t]()),
-		byte(Uint_l[TID_t]()),
-		byte(Uint_l[TSize_t]()),
+		Uint_l[FOffset_t](),
+		Uint_l[FSize_t](),
+		Uint_l[TID_t](),
+		Uint_l[TSize_t](),
 	); err != nil {
 		return
 	}
@@ -95,8 +94,8 @@ func (pack *Package[TID_t, TSize_t]) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 		// update package info if it has
 		if ts, ok := pack.Tagset(""); ok {
-			ts.Set(TIDoffset, TagUint(FOffset_t(datpos)))
-			ts.Set(TIDsize, TagUint(FSize_t(datend-datpos)))
+			ts.Set(TIDoffset, TagUintLen(uint(datpos), pack.PTS(PTSfoffset)))
+			ts.Set(TIDsize, TagUintLen(uint(datend-datpos), pack.PTS(PTSfsize)))
 		}
 
 		// write file tags table
@@ -120,8 +119,8 @@ func (pack *Package[TID_t, TSize_t]) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 		// update package info if it has
 		if ts, ok := pack.Tagset(""); ok {
-			ts.Set(TIDoffset, TagUint(FOffset_t(datpos)))
-			ts.Set(TIDsize, TagUint(FSize_t(datend-datpos)))
+			ts.Set(TIDoffset, TagUintLen(uint(datpos), pack.PTS(PTSfoffset)))
+			ts.Set(TIDsize, TagUintLen(uint(datend-datpos), pack.PTS(PTSfsize)))
 		}
 
 		// write file tags table
@@ -175,8 +174,8 @@ func (pack *Package[TID_t, TSize_t]) PackData(w io.WriteSeeker, r io.Reader, fpa
 
 	// insert new entry to tags table
 	ts = (&Tagset_t[TID_t, TSize_t]{}).
-		Put(TIDoffset, TagUint(FOffset_t(offset))).
-		Put(TIDsize, TagUint(FSize_t(size))).
+		Put(TIDoffset, TagUintLen(uint(offset), pack.PTS(PTSfoffset))).
+		Put(TIDsize, TagUintLen(uint(size), pack.PTS(PTSfsize))).
 		Put(TIDpath, TagString(ToSlash(fpath)))
 	pack.SetTagset(fpath, ts)
 	return

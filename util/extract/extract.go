@@ -21,6 +21,7 @@ type (
 )
 
 const (
+	fidsz  = 4
 	tssize = 2
 )
 
@@ -98,15 +99,15 @@ func checkargs() int {
 func openpackage(pkgpath string) (pack wpk.Packager[TID_t, TSize_t], err error) {
 	switch PkgMode {
 	case "bulk":
-		if pack, err = bulk.OpenPackage[TID_t, TSize_t](pkgpath, tssize); err != nil {
+		if pack, err = bulk.OpenPackage[TID_t, TSize_t](pkgpath, fidsz, tssize); err != nil {
 			return
 		}
 	case "mmap":
-		if pack, err = mmap.OpenPackage[TID_t, TSize_t](pkgpath, tssize); err != nil {
+		if pack, err = mmap.OpenPackage[TID_t, TSize_t](pkgpath, fidsz, tssize); err != nil {
 			return
 		}
 	case "fsys":
-		if pack, err = fsys.OpenPackage[TID_t, TSize_t](pkgpath, tssize); err != nil {
+		if pack, err = fsys.OpenPackage[TID_t, TSize_t](pkgpath, fidsz, tssize); err != nil {
 			return
 		}
 	default:

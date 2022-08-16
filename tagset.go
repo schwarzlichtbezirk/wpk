@@ -126,6 +126,31 @@ func (t Tag_t) Uint() (uint, bool) {
 	return 0, false
 }
 
+// TagUintLen is unsigned int tag constructor with specified length in bytes.
+func TagUintLen(val uint, l byte) Tag_t {
+	var buf [8]byte
+	switch l {
+	case 8:
+		buf[7] = byte(val >> 56)
+		buf[6] = byte(val >> 48)
+		buf[5] = byte(val >> 40)
+		buf[4] = byte(val >> 32)
+		fallthrough
+	case 4:
+		buf[3] = byte(val >> 24)
+		buf[2] = byte(val >> 16)
+		fallthrough
+	case 2:
+		buf[1] = byte(val >> 8)
+		fallthrough
+	case 1:
+		buf[0] = byte(val)
+	default:
+		panic("undefined condition")
+	}
+	return buf[:l]
+}
+
 // TagUint is unspecified size unsigned int tag constructor.
 func TagUint[T uint8 | uint16 | uint32 | uint64](val T) Tag_t {
 	switch val := any(val).(type) {
@@ -279,7 +304,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Set(tid TID_t, tag Tag_t) bool {
 	if tl == TSize_t(tsi.pos-tsi.tag) {
 		copy(ts.data[tsi.tag:tsi.pos], tag)
 	} else {
-		Uint_w(ts.data[tsi.tag-Uint_l[TSize_t]():tsi.tag], tl) // set tag length
+		Uint_w(ts.data[tsi.tag-int(Uint_l[TSize_t]()):tsi.tag], tl) // set tag length
 		var suff = ts.data[tsi.pos:]
 		ts.data = append(ts.data[:tsi.tag], tag...)
 		ts.data = append(ts.data, suff...)
@@ -299,7 +324,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Del(tid TID_t) bool {
 	if tsi.tid != tid {
 		return false // ErrNoTag
 	}
-	ts.data = append(ts.data[:tsi.tag-Uint_l[TSize_t]()-Uint_l[TID_t]()], ts.data[tsi.pos:]...)
+	ts.data = append(ts.data[:tsi.tag-int(Uint_l[TSize_t]())-int(Uint_l[TID_t]())], ts.data[tsi.pos:]...)
 	return true
 }
 
@@ -404,7 +429,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Name() string {
 // Size returns size of nested into package file.
 // fs.FileInfo implementation.
 func (ts *Tagset_t[TID_t, TSize_t]) Size() int64 {
-	var size, _ = UintTagset[TID_t, TSize_t, FSize_t](ts, TIDsize)
+	var size, _ = ts.Uint(TIDsize)
 	return int64(size)
 }
 
@@ -531,16 +556,16 @@ func (tsi *TagsetIterator[TID_t, TSize_t]) Next() (ok bool) {
 	}
 
 	// get tag identifier
-	if tsi.pos += Uint_l[TID_t](); tsi.pos > tsl {
+	if tsi.pos += int(Uint_l[TID_t]()); tsi.pos > tsl {
 		return
 	}
-	var tid = Uint_r[TID_t](tsi.data[tsi.pos-Uint_l[TID_t]():])
+	var tid = Uint_r[TID_t](tsi.data[tsi.pos-int(Uint_l[TID_t]()):])
 
 	// get tag length
-	if tsi.pos += Uint_l[TSize_t](); tsi.pos > tsl {
+	if tsi.pos += int(Uint_l[TSize_t]()); tsi.pos > tsl {
 		return
 	}
-	var len = Uint_r[TSize_t](tsi.data[tsi.pos-Uint_l[TSize_t]():])
+	var len = Uint_r[TSize_t](tsi.data[tsi.pos-int(Uint_l[TSize_t]()):])
 	// store tag content position
 	var tag = tsi.pos
 

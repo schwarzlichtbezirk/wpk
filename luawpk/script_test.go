@@ -16,6 +16,7 @@ type (
 )
 
 const (
+	fidsz  = 4
 	tssize = 2
 )
 
@@ -26,7 +27,7 @@ var mediadir = scrdir + "media/"
 func CheckPackage(t *testing.T, wpkname string) {
 	var err error
 	var fwpk *os.File
-	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
 
 	// open temporary file for read/write
 	if fwpk, err = os.Open(wpkname); err != nil {
@@ -39,16 +40,16 @@ func CheckPackage(t *testing.T, wpkname string) {
 	}
 
 	if ts, ok := pack.Tagset(""); ok {
-		var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
-		var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
+		var offset, _ = ts.Uint(wpk.TIDoffset)
+		var size, _ = ts.Uint(wpk.TIDsize)
 		var label, _ = ts.String(wpk.TIDlabel)
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 	var n = 0
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
 		var ok bool
-		var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
-		var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
+		var offset, _ = ts.Uint(wpk.TIDoffset)
+		var size, _ = ts.Uint(wpk.TIDsize)
 		var fpath = ts.Path()
 		n++
 
@@ -67,7 +68,7 @@ func CheckPackage(t *testing.T, wpkname string) {
 			t.Fatal(err)
 		}
 
-		if size != wpk.FSize_t(len(orig)) {
+		if size != uint(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
 				fpath, size, len(orig))
 		}

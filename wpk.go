@@ -145,38 +145,42 @@ const (
 	PTStssize         // Index of "tagset size" type size.
 )
 
-// Checkup performs check up size of all types in bytes
+// Checkup performs check up sizes of all types in bytes
 // used in current WPK-file.
-func (ts TypeSize) Checkup(FOffset_l, FSize_l, FID_l, TID_l, TSize_l byte) error {
-	if ts[PTSfoffset] != FOffset_l {
+func (pts TypeSize) Checkup(FOffset_l, FSize_l, TID_l, TSize_l byte) error {
+	if pts[PTSfoffset] != FOffset_l {
 		return ErrSizeFOffset
 	}
-	if ts[PTSfsize] != FSize_l {
+	if pts[PTSfsize] != FSize_l {
 		return ErrSizeFSize
 	}
-	if ts[PTSfid] != FID_l {
+
+	switch pts[PTSfid] {
+	case 2, 4, 8:
+	default:
 		return ErrSizeFID
 	}
-	if ts[PTStid] != TID_l {
+
+	if pts[PTStid] != TID_l {
 		return ErrSizeTID
 	}
-	if ts[PTStsize] != TSize_l {
+	if pts[PTStsize] != TSize_l {
 		return ErrSizeTSize
 	}
 
-	switch ts[PTStssize] {
+	switch pts[PTStssize] {
 	case 2, 4:
 	default:
 		return ErrSizeTSSize
 	}
 
-	if ts[PTSfsize] > ts[PTSfoffset] {
+	if pts[PTSfsize] > pts[PTSfoffset] {
 		return ErrCondFSize
 	}
-	if ts[PTStid] > ts[PTStssize] {
+	if pts[PTStid] > pts[PTStssize] {
 		return ErrCondTID
 	}
-	if ts[PTStsize] > ts[PTStssize] {
+	if pts[PTStsize] > pts[PTStssize] {
 		return ErrCondTSize
 	}
 	return nil
@@ -192,52 +196,57 @@ type Header struct {
 	datsize   uint64   // files data total size
 }
 
+// PTS is getter for sizes of package types.
+func (hdr *Header) PTS(idx int) byte {
+	return hdr.typesize[idx]
+}
+
 // DataPos returns data files block offset and size.
-func (pack *Header) DataPos() (uint64, uint64) {
-	return pack.datoffset, pack.datsize
+func (hdr *Header) DataPos() (uint64, uint64) {
+	return hdr.datoffset, hdr.datsize
 }
 
 // IsSplitted returns true if package is splitted on tags and data files.
-func (pack *Header) IsSplitted() bool {
-	return pack.datoffset == 0 && pack.datsize > 0
+func (hdr *Header) IsSplitted() bool {
+	return hdr.datoffset == 0 && hdr.datsize > 0
 }
 
 // IsReady determines that package is ready for read the data.
-func (pack *Header) IsReady() (err error) {
+func (hdr *Header) IsReady() (err error) {
 	// can not read file tags table for opened on write single-file package.
-	if string(pack.signature[:]) == Prebuild && !pack.IsSplitted() {
+	if string(hdr.signature[:]) == Prebuild && !hdr.IsSplitted() {
 		return ErrSignPre
 	}
 	// can not read file tags table on any incorrect signature
-	if string(pack.signature[:]) != Signature {
+	if string(hdr.signature[:]) != Signature {
 		return ErrSignBad
 	}
 	return
 }
 
 // ReadFrom reads header from stream as binary data of constant length in little endian order.
-func (pack *Header) ReadFrom(r io.Reader) (n int64, err error) {
-	if err = binary.Read(r, binary.LittleEndian, pack.signature[:]); err != nil {
+func (hdr *Header) ReadFrom(r io.Reader) (n int64, err error) {
+	if err = binary.Read(r, binary.LittleEndian, hdr.signature[:]); err != nil {
 		return
 	}
 	n += SignSize
-	if _, err = r.Read(pack.typesize[:]); err != nil {
+	if _, err = r.Read(hdr.typesize[:]); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Read(r, binary.LittleEndian, &pack.fttoffset); err != nil {
+	if err = binary.Read(r, binary.LittleEndian, &hdr.fttoffset); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Read(r, binary.LittleEndian, &pack.fttsize); err != nil {
+	if err = binary.Read(r, binary.LittleEndian, &hdr.fttsize); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Read(r, binary.LittleEndian, &pack.datoffset); err != nil {
+	if err = binary.Read(r, binary.LittleEndian, &hdr.datoffset); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Read(r, binary.LittleEndian, &pack.datsize); err != nil {
+	if err = binary.Read(r, binary.LittleEndian, &hdr.datsize); err != nil {
 		return
 	}
 	n += 8
@@ -245,28 +254,28 @@ func (pack *Header) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // WriteTo writes header to stream as binary data of constant length in little endian order.
-func (pack *Header) WriteTo(w io.Writer) (n int64, err error) {
-	if err = binary.Write(w, binary.LittleEndian, pack.signature[:]); err != nil {
+func (hdr *Header) WriteTo(w io.Writer) (n int64, err error) {
+	if err = binary.Write(w, binary.LittleEndian, hdr.signature[:]); err != nil {
 		return
 	}
 	n += SignSize
-	if _, err = w.Write(pack.typesize[:]); err != nil {
+	if _, err = w.Write(hdr.typesize[:]); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Write(w, binary.LittleEndian, &pack.fttoffset); err != nil {
+	if err = binary.Write(w, binary.LittleEndian, &hdr.fttoffset); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Write(w, binary.LittleEndian, &pack.fttsize); err != nil {
+	if err = binary.Write(w, binary.LittleEndian, &hdr.fttsize); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Write(w, binary.LittleEndian, &pack.datoffset); err != nil {
+	if err = binary.Write(w, binary.LittleEndian, &hdr.datoffset); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Write(w, binary.LittleEndian, &pack.datsize); err != nil {
+	if err = binary.Write(w, binary.LittleEndian, &hdr.datsize); err != nil {
 		return
 	}
 	n += 8
@@ -325,7 +334,6 @@ func (ftt *FTT_t[TID_t, TSize_t]) GetDelTagset(fkey string) (ts *Tagset_t[TID_t,
 // and stores if it not present before.
 func (ftt *FTT_t[TID_t, TSize_t]) Info() *Tagset_t[TID_t, TSize_t] {
 	var emptyinfo = (&Tagset_t[TID_t, TSize_t]{}).
-		Put(TIDfid, TagUint(FID_t(0))).
 		Put(TIDpath, TagString(""))
 	var val, _ = ftt.LoadOrStore("", &Tagset_t[TID_t, TSize_t]{emptyinfo.data})
 	if val == nil {
@@ -335,8 +343,8 @@ func (ftt *FTT_t[TID_t, TSize_t]) Info() *Tagset_t[TID_t, TSize_t] {
 }
 
 type filepos struct {
-	offset FOffset_t
-	size   FSize_t
+	offset uint
+	size   uint
 }
 
 func (ftt *FTT_t[TID_t, TSize_t]) checkTagset(ts *Tagset_t[TID_t, TSize_t], lim *filepos) (fpath string, err error) {
@@ -354,11 +362,11 @@ func (ftt *FTT_t[TID_t, TSize_t]) checkTagset(ts *Tagset_t[TID_t, TSize_t], lim 
 	}
 
 	// check system tags
-	if pos.offset, ok = UintTagset[TID_t, TSize_t, FOffset_t](ts, TIDoffset); !ok && fpath != "" {
+	if pos.offset, ok = ts.Uint(TIDoffset); !ok && fpath != "" {
 		err = &ErrTag[TID_t]{ErrNoOffset, fpath, TIDoffset}
 		return
 	}
-	if pos.size, ok = UintTagset[TID_t, TSize_t, FSize_t](ts, TIDsize); !ok && fpath != "" {
+	if pos.size, ok = ts.Uint(TIDsize); !ok && fpath != "" {
 		err = &ErrTag[TID_t]{ErrNoSize, fpath, TIDsize}
 		return
 	}
@@ -366,11 +374,11 @@ func (ftt *FTT_t[TID_t, TSize_t]) checkTagset(ts *Tagset_t[TID_t, TSize_t], lim 
 	if fpath == "" { // setup whole package offset and size
 		lim.offset, lim.size = pos.offset, pos.size
 	} else if lim.size > 0 { // check up offset and tag if package info is provided
-		if pos.offset < lim.offset || pos.offset > lim.offset+FOffset_t(lim.size) {
+		if pos.offset < lim.offset || pos.offset > lim.offset+lim.size {
 			err = &ErrTag[TID_t]{ErrOutOff, fpath, TIDoffset}
 			return
 		}
-		if pos.offset+FOffset_t(pos.size) > lim.offset+FOffset_t(lim.size) {
+		if pos.offset+pos.size > lim.offset+lim.size {
 			err = &ErrTag[TID_t]{ErrOutSize, fpath, TIDsize}
 			return
 		}
@@ -473,21 +481,21 @@ type Package[TID_t TID_i, TSize_t TSize_i] struct {
 }
 
 // NewPackage returns pointer to new initialized Package structure.
-func NewPackage[TID_t TID_i, TSize_t TSize_i](tssize byte) (pack *Package[TID_t, TSize_t]) {
+func NewPackage[TID_t TID_i, TSize_t TSize_i](fidsz, tssize byte) (pack *Package[TID_t, TSize_t]) {
 	pack = &Package[TID_t, TSize_t]{}
-	pack.Init(tssize)
+	pack.Init(fidsz, tssize)
 	return
 }
 
 // Init performs initialization for given Package structure.
-func (pack *Package[TID_t, TSize_t]) Init(tssize byte) {
+func (pack *Package[TID_t, TSize_t]) Init(fidsz, tssize byte) {
 	pack.Header.typesize = TypeSize{
-		byte(Uint_l[FOffset_t]()), // can be: 4, 8
-		byte(Uint_l[FSize_t]()),   // can be: 4, 8
-		byte(Uint_l[FID_t]()),     // can be: 2, 4, 8
-		byte(Uint_l[TID_t]()),     // can be: 1, 2, 4
-		byte(Uint_l[TSize_t]()),   // can be: 1, 2, 4
-		tssize,                    // can be: 2, 4
+		Uint_l[FOffset_t](), // can be: 4, 8
+		Uint_l[FSize_t](),   // can be: 4, 8
+		fidsz,               // can be: 2, 4, 8
+		Uint_l[TID_t](),     // can be: 1, 2, 4
+		Uint_l[TSize_t](),   // can be: 1, 2, 4
+		tssize,              // can be: 2, 4
 		0,
 		0,
 	}
@@ -526,11 +534,10 @@ func (pack *Package[TID_t, TSize_t]) OpenFTT(r io.ReadSeeker) (err error) {
 		return
 	}
 	if err = pack.typesize.Checkup(
-		byte(Uint_l[FOffset_t]()),
-		byte(Uint_l[FSize_t]()),
-		byte(Uint_l[FID_t]()),
-		byte(Uint_l[TID_t]()),
-		byte(Uint_l[TSize_t]()),
+		Uint_l[FOffset_t](),
+		Uint_l[FSize_t](),
+		Uint_l[TID_t](),
+		Uint_l[TSize_t](),
 	); err != nil {
 		return
 	}
@@ -570,11 +577,10 @@ func GetPackageInfo[TID_t TID_i, TSize_t TSize_i](r io.ReadSeeker) (ts *Tagset_t
 		return
 	}
 	if err = hdr.typesize.Checkup(
-		byte(Uint_l[FOffset_t]()),
-		byte(Uint_l[FSize_t]()),
-		byte(Uint_l[FID_t]()),
-		byte(Uint_l[TID_t]()),
-		byte(Uint_l[TSize_t]()),
+		Uint_l[FOffset_t](),
+		Uint_l[FSize_t](),
+		Uint_l[TID_t](),
+		Uint_l[TSize_t](),
 	); err != nil {
 		return
 	}

@@ -29,11 +29,11 @@ type MappedFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i] struct {
 // NewMappedFile maps nested to package file based on given tags slice.
 func NewMappedFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](pack *Package[TID_t, TSize_t], ts *wpk.Tagset_t[TID_t, TSize_t]) (f *MappedFile[TID_t, TSize_t], err error) {
 	// calculate paged size/offset
-	var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
-	var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
+	var offset, _ = ts.Uint(wpk.TIDoffset)
+	var size, _ = ts.Uint(wpk.TIDsize)
 	var pgoff = offset % pagesize
 	var offsetx = offset - pgoff
-	var sizex = size + wpk.FSize_t(pgoff)
+	var sizex = size + pgoff
 	// create mapped memory block
 	var mmap mm.MMap
 	if mmap, err = mm.MapRegion(pack.filewpk, int(sizex), mm.RDONLY, 0, int64(offsetx)); err != nil {
@@ -41,8 +41,8 @@ func NewMappedFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](pack *Package[TID_t, TS
 	}
 	f = &MappedFile[TID_t, TSize_t]{
 		tags:       ts,
-		FileReader: bytes.NewReader(mmap[pgoff : pgoff+wpk.FOffset_t(size)]),
-		region:     mmap[pgoff : pgoff+wpk.FOffset_t(size)],
+		FileReader: bytes.NewReader(mmap[pgoff : pgoff+size]),
+		region:     mmap[pgoff : pgoff+size],
 		MMap:       mmap,
 	}
 	return
@@ -73,12 +73,11 @@ func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t[TID_t, TSize_t]
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fname string, tssize byte) (pack *Package[TID_t, TSize_t], err error) {
+func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fname string, fidsz, tssize byte) (pack *Package[TID_t, TSize_t], err error) {
 	pack = &Package[TID_t, TSize_t]{
-		Package:   &wpk.Package[TID_t, TSize_t]{},
+		Package:   wpk.NewPackage[TID_t, TSize_t](fidsz, tssize),
 		workspace: ".",
 	}
-	pack.Package.Init(tssize)
 
 	var r io.ReadSeekCloser
 	if r, err = os.Open(fname); err != nil {

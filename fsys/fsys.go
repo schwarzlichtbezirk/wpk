@@ -24,8 +24,8 @@ func NewChunkFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fpath string, ts *wpk.Ta
 	if wpkf, err = os.Open(fpath); err != nil {
 		return
 	}
-	var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
-	var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
+	var offset, _ = ts.Uint(wpk.TIDoffset)
+	var size, _ = ts.Uint(wpk.TIDsize)
 	f = &ChunkFile[TID_t, TSize_t]{
 		tags:       ts,
 		FileReader: io.NewSectionReader(wpkf, int64(offset), int64(size)),
@@ -59,18 +59,18 @@ func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t[TID_t, TSize_t]
 }
 
 // NewPackage creates new package with given data-part file.
-func NewPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](datpath string, tssize byte) *Package[TID_t, TSize_t] {
+func NewPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](datpath string, fidsz, tssize byte) *Package[TID_t, TSize_t] {
 	return &Package[TID_t, TSize_t]{
-		Package:   wpk.NewPackage[TID_t, TSize_t](tssize),
+		Package:   wpk.NewPackage[TID_t, TSize_t](fidsz, tssize),
 		workspace: ".",
 		fpath:     datpath,
 	}
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fpath string, tssize byte) (pack *Package[TID_t, TSize_t], err error) {
+func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fpath string, fidsz, tssize byte) (pack *Package[TID_t, TSize_t], err error) {
 	pack = &Package[TID_t, TSize_t]{
-		Package:   wpk.NewPackage[TID_t, TSize_t](tssize),
+		Package:   wpk.NewPackage[TID_t, TSize_t](fidsz, tssize),
 		workspace: ".",
 	}
 

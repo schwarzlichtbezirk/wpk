@@ -16,6 +16,7 @@ type (
 )
 
 const (
+	fidsz  = 4
 	tssize = 2
 )
 
@@ -36,24 +37,24 @@ var memdata = map[string][]byte{
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 	var err error
-	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
 
 	if err = pack.OpenFTT(fwph); err != nil {
 		t.Fatal(err)
 	}
 
 	if ts, ok := pack.Tagset(""); ok {
-		var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
-		var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
+		var offset, _ = ts.Uint(wpk.TIDoffset)
+		var size, _ = ts.Uint(wpk.TIDsize)
 		var label, _ = ts.String(wpk.TIDlabel)
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 
 	var realtagsnum int
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
-		var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
-		var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
-		var fid, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FID_t](ts, wpk.TIDfid)
+		var offset, _ = ts.Uint(wpk.TIDoffset)
+		var size, _ = ts.Uint(wpk.TIDsize)
+		var fid, _ = ts.Uint(wpk.TIDfid)
 		var fpath = ts.Path()
 		realtagsnum++
 
@@ -75,7 +76,7 @@ func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 			}
 		}
 
-		if size != wpk.FSize_t(len(orig)) {
+		if size != uint(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
 				fpath, size, len(orig))
 		}
@@ -112,7 +113,7 @@ func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 func TestInfo(t *testing.T) {
 	var err error
 	var fwpk *os.File
-	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
 
 	const (
 		label  = "empty-package"
@@ -177,8 +178,8 @@ func TestPackDir(t *testing.T) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount wpk.FID_t
-	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
+	var fidcount uint
+	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
 
 	defer os.Remove(testpack)
 
@@ -199,7 +200,7 @@ func TestPackDir(t *testing.T) {
 	if err = pack.PackDir(fwpk, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t[TID_t, TSize_t]) error {
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfid)))
 		var fname, _ = ts.String(wpk.TIDpath)
 		t.Logf("put file #%d '%s', %d bytes", fidcount, fname, ts.Size())
 		return nil
@@ -220,8 +221,8 @@ func TestPackDirSplit(t *testing.T) {
 	var err error
 	var fwph, fwpd *os.File
 	var tagsnum = 0
-	var fidcount wpk.FID_t
-	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
+	var fidcount uint
+	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
 
 	defer os.Remove(testpkgh)
 	defer os.Remove(testpkgd)
@@ -249,7 +250,7 @@ func TestPackDirSplit(t *testing.T) {
 	if err = pack.PackDir(fwpd, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t[TID_t, TSize_t]) error {
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfid)))
 		var fname, _ = ts.String(wpk.TIDpath)
 		t.Logf("put file #%d '%s', %d bytes", fidcount, fname, ts.Size())
 		return nil
@@ -270,8 +271,8 @@ func TestPutFiles(t *testing.T) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount wpk.FID_t
-	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
+	var fidcount uint
+	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
 
 	defer os.Remove(testpack)
 
@@ -290,7 +291,7 @@ func TestPutFiles(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfid)))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -304,7 +305,7 @@ func TestPutFiles(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfid)))
 		var size = ts.Size()
 		t.Logf("put data #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -369,8 +370,8 @@ func TestAppendContinues(t *testing.T) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount wpk.FID_t
-	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
+	var fidcount uint
+	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
 
 	defer os.Remove(testpack)
 
@@ -389,7 +390,7 @@ func TestAppendContinues(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfid)))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -443,8 +444,8 @@ func TestAppendDiscrete(t *testing.T) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount wpk.FID_t
-	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
+	var fidcount uint
+	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
 
 	defer os.Remove(testpack)
 
@@ -463,7 +464,7 @@ func TestAppendDiscrete(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfid)))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}

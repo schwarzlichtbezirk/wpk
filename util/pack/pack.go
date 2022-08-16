@@ -20,6 +20,7 @@ type (
 )
 
 const (
+	fidsz  = 4
 	tssize = 2
 )
 
@@ -116,7 +117,7 @@ func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t[TID_t, TSize_t]) (err erro
 func writepackage() (err error) {
 	var fwpk, fwpd wpk.WriteSeekCloser
 	var pkgfile, datfile = DstFile, DstFile
-	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
 	if Split {
 		pkgfile, datfile = wpk.MakeTagsPath(pkgfile), wpk.MakeDataPath(datfile)
 	}

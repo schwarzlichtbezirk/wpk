@@ -19,6 +19,7 @@ type (
 )
 
 const (
+	fidsz  = 4
 	tssize = 2
 )
 
@@ -92,7 +93,7 @@ func PushPack(ls *lua.LState, v *LuaPackage) {
 // NewPack is LuaPackage constructor.
 func NewPack(ls *lua.LState) int {
 	var pack LuaPackage
-	pack.Init(tssize)
+	pack.Init(fidsz, tssize)
 	PushPack(ls, &pack)
 	return 1
 }
@@ -152,10 +153,10 @@ func setterPack(ls *lua.LState) int {
 func tostringPack(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	var m = map[wpk.FOffset_t]struct{}{}
+	var m = map[uint]struct{}{}
 	var n = 0
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
-		if offset, ok := wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset); ok {
+		if offset, ok := ts.Uint(wpk.TIDoffset); ok {
 			m[offset] = struct{}{}
 		}
 		n++
@@ -165,7 +166,7 @@ func tostringPack(ls *lua.LState) int {
 	items = append(items, fmt.Sprintf("records: %d", len(m)))
 	items = append(items, fmt.Sprintf("aliases: %d", n))
 	if ts, ok := pack.Tagset(""); ok {
-		if size, ok := wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize); ok {
+		if size, ok := ts.Uint(wpk.TIDsize); ok {
 			items = append(items, fmt.Sprintf("datasize: %d", size))
 		}
 		if str, ok := ts.String(wpk.TIDlabel); ok {
@@ -287,9 +288,9 @@ func getdatpath(ls *lua.LState) int {
 
 func getrecnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var m = map[wpk.FOffset_t]struct{}{}
+	var m = map[uint]struct{}{}
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
-		if offset, ok := wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset); ok {
+		if offset, ok := ts.Uint(wpk.TIDoffset); ok {
 			m[offset] = struct{}{}
 		}
 		return true

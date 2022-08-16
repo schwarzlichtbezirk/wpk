@@ -20,11 +20,11 @@ type SliceFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i] struct {
 
 // NewSliceFile creates SliceFile file structure based on given tags slice.
 func NewSliceFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](pack *Package[TID_t, TSize_t], ts *wpk.Tagset_t[TID_t, TSize_t]) (f *SliceFile[TID_t, TSize_t], err error) {
-	var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
-	var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
+	var offset, _ = ts.Uint(wpk.TIDoffset)
+	var size, _ = ts.Uint(wpk.TIDsize)
 	f = &SliceFile[TID_t, TSize_t]{
 		tags:       ts,
-		FileReader: bytes.NewReader(pack.bulk[offset : offset+wpk.FOffset_t(size)]),
+		FileReader: bytes.NewReader(pack.bulk[offset : offset+size]),
 	}
 	return
 }
@@ -54,12 +54,11 @@ func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t[TID_t, TSize_t]
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fname string, tssize byte) (pack *Package[TID_t, TSize_t], err error) {
+func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fname string, fidsz, tssize byte) (pack *Package[TID_t, TSize_t], err error) {
 	pack = &Package[TID_t, TSize_t]{
-		Package:   &wpk.Package[TID_t, TSize_t]{},
+		Package:   wpk.NewPackage[TID_t, TSize_t](fidsz, tssize),
 		workspace: ".",
 	}
-	pack.Package.Init(tssize)
 
 	var r io.ReadSeekCloser
 	if r, err = os.Open(fname); err != nil {
@@ -151,9 +150,9 @@ func (pack *Package[TID_t, TSize_t]) ReadFile(name string) ([]byte, error) {
 	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
-	var offset, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset)
-	var size, _ = wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize)
-	return pack.bulk[offset : offset+wpk.FOffset_t(size)], nil
+	var offset, _ = ts.Uint(wpk.TIDoffset)
+	var size, _ = ts.Uint(wpk.TIDsize)
+	return pack.bulk[offset : offset+size], nil
 }
 
 // ReadDir reads the named directory
@@ -167,9 +166,8 @@ func (pack *Package[TID_t, TSize_t]) ReadDir(dir string) ([]fs.DirEntry, error) 
 func (pack *Package[TID_t, TSize_t]) Open(dir string) (fs.File, error) {
 	if dir == "wpk" && pack.workspace == "." {
 		var ts = (&wpk.Tagset_t[TID_t, TSize_t]{}).
-			Put(wpk.TIDoffset, wpk.TagUint(wpk.FOffset_t(0))).
-			Put(wpk.TIDsize, wpk.TagUint(wpk.FSize_t(len(pack.bulk)))).
-			Put(wpk.TIDfid, wpk.TagUint(wpk.FID_t(0)))
+			Put(wpk.TIDoffset, wpk.TagUintLen(0, pack.PTS(wpk.PTSfoffset))).
+			Put(wpk.TIDsize, wpk.TagUintLen(uint(len(pack.bulk)), pack.PTS(wpk.PTSfsize)))
 		return NewSliceFile(pack, ts)
 	}
 

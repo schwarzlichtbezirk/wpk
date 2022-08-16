@@ -20,19 +20,19 @@ func ExamplePackage_OpenFTT() {
 	defer f.Close()
 
 	// Open package files tags table
-	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
 	if err = pack.OpenFTT(f); err != nil {
 		log.Fatal(err)
 	}
 
 	// How many records in package
-	var m = map[wpk.FOffset_t]struct{}{}
+	var m = map[uint]struct{}{}
 	var n = 0
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
 		if n < 5 { // print not more than 5 file names from package
 			log.Println(fkey)
 		}
-		if offset, ok := wpk.UintTagset[TID_t, TSize_t, wpk.FOffset_t](ts, wpk.TIDoffset); ok {
+		if offset, ok := ts.Uint(wpk.TIDoffset); ok {
 			m[offset] = struct{}{}
 		}
 		n++
@@ -44,7 +44,7 @@ func ExamplePackage_OpenFTT() {
 	items = append(items, fmt.Sprintf("records: %d", len(m)))
 	items = append(items, fmt.Sprintf("aliases: %d", n))
 	if ts, ok := pack.Tagset(""); ok { // get package info if it present
-		if size, ok := wpk.UintTagset[TID_t, TSize_t, wpk.FSize_t](ts, wpk.TIDsize); ok {
+		if size, ok := ts.Uint(wpk.TIDsize); ok {
 			items = append(items, fmt.Sprintf("datasize: %d", size))
 		}
 		if str, ok := ts.String(wpk.TIDlabel); ok {
@@ -65,7 +65,7 @@ func ExamplePackage_Glob() {
 	defer f.Close()
 
 	// Open package files tags table
-	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
 	if err = pack.OpenFTT(f); err != nil {
 		log.Fatal(err)
 	}
