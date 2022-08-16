@@ -16,9 +16,12 @@ import (
 )
 
 type (
-	TID_t    = uint16
-	TSize_t  = uint16
-	TSSize_t = uint16
+	TID_t   = uint16
+	TSize_t = uint16
+)
+
+const (
+	tssize = 2
 )
 
 // command line settings
@@ -95,15 +98,15 @@ func checkargs() int {
 func openpackage(pkgpath string) (pack wpk.Packager[TID_t, TSize_t], err error) {
 	switch PkgMode {
 	case "bulk":
-		if pack, err = bulk.OpenPackage[TID_t, TSize_t, TSSize_t](pkgpath); err != nil {
+		if pack, err = bulk.OpenPackage[TID_t, TSize_t](pkgpath, tssize); err != nil {
 			return
 		}
 	case "mmap":
-		if pack, err = mmap.OpenPackage[TID_t, TSize_t, TSSize_t](pkgpath); err != nil {
+		if pack, err = mmap.OpenPackage[TID_t, TSize_t](pkgpath, tssize); err != nil {
 			return
 		}
 	case "fsys":
-		if pack, err = fsys.OpenPackage[TID_t, TSize_t, TSSize_t](pkgpath); err != nil {
+		if pack, err = fsys.OpenPackage[TID_t, TSize_t](pkgpath, tssize); err != nil {
 			return
 		}
 	default:

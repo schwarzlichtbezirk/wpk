@@ -16,24 +16,25 @@ type WriteSeekCloser interface {
 }
 
 // Begin writes prebuild header for new empty package.
-func (pack *Package[TID_t, TSize_t, TSSize_t]) Begin(wpt io.WriteSeeker) (err error) {
+func (pack *Package[TID_t, TSize_t]) Begin(wpt io.WriteSeeker) (err error) {
 	pack.mux.Lock()
 	defer pack.mux.Unlock()
 
-	var typesizes = [8]byte{
-		byte(Uint_l[FOffset_t]()), // can be: 4, 8
-		byte(Uint_l[FSize_t]()),   // can be: 4, 8
-		byte(Uint_l[FID_t]()),     // can be: 2, 4, 8
-		byte(Uint_l[TID_t]()),     // can be: 1, 2, 4
-		byte(Uint_l[TSize_t]()),   // can be: 1, 2, 4
-		byte(Uint_l[TSSize_t]()),  // can be: 2, 4
-		0,
-		0,
+	if err = pack.CheckTypes(
+		byte(Uint_l[FOffset_t]()),
+		byte(Uint_l[FSize_t]()),
+		byte(Uint_l[FID_t]()),
+		byte(Uint_l[TID_t]()),
+		byte(Uint_l[TSize_t]()),
+	); err != nil {
+		return
+	}
+	if pack.tssize != pack.Header.typesize[PTStssize] {
+		return ErrSizeTSSize
 	}
 
 	// reset header
 	copy(pack.signature[:], Prebuild)
-	pack.typesize = typesizes
 	pack.fttoffset = 0
 	pack.fttsize = 0
 	pack.datoffset = 0
@@ -50,7 +51,7 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) Begin(wpt io.WriteSeeker) (err er
 }
 
 // Append writes prebuild header for previously opened package to append new files.
-func (pack *Package[TID_t, TSize_t, TSSize_t]) Append(wpt, wpf io.WriteSeeker) (err error) {
+func (pack *Package[TID_t, TSize_t]) Append(wpt, wpf io.WriteSeeker) (err error) {
 	pack.mux.Lock()
 	defer pack.mux.Unlock()
 
@@ -78,7 +79,7 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) Append(wpt, wpf io.WriteSeeker) (
 }
 
 // Sync writes actual file tags table and true signature with settings.
-func (pack *Package[TID_t, TSize_t, TSSize_t]) Sync(wpt, wpf io.WriteSeeker) (err error) {
+func (pack *Package[TID_t, TSize_t]) Sync(wpt, wpf io.WriteSeeker) (err error) {
 	pack.mux.Lock()
 	defer pack.mux.Unlock()
 
@@ -150,7 +151,7 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) Sync(wpt, wpf io.WriteSeeker) (er
 
 // PackData puts data streamed by given reader into package as a file
 // and associate keyname "kpath" with it.
-func (pack *Package[TID_t, TSize_t, TSSize_t]) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *Tagset_t[TID_t, TSize_t], err error) {
+func (pack *Package[TID_t, TSize_t]) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *Tagset_t[TID_t, TSize_t], err error) {
 	if _, ok := pack.Tagset(fpath); ok {
 		err = &fs.PathError{Op: "packdata", Path: fpath, Err: fs.ErrExist}
 		return
@@ -182,7 +183,7 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) PackData(w io.WriteSeeker, r io.R
 }
 
 // PackFile puts file with given file handle into package and associate keyname "kpath" with it.
-func (pack *Package[TID_t, TSize_t, TSSize_t]) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ts *Tagset_t[TID_t, TSize_t], err error) {
+func (pack *Package[TID_t, TSize_t]) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ts *Tagset_t[TID_t, TSize_t], err error) {
 	var fi os.FileInfo
 	if fi, err = file.Stat(); err != nil {
 		return
@@ -207,11 +208,11 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) PackFile(w io.WriteSeeker, file *
 
 // PackDirLogger is function called during PackDir processing after each
 // file with OS file object and inserted tagset, that can be modified.
-type PackDirLogger[TID_t TID_i, TSize_t TSize_i, TSSize_t TSSize_i] func(r io.ReadSeeker, ts *Tagset_t[TID_t, TSize_t]) error
+type PackDirLogger[TID_t TID_i, TSize_t TSize_i] func(r io.ReadSeeker, ts *Tagset_t[TID_t, TSize_t]) error
 
 // PackDir puts all files of given folder and it's subfolders into package.
 // Logger function can be nil.
-func (pack *Package[TID_t, TSize_t, TSSize_t]) PackDir(w io.WriteSeeker, dirname, prefix string, logger PackDirLogger[TID_t, TSize_t, TSSize_t]) (err error) {
+func (pack *Package[TID_t, TSize_t]) PackDir(w io.WriteSeeker, dirname, prefix string, logger PackDirLogger[TID_t, TSize_t]) (err error) {
 	var fis []os.FileInfo
 	if func() {
 		var dir *os.File
@@ -258,7 +259,7 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) PackDir(w io.WriteSeeker, dirname
 
 // Rename tagset with file name 'oldname' to 'newname'.
 // Keeps link to original file name.
-func (pack *Package[TID_t, TSize_t, TSSize_t]) Rename(oldname, newname string) error {
+func (pack *Package[TID_t, TSize_t]) Rename(oldname, newname string) error {
 	var ts, ok = pack.Tagset(oldname)
 	if !ok {
 		return &fs.PathError{Op: "rename", Path: oldname, Err: fs.ErrNotExist}
@@ -275,7 +276,7 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) Rename(oldname, newname string) e
 
 // PutAlias makes clone tagset with file name 'oldname' and replace name tag
 // in it to 'newname'. Keeps link to original file name.
-func (pack *Package[TID_t, TSize_t, TSSize_t]) PutAlias(oldname, newname string) error {
+func (pack *Package[TID_t, TSize_t]) PutAlias(oldname, newname string) error {
 	var ts1, ok = pack.Tagset(oldname)
 	if !ok {
 		return &fs.PathError{Op: "putalias", Path: oldname, Err: fs.ErrNotExist}

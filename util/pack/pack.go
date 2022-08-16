@@ -15,9 +15,12 @@ import (
 )
 
 type (
-	TID_t    = uint16
-	TSize_t  = uint16
-	TSSize_t = uint16
+	TID_t   = uint16
+	TSize_t = uint16
+)
+
+const (
+	tssize = 2
 )
 
 // command line settings
@@ -111,9 +114,9 @@ func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t[TID_t, TSize_t]) (err erro
 }
 
 func writepackage() (err error) {
-	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
 	var fwpk, fwpd wpk.WriteSeekCloser
 	var pkgfile, datfile = DstFile, DstFile
+	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
 	if Split {
 		pkgfile, datfile = wpk.MakeTagsPath(pkgfile), wpk.MakeDataPath(datfile)
 	}

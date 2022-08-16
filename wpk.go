@@ -84,6 +84,9 @@ var (
 	ErrSizeTID     = errors.New("size of tag ID type is differs from expected")
 	ErrSizeTSize   = errors.New("size of tag size type is differs from expected")
 	ErrSizeTSSize  = errors.New("size of tagset size type is differs from expected")
+	ErrCondFSize   = errors.New("size of file size type should be not more than file offset size")
+	ErrCondTID     = errors.New("size of tag ID type should be not more than tagset size")
+	ErrCondTSize   = errors.New("size of tag size type should be not more than tagset size")
 
 	ErrNoTag    = errors.New("tag with given ID not found")
 	ErrNoPath   = errors.New("file name is absent")
@@ -132,15 +135,7 @@ const (
 	HeaderSize = 64
 )
 
-// Header - package header.
-type Header struct {
-	signature [SignSize]byte
-	typesize  [8]byte // sizes of package types
-	fttoffset uint64  // file tags table offset
-	fttsize   uint64  // file tags table size
-	datoffset uint64  // files data offset
-	datsize   uint64  // files data total size
-}
+type TypeSize [8]byte
 
 const (
 	PTSfoffset = iota
@@ -150,6 +145,16 @@ const (
 	PTStsize
 	PTStssize
 )
+
+// Header - package header.
+type Header struct {
+	signature [SignSize]byte
+	typesize  TypeSize // sizes of package types
+	fttoffset uint64   // file tags table offset
+	fttsize   uint64   // file tags table size
+	datoffset uint64   // files data offset
+	datsize   uint64   // files data total size
+}
 
 // DataPos returns data files block offset and size.
 func (pack *Header) DataPos() (uint64, uint64) {
@@ -176,7 +181,7 @@ func (pack *Header) IsReady() (err error) {
 
 // CheckTypes performs check up size of all types in bytes
 // used in current WPK-file.
-func (pack *Header) CheckTypes(FOffset_l, FSize_l, FID_l, TID_l, TSize_l, TSSize_l byte) error {
+func (pack *Header) CheckTypes(FOffset_l, FSize_l, FID_l, TID_l, TSize_l byte) error {
 	if pack.typesize[PTSfoffset] != FOffset_l {
 		return ErrSizeFOffset
 	}
@@ -192,8 +197,21 @@ func (pack *Header) CheckTypes(FOffset_l, FSize_l, FID_l, TID_l, TSize_l, TSSize
 	if pack.typesize[PTStsize] != TSize_l {
 		return ErrSizeTSize
 	}
-	if pack.typesize[PTStssize] != TSSize_l {
+
+	switch pack.typesize[PTStssize] {
+	case 2, 4:
+	default:
 		return ErrSizeTSSize
+	}
+
+	if pack.typesize[PTSfsize] > pack.typesize[PTSfoffset] {
+		return ErrCondFSize
+	}
+	if pack.typesize[PTStid] > pack.typesize[PTStssize] {
+		return ErrCondTID
+	}
+	if pack.typesize[PTStsize] > pack.typesize[PTStssize] {
+		return ErrCondTSize
 	}
 	return nil
 }
@@ -258,12 +276,13 @@ func (pack *Header) WriteTo(w io.Writer) (n int64, err error) {
 
 // File tags table.
 // Keys - package filenames in lower case, values - tagset slices.
-type FTT_t[TID_t, TSize_t TSize_i, TSSize_t TSSize_i] struct {
+type FTT_t[TID_t, TSize_t TSize_i] struct {
 	sync.Map
+	tssize byte
 }
 
 // Tagset returns tagset with given filename key, if it found.
-func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) Tagset(fkey string) (ts *Tagset_t[TID_t, TSize_t], ok bool) {
+func (ftt *FTT_t[TID_t, TSize_t]) Tagset(fkey string) (ts *Tagset_t[TID_t, TSize_t], ok bool) {
 	var val interface{}
 	if val, ok = ftt.Load(Normalize(fkey)); ok {
 		ts = val.(*Tagset_t[TID_t, TSize_t])
@@ -272,30 +291,30 @@ func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) Tagset(fkey string) (ts *Tagset_t[TI
 }
 
 // Enum calls given closure for each tagset in package. Skips package info.
-func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) Enum(f func(string, *Tagset_t[TID_t, TSize_t]) bool) {
+func (ftt *FTT_t[TID_t, TSize_t]) Enum(f func(string, *Tagset_t[TID_t, TSize_t]) bool) {
 	ftt.Range(func(key, value interface{}) bool {
 		return key.(string) == "" || f(key.(string), value.(*Tagset_t[TID_t, TSize_t]))
 	})
 }
 
 // HasTagset check up that tagset with given filename key is present.
-func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) HasTagset(fkey string) (ok bool) {
+func (ftt *FTT_t[TID_t, TSize_t]) HasTagset(fkey string) (ok bool) {
 	_, ok = ftt.Load(Normalize(fkey))
 	return
 }
 
 // SetTagset puts tagset with given filename key.
-func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) SetTagset(fkey string, ts *Tagset_t[TID_t, TSize_t]) {
+func (ftt *FTT_t[TID_t, TSize_t]) SetTagset(fkey string, ts *Tagset_t[TID_t, TSize_t]) {
 	ftt.Store(Normalize(fkey), ts)
 }
 
 // DelTagset deletes tagset with given filename key.
-func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) DelTagset(fkey string) {
+func (ftt *FTT_t[TID_t, TSize_t]) DelTagset(fkey string) {
 	ftt.Delete(Normalize(fkey))
 }
 
 // GetDelTagset deletes the tagset for a key, returning the previous tagset if any.
-func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) GetDelTagset(fkey string) (ts *Tagset_t[TID_t, TSize_t], ok bool) {
+func (ftt *FTT_t[TID_t, TSize_t]) GetDelTagset(fkey string) (ts *Tagset_t[TID_t, TSize_t], ok bool) {
 	var val interface{}
 	if val, ok = ftt.LoadAndDelete(Normalize(fkey)); ok {
 		ts = val.(*Tagset_t[TID_t, TSize_t])
@@ -305,7 +324,7 @@ func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) GetDelTagset(fkey string) (ts *Tagse
 
 // Info returns package information tagset,
 // and stores if it not present before.
-func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) Info() *Tagset_t[TID_t, TSize_t] {
+func (ftt *FTT_t[TID_t, TSize_t]) Info() *Tagset_t[TID_t, TSize_t] {
 	var emptyinfo = (&Tagset_t[TID_t, TSize_t]{}).
 		Put(TIDfid, TagUint(FID_t(0))).
 		Put(TIDpath, TagString(""))
@@ -321,7 +340,7 @@ type filepos struct {
 	size   FSize_t
 }
 
-func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) checkTagset(ts *Tagset_t[TID_t, TSize_t], lim *filepos) (fpath string, err error) {
+func (ftt *FTT_t[TID_t, TSize_t]) checkTagset(ts *Tagset_t[TID_t, TSize_t], lim *filepos) (fpath string, err error) {
 	var ok bool
 	var pos filepos
 
@@ -362,15 +381,14 @@ func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) checkTagset(ts *Tagset_t[TID_t, TSiz
 }
 
 // ReadFrom reads file tags table whole content from the given stream.
-func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) ReadFrom(r io.Reader) (n int64, err error) {
-	var ntss = int64(Uint_l[TSSize_t]())
+func (ftt *FTT_t[TID_t, TSize_t]) ReadFrom(r io.Reader) (n int64, err error) {
 	var limits filepos
 	for {
-		var tsl TSSize_t
-		if err = binary.Read(r, binary.LittleEndian, &tsl); err != nil {
+		var tsl UInt
+		if tsl, err = ReadUint(r, ftt.tssize); err != nil {
 			return
 		}
-		n += ntss
+		n += int64(ftt.tssize)
 
 		if tsl == 0 {
 			break // end marker was reached
@@ -402,17 +420,16 @@ func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) ReadFrom(r io.Reader) (n int64, err 
 }
 
 // WriteTo writes file tags table whole content to the given stream.
-func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) WriteTo(w io.Writer) (n int64, err error) {
-	var ntss = int64(Uint_l[TSSize_t]())
+func (ftt *FTT_t[TID_t, TSize_t]) WriteTo(w io.Writer) (n int64, err error) {
 	// write tagset with package info at first
 	if ts, ok := ftt.Tagset(""); ok {
-		var tsl = len(ts.Data())
+		var tsl = UInt(len(ts.Data()))
 
 		// write tagset length
-		if err = binary.Write(w, binary.LittleEndian, TSSize_t(tsl)); err != nil {
+		if err = WriteUint(w, ftt.tssize, tsl); err != nil {
 			return
 		}
-		n += ntss
+		n += int64(ftt.tssize)
 
 		// write tagset content
 		if _, err = w.Write(ts.Data()); err != nil {
@@ -423,13 +440,13 @@ func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) WriteTo(w io.Writer) (n int64, err e
 
 	// write files tags table
 	ftt.Enum(func(fkey string, ts *Tagset_t[TID_t, TSize_t]) bool {
-		var tsl = len(ts.Data())
+		var tsl = UInt(len(ts.Data()))
 
 		// write tagset length
-		if err = binary.Write(w, binary.LittleEndian, TSSize_t(tsl)); err != nil {
+		if err = WriteUint(w, ftt.tssize, tsl); err != nil {
 			return false
 		}
-		n += ntss
+		n += int64(ftt.tssize)
 
 		// write tagset content
 		if _, err = w.Write(ts.Data()); err != nil {
@@ -442,23 +459,43 @@ func (ftt *FTT_t[TID_t, TSize_t, TSSize_t]) WriteTo(w io.Writer) (n int64, err e
 		return
 	}
 	// write tags table end marker
-	if err = binary.Write(w, binary.LittleEndian, TSSize_t(0)); err != nil {
+	if err = WriteUint(w, ftt.tssize, 0); err != nil {
 		return
 	}
-	n += ntss
+	n += int64(ftt.tssize)
 	return
 }
 
 // Package structure contains all data needed for package representation.
-type Package[TID_t TID_i, TSize_t TSize_i, TSSize_t TSSize_i] struct {
+type Package[TID_t TID_i, TSize_t TSize_i] struct {
 	Header
-	FTT_t[TID_t, TSize_t, TSSize_t]
+	FTT_t[TID_t, TSize_t]
 	mux sync.Mutex // writer mutex
+}
+
+func NewPackage[TID_t TID_i, TSize_t TSize_i](tssize byte) (pack *Package[TID_t, TSize_t]) {
+	pack = &Package[TID_t, TSize_t]{}
+	pack.Init(tssize)
+	return
+}
+
+func (pack *Package[TID_t, TSize_t]) Init(tssize byte) {
+	pack.Header.typesize = TypeSize{
+		byte(Uint_l[FOffset_t]()), // can be: 4, 8
+		byte(Uint_l[FSize_t]()),   // can be: 4, 8
+		byte(Uint_l[FID_t]()),     // can be: 2, 4, 8
+		byte(Uint_l[TID_t]()),     // can be: 1, 2, 4
+		byte(Uint_l[TSize_t]()),   // can be: 1, 2, 4
+		tssize,                    // can be: 2, 4
+		0,
+		0,
+	}
+	pack.FTT_t.tssize = tssize
 }
 
 // Glob returns the names of all files in package matching pattern or nil
 // if there is no matching file.
-func (pack *Package[TID_t, TSize_t, TSSize_t]) Glob(pattern string) (res []string, err error) {
+func (pack *Package[TID_t, TSize_t]) Glob(pattern string) (res []string, err error) {
 	pattern = Normalize(pattern)
 	if _, err = filepath.Match(pattern, ""); err != nil {
 		return
@@ -475,7 +512,7 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) Glob(pattern string) (res []strin
 // Opens package for reading. At first it checkups file signature, then
 // reads records table, and reads file tagset table. Tags set for each
 // file must contain at least file offset, file size, file ID and file name.
-func (pack *Package[TID_t, TSize_t, TSSize_t]) OpenFTT(r io.ReadSeeker) (err error) {
+func (pack *Package[TID_t, TSize_t]) OpenFTT(r io.ReadSeeker) (err error) {
 	// go to file start
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
 		return
@@ -493,17 +530,17 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) OpenFTT(r io.ReadSeeker) (err err
 		byte(Uint_l[FID_t]()),
 		byte(Uint_l[TID_t]()),
 		byte(Uint_l[TSize_t]()),
-		byte(Uint_l[TSSize_t]()),
 	); err != nil {
 		return
 	}
-
+	// setup empty tags table
+	pack.FTT_t = FTT_t[TID_t, TSize_t]{
+		tssize: pack.Header.typesize[PTStssize],
+	}
 	// go to file tags table start
 	if _, err = r.Seek(int64(pack.fttoffset), io.SeekStart); err != nil {
 		return
 	}
-	// setup empty tags table
-	pack.FTT_t = FTT_t[TID_t, TSize_t, TSSize_t]{}
 	// read file tags table
 	var fttsize int64
 	if fttsize, err = pack.FTT_t.ReadFrom(r); err != nil {
@@ -518,7 +555,7 @@ func (pack *Package[TID_t, TSize_t, TSSize_t]) OpenFTT(r io.ReadSeeker) (err err
 
 // GetPackageInfo returns tagset with package information.
 // It's a quick function to get info from the file.
-func GetPackageInfo[TID_t TID_i, TSize_t TSize_i, TSSize_t TSSize_i](r io.ReadSeeker) (ts *Tagset_t[TID_t, TSize_t], err error) {
+func GetPackageInfo[TID_t TID_i, TSize_t TSize_i](r io.ReadSeeker) (ts *Tagset_t[TID_t, TSize_t], err error) {
 	var hdr Header
 	// go to file start
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
@@ -537,7 +574,6 @@ func GetPackageInfo[TID_t TID_i, TSize_t TSize_i, TSSize_t TSSize_i](r io.ReadSe
 		byte(Uint_l[FID_t]()),
 		byte(Uint_l[TID_t]()),
 		byte(Uint_l[TSize_t]()),
-		byte(Uint_l[TSSize_t]()),
 	); err != nil {
 		return
 	}
@@ -549,8 +585,8 @@ func GetPackageInfo[TID_t TID_i, TSize_t TSize_i, TSSize_t TSSize_i](r io.ReadSe
 
 	// read first tagset that can be package info,
 	// or some file tagset if info is absent
-	var tsl TSSize_t
-	if err = binary.Read(r, binary.LittleEndian, &tsl); err != nil {
+	var tsl UInt
+	if tsl, err = ReadUint(r, hdr.typesize[PTStssize]); err != nil {
 		return
 	}
 	if tsl == 0 {

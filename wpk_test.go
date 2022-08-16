@@ -11,9 +11,12 @@ import (
 )
 
 type (
-	TID_t    = uint16
-	TSize_t  = uint16
-	TSSize_t = uint16
+	TID_t   = uint16
+	TSize_t = uint16
+)
+
+const (
+	tssize = 2
 )
 
 var mediadir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/media/")
@@ -33,7 +36,7 @@ var memdata = map[string][]byte{
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 	var err error
-	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
+	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
 
 	if err = pack.OpenFTT(fwph); err != nil {
 		t.Fatal(err)
@@ -108,8 +111,8 @@ func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 // Test package Info function and GetPackageInfo.
 func TestInfo(t *testing.T) {
 	var err error
-	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
 	var fwpk *os.File
+	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
 
 	const (
 		label  = "empty-package"
@@ -141,7 +144,7 @@ func TestInfo(t *testing.T) {
 
 	// at the end checkup package info
 	var ts *wpk.Tagset_t[TID_t, TSize_t]
-	if ts, err = wpk.GetPackageInfo[TID_t, TSize_t, TSSize_t](fwpk); err != nil {
+	if ts, err = wpk.GetPackageInfo[TID_t, TSize_t](fwpk); err != nil {
 		t.Fatal(err)
 	}
 	if ts == nil {
@@ -172,10 +175,10 @@ func TestInfo(t *testing.T) {
 // Test PackDir function work.
 func TestPackDir(t *testing.T) {
 	var err error
-	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount wpk.FID_t
+	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
 
 	defer os.Remove(testpack)
 
@@ -215,10 +218,10 @@ func TestPackDir(t *testing.T) {
 // Test package writing to splitted header and data files.
 func TestPackDirSplit(t *testing.T) {
 	var err error
-	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
 	var fwph, fwpd *os.File
 	var tagsnum = 0
 	var fidcount wpk.FID_t
+	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
 
 	defer os.Remove(testpkgh)
 	defer os.Remove(testpkgd)
@@ -265,10 +268,10 @@ func TestPackDirSplit(t *testing.T) {
 // Test ability of files sequence packing, and make alias.
 func TestPutFiles(t *testing.T) {
 	var err error
-	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount wpk.FID_t
+	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
 
 	defer os.Remove(testpack)
 
@@ -364,10 +367,10 @@ func TestPutFiles(t *testing.T) {
 // then append new files to existing package.
 func TestAppendContinues(t *testing.T) {
 	var err error
-	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount wpk.FID_t
+	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
 
 	defer os.Remove(testpack)
 
@@ -438,10 +441,10 @@ func TestAppendContinues(t *testing.T) {
 // then open package file again and append new files.
 func TestAppendDiscrete(t *testing.T) {
 	var err error
-	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount wpk.FID_t
+	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
 
 	defer os.Remove(testpack)
 

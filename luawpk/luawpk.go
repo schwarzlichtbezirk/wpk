@@ -14,9 +14,12 @@ import (
 )
 
 type (
-	TID_t    = uint16
-	TSize_t  = uint16
-	TSSize_t = uint16
+	TID_t   = uint16
+	TSize_t = uint16
+)
+
+const (
+	tssize = 2
 )
 
 // ErrProtected is "protected tag" error.
@@ -41,7 +44,7 @@ const PackMT = "wpk"
 
 // LuaPackage is "wpk" userdata structure.
 type LuaPackage struct {
-	wpk.Package[TID_t, TSize_t, TSSize_t]
+	wpk.Package[TID_t, TSize_t]
 	automime bool
 	nolink   bool
 	secret   []byte
@@ -89,6 +92,7 @@ func PushPack(ls *lua.LState, v *LuaPackage) {
 // NewPack is LuaPackage constructor.
 func NewPack(ls *lua.LState) int {
 	var pack LuaPackage
+	pack.Init(tssize)
 	PushPack(ls, &pack)
 	return 1
 }

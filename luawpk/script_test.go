@@ -11,9 +11,12 @@ import (
 )
 
 type (
-	TID_t    = uint16
-	TSize_t  = uint16
-	TSSize_t = uint16
+	TID_t   = uint16
+	TSize_t = uint16
+)
+
+const (
+	tssize = 2
 )
 
 var scrdir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/")
@@ -22,8 +25,8 @@ var mediadir = scrdir + "media/"
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, wpkname string) {
 	var err error
-	var pack wpk.Package[TID_t, TSize_t, TSSize_t]
 	var fwpk *os.File
+	var pack = wpk.NewPackage[TID_t, TSize_t](tssize)
 
 	// open temporary file for read/write
 	if fwpk, err = os.Open(wpkname); err != nil {

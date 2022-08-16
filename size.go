@@ -2,6 +2,7 @@ package wpk
 
 import (
 	"encoding/binary"
+	"io"
 )
 
 // Size-dependent types definitions.
@@ -10,18 +11,20 @@ type (
 	FOffset_t = uint64
 	FSize_t   = uint64
 	FID_t     = uint32
-	// FOffset_i - nested file offset type, can be 32, 64 bit integer. FOffset_t >= FSize_t.
+	// FOffset_i - nested file offset type, can be 32, 64 bit integer. FOffset >= FSize.
 	FOffset_i interface{ uint32 | uint64 }
 	// FSize_i - nested file size type, can be 32, 64 bit integer.
 	FSize_i interface{ uint32 | uint64 }
 	// FID_i - file index/identifier type, can be 16, 32, 64 bit integer.
 	FID_i interface{ uint16 | uint32 | uint64 }
-	// TID_i - tag identifier type, can be 8, 16, 32 bit integer. TID_t <= TSSize_t.
+	// TID_i - tag identifier type, can be 8, 16, 32 bit integer. TID <= TSSize.
 	TID_i interface{ uint8 | uint16 | uint32 }
-	// TSize_i - tag size type, can be 8, 16, 32 bit integer. TSize_t <= TSSize_t.
+	// TSize_i - tag size type, can be 8, 16, 32 bit integer. TSize <= TSSize.
 	TSize_i interface{ uint8 | uint16 | uint32 }
-	// TSSize_i - tagset size/offset type, can be 16, 32 bit integer.
-	TSSize_i interface{ uint16 | uint32 }
+)
+
+type (
+	UInt uint
 )
 
 func Uint_l[T uint8 | uint16 | uint32 | uint64]() int {
@@ -68,6 +71,50 @@ func Uint_w[T uint8 | uint16 | uint32 | uint64](b []byte, v T) {
 	default:
 		panic("unreachable condition")
 	}
+}
+
+func ReadUintBuf(b []byte) UInt {
+	switch len(b) {
+	case 1:
+		return UInt(b[0])
+	case 2:
+		return UInt(binary.LittleEndian.Uint16(b))
+	case 4:
+		return UInt(binary.LittleEndian.Uint32(b))
+	case 8:
+		return UInt(binary.LittleEndian.Uint64(b))
+	default:
+		panic("undefined condition")
+	}
+}
+
+func WriteUintBuf(b []byte, v UInt) {
+	switch len(b) {
+	case 1:
+		b[0] = byte(v)
+	case 2:
+		binary.LittleEndian.PutUint16(b, uint16(v))
+	case 4:
+		binary.LittleEndian.PutUint32(b, uint32(v))
+	case 8:
+		binary.LittleEndian.PutUint64(b, uint64(v))
+	default:
+		panic("undefined condition")
+	}
+}
+
+func ReadUint(r io.Reader, l byte) (data UInt, err error) {
+	var buf = make([]byte, l)
+	_, err = r.Read(buf)
+	data = ReadUintBuf(buf)
+	return
+}
+
+func WriteUint(w io.Writer, l byte, data UInt) (err error) {
+	var buf = make([]byte, l)
+	WriteUintBuf(buf, data)
+	_, err = w.Write(buf)
+	return
 }
 
 // The End.
