@@ -126,29 +126,6 @@ func (t Tag_t) Uint() (uint, bool) {
 	return 0, false
 }
 
-// UintTag is unspecified size unsigned int tag converter.
-func UintTag[T uint8 | uint16 | uint32 | uint64](t Tag_t) (ret T, ok bool) {
-	switch any(ret).(type) {
-	case uint8:
-		if len(t) == 1 {
-			return T(t[0]), true
-		}
-	case uint16:
-		if len(t) == 2 {
-			return T(binary.LittleEndian.Uint16(t)), true
-		}
-	case uint32:
-		if len(t) == 4 {
-			return T(binary.LittleEndian.Uint32(t)), true
-		}
-	case uint64:
-		if len(t) == 8 {
-			return T(binary.LittleEndian.Uint64(t)), true
-		}
-	}
-	return 0, false
-}
-
 // TagUint is unspecified size unsigned int tag constructor.
 func TagUint[T uint8 | uint16 | uint32 | uint64](val T) Tag_t {
 	switch val := any(val).(type) {
@@ -380,7 +357,9 @@ func (ts *Tagset_t[TID_t, TSize_t]) Uint64(tid TID_t) (uint64, bool) {
 // UintTagset is unspecified size unsigned int tag getter.
 func UintTagset[TID_t TID_i, TSize_t TSize_i, T uint8 | uint16 | uint32 | uint64](ts *Tagset_t[TID_t, TSize_t], tid TID_t) (ret T, ok bool) {
 	if data, ok := ts.Get(tid); ok {
-		return UintTag[T](data)
+		var u uint
+		u, ok = data.Uint()
+		return T(u), ok
 	}
 	return 0, false
 }

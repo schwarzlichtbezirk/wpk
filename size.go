@@ -23,10 +23,6 @@ type (
 	TSize_i interface{ uint8 | uint16 | uint32 }
 )
 
-type (
-	UInt uint
-)
-
 func Uint_l[T uint8 | uint16 | uint32 | uint64]() int {
 	var v T
 	switch any(v).(type) {
@@ -73,22 +69,22 @@ func Uint_w[T uint8 | uint16 | uint32 | uint64](b []byte, v T) {
 	}
 }
 
-func ReadUintBuf(b []byte) UInt {
+func ReadUintBuf(b []byte) uint {
 	switch len(b) {
 	case 1:
-		return UInt(b[0])
+		return uint(b[0])
 	case 2:
-		return UInt(binary.LittleEndian.Uint16(b))
+		return uint(binary.LittleEndian.Uint16(b))
 	case 4:
-		return UInt(binary.LittleEndian.Uint32(b))
+		return uint(binary.LittleEndian.Uint32(b))
 	case 8:
-		return UInt(binary.LittleEndian.Uint64(b))
+		return uint(binary.LittleEndian.Uint64(b))
 	default:
 		panic("undefined condition")
 	}
 }
 
-func WriteUintBuf(b []byte, v UInt) {
+func WriteUintBuf(b []byte, v uint) {
 	switch len(b) {
 	case 1:
 		b[0] = byte(v)
@@ -103,14 +99,14 @@ func WriteUintBuf(b []byte, v UInt) {
 	}
 }
 
-func ReadUint(r io.Reader, l byte) (data UInt, err error) {
+func ReadUint(r io.Reader, l byte) (data uint, err error) {
 	var buf = make([]byte, l)
 	_, err = r.Read(buf)
 	data = ReadUintBuf(buf)
 	return
 }
 
-func WriteUint(w io.Writer, l byte, data UInt) (err error) {
+func WriteUint(w io.Writer, data uint, l byte) (err error) {
 	var buf = make([]byte, l)
 	WriteUintBuf(buf, data)
 	_, err = w.Write(buf)

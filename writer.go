@@ -20,7 +20,7 @@ func (pack *Package[TID_t, TSize_t]) Begin(wpt io.WriteSeeker) (err error) {
 	pack.mux.Lock()
 	defer pack.mux.Unlock()
 
-	if err = pack.CheckTypes(
+	if err = pack.typesize.Checkup(
 		byte(Uint_l[FOffset_t]()),
 		byte(Uint_l[FSize_t]()),
 		byte(Uint_l[FID_t]()),
