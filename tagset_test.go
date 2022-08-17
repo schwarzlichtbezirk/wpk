@@ -11,7 +11,9 @@ import (
 
 func TestTagset(t *testing.T) {
 	const (
-		fidsz = 4
+		foffset = 8
+		fsize   = 8
+		fidsz   = 4
 	)
 	const (
 		fid    = 100
@@ -23,8 +25,8 @@ func TestTagset(t *testing.T) {
 		mime   = "image/jpeg"
 	)
 	var ts = (&wpk.Tagset_t[TID_t, TSize_t]{}).
-		Put(wpk.TIDoffset, wpk.TagUintLen(offset, wpk.Uint_l[wpk.FOffset_t]())).
-		Put(wpk.TIDsize, wpk.TagUintLen(size, wpk.Uint_l[wpk.FSize_t]())).
+		Put(wpk.TIDoffset, wpk.TagUintLen(offset, foffset)).
+		Put(wpk.TIDsize, wpk.TagUintLen(size, fsize)).
 		Put(wpk.TIDfid, wpk.TagUintLen(fid, fidsz)).
 		Put(wpk.TIDpath, wpk.TagString(wpk.ToSlash(kpath1)))
 	var tsi = ts.Iterator()

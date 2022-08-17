@@ -16,8 +16,10 @@ type (
 )
 
 const (
-	fidsz  = 4
-	tssize = 2
+	foffset = 8
+	fsize   = 8
+	fidsz   = 4
+	tssize  = 2
 )
 
 var scrdir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/")
@@ -27,7 +29,7 @@ var mediadir = scrdir + "media/"
 func CheckPackage(t *testing.T, wpkname string) {
 	var err error
 	var fwpk *os.File
-	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize)
 
 	// open temporary file for read/write
 	if fwpk, err = os.Open(wpkname); err != nil {

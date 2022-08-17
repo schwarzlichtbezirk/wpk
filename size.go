@@ -8,12 +8,6 @@ import (
 // Size-dependent types definitions.
 
 type (
-	FOffset_t = uint64
-	FSize_t   = uint64
-	// FOffset_i - nested file offset type, can be 32, 64 bit integer. FOffset >= FSize.
-	FOffset_i interface{ uint32 | uint64 }
-	// FSize_i - nested file size type, can be 32, 64 bit integer.
-	FSize_i interface{ uint32 | uint64 }
 	// TID_i - tag identifier type, can be 8, 16, 32 bit integer. TID <= TSSize.
 	TID_i interface{ uint8 | uint16 | uint32 }
 	// TSize_i - tag size type, can be 8, 16, 32 bit integer. TSize <= TSSize.

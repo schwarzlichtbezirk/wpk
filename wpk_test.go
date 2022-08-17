@@ -16,8 +16,10 @@ type (
 )
 
 const (
-	fidsz  = 4
-	tssize = 2
+	foffset = 8
+	fsize   = 8
+	fidsz   = 4
+	tssize  = 2
 )
 
 var mediadir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/media/")
@@ -37,7 +39,7 @@ var memdata = map[string][]byte{
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 	var err error
-	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize)
 
 	if err = pack.OpenFTT(fwph); err != nil {
 		t.Fatal(err)
@@ -113,7 +115,7 @@ func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 func TestInfo(t *testing.T) {
 	var err error
 	var fwpk *os.File
-	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize)
 
 	const (
 		label  = "empty-package"
@@ -179,7 +181,7 @@ func TestPackDir(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize)
 
 	defer os.Remove(testpack)
 
@@ -222,7 +224,7 @@ func TestPackDirSplit(t *testing.T) {
 	var fwph, fwpd *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize)
 
 	defer os.Remove(testpkgh)
 	defer os.Remove(testpkgd)
@@ -272,7 +274,7 @@ func TestPutFiles(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize)
 
 	defer os.Remove(testpack)
 
@@ -371,7 +373,7 @@ func TestAppendContinues(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize)
 
 	defer os.Remove(testpack)
 
@@ -445,7 +447,7 @@ func TestAppendDiscrete(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage[TID_t, TSize_t](fidsz, tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize)
 
 	defer os.Remove(testpack)
 

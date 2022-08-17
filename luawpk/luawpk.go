@@ -19,8 +19,10 @@ type (
 )
 
 const (
-	fidsz  = 4
-	tssize = 2
+	foffset = 8
+	fsize   = 8
+	fidsz   = 4
+	tssize  = 2
 )
 
 // ErrProtected is "protected tag" error.
@@ -93,7 +95,7 @@ func PushPack(ls *lua.LState, v *LuaPackage) {
 // NewPack is LuaPackage constructor.
 func NewPack(ls *lua.LState) int {
 	var pack LuaPackage
-	pack.Init(fidsz, tssize)
+	pack.Init(foffset, fsize, fidsz, tssize)
 	PushPack(ls, &pack)
 	return 1
 }

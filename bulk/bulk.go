@@ -54,9 +54,9 @@ func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t[TID_t, TSize_t]
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fname string, fidsz, tssize byte) (pack *Package[TID_t, TSize_t], err error) {
+func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fname string, foffset, fsize, fidsz, tssize byte) (pack *Package[TID_t, TSize_t], err error) {
 	pack = &Package[TID_t, TSize_t]{
-		Package:   wpk.NewPackage[TID_t, TSize_t](fidsz, tssize),
+		Package:   wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize),
 		workspace: ".",
 	}
 

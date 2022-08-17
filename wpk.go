@@ -147,11 +147,16 @@ const (
 
 // Checkup performs check up sizes of all types in bytes
 // used in current WPK-file.
-func (pts TypeSize) Checkup(FOffset_l, FSize_l, TID_l, TSize_l byte) error {
-	if pts[PTSfoffset] != FOffset_l {
+func (pts TypeSize) Checkup(TID_l, TSize_l byte) error {
+	switch pts[PTSfoffset] {
+	case 4, 8:
+	default:
 		return ErrSizeFOffset
 	}
-	if pts[PTSfsize] != FSize_l {
+
+	switch pts[PTSfsize] {
+	case 4, 8:
+	default:
 		return ErrSizeFSize
 	}
 
@@ -481,21 +486,21 @@ type Package[TID_t TID_i, TSize_t TSize_i] struct {
 }
 
 // NewPackage returns pointer to new initialized Package structure.
-func NewPackage[TID_t TID_i, TSize_t TSize_i](fidsz, tssize byte) (pack *Package[TID_t, TSize_t]) {
+func NewPackage[TID_t TID_i, TSize_t TSize_i](foffset, fsize, fidsz, tssize byte) (pack *Package[TID_t, TSize_t]) {
 	pack = &Package[TID_t, TSize_t]{}
-	pack.Init(fidsz, tssize)
+	pack.Init(foffset, fsize, fidsz, tssize)
 	return
 }
 
 // Init performs initialization for given Package structure.
-func (pack *Package[TID_t, TSize_t]) Init(fidsz, tssize byte) {
+func (pack *Package[TID_t, TSize_t]) Init(foffset, fsize, fidsz, tssize byte) {
 	pack.Header.typesize = TypeSize{
-		Uint_l[FOffset_t](), // can be: 4, 8
-		Uint_l[FSize_t](),   // can be: 4, 8
-		fidsz,               // can be: 2, 4, 8
-		Uint_l[TID_t](),     // can be: 1, 2, 4
-		Uint_l[TSize_t](),   // can be: 1, 2, 4
-		tssize,              // can be: 2, 4
+		foffset,           // can be: 4, 8
+		fsize,             // can be: 4, 8
+		fidsz,             // can be: 2, 4, 8
+		Uint_l[TID_t](),   // can be: 1, 2, 4
+		Uint_l[TSize_t](), // can be: 1, 2, 4
+		tssize,            // can be: 2, 4
 		0,
 		0,
 	}
@@ -533,12 +538,7 @@ func (pack *Package[TID_t, TSize_t]) OpenFTT(r io.ReadSeeker) (err error) {
 	if err = pack.Header.IsReady(); err != nil {
 		return
 	}
-	if err = pack.typesize.Checkup(
-		Uint_l[FOffset_t](),
-		Uint_l[FSize_t](),
-		Uint_l[TID_t](),
-		Uint_l[TSize_t](),
-	); err != nil {
+	if err = pack.typesize.Checkup(Uint_l[TID_t](), Uint_l[TSize_t]()); err != nil {
 		return
 	}
 	// setup empty tags table
@@ -576,12 +576,7 @@ func GetPackageInfo[TID_t TID_i, TSize_t TSize_i](r io.ReadSeeker) (ts *Tagset_t
 	if err = hdr.IsReady(); err != nil {
 		return
 	}
-	if err = hdr.typesize.Checkup(
-		Uint_l[FOffset_t](),
-		Uint_l[FSize_t](),
-		Uint_l[TID_t](),
-		Uint_l[TSize_t](),
-	); err != nil {
+	if err = hdr.typesize.Checkup(Uint_l[TID_t](), Uint_l[TSize_t]()); err != nil {
 		return
 	}
 

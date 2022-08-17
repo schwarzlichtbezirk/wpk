@@ -59,18 +59,18 @@ func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t[TID_t, TSize_t]
 }
 
 // NewPackage creates new package with given data-part file.
-func NewPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](datpath string, fidsz, tssize byte) *Package[TID_t, TSize_t] {
+func NewPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](datpath string, foffset, fsize, fidsz, tssize byte) *Package[TID_t, TSize_t] {
 	return &Package[TID_t, TSize_t]{
-		Package:   wpk.NewPackage[TID_t, TSize_t](fidsz, tssize),
+		Package:   wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize),
 		workspace: ".",
 		fpath:     datpath,
 	}
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fpath string, fidsz, tssize byte) (pack *Package[TID_t, TSize_t], err error) {
+func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fpath string, foffset, fsize, fidsz, tssize byte) (pack *Package[TID_t, TSize_t], err error) {
 	pack = &Package[TID_t, TSize_t]{
-		Package:   wpk.NewPackage[TID_t, TSize_t](fidsz, tssize),
+		Package:   wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize),
 		workspace: ".",
 	}
 
