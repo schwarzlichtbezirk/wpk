@@ -20,7 +20,7 @@ func ExamplePackage_OpenFTT() {
 	defer f.Close()
 
 	// Open package files tags table
-	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize)
 	if err = pack.OpenFTT(f); err != nil {
 		log.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func ExamplePackage_Glob() {
 	defer f.Close()
 
 	// Open package files tags table
-	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize)
 	if err = pack.OpenFTT(f); err != nil {
 		log.Fatal(err)
 	}

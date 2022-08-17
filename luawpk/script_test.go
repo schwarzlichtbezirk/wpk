@@ -19,6 +19,8 @@ const (
 	foffset = 8
 	fsize   = 8
 	fidsz   = 4
+	tidsz   = 2
+	tagsz   = 2
 	tssize  = 2
 )
 
@@ -29,7 +31,7 @@ var mediadir = scrdir + "media/"
 func CheckPackage(t *testing.T, wpkname string) {
 	var err error
 	var fwpk *os.File
-	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tssize)
+	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize)
 
 	// open temporary file for read/write
 	if fwpk, err = os.Open(wpkname); err != nil {

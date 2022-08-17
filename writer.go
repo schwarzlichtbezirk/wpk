@@ -20,7 +20,7 @@ func (pack *Package[TID_t, TSize_t]) Begin(wpt io.WriteSeeker) (err error) {
 	pack.mux.Lock()
 	defer pack.mux.Unlock()
 
-	if err = pack.typesize.Checkup(Uint_l[TID_t](), Uint_l[TSize_t]()); err != nil {
+	if err = pack.typesize.Checkup(); err != nil {
 		return
 	}
 	if pack.tssize != pack.Header.typesize[PTStssize] {

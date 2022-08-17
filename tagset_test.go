@@ -239,7 +239,7 @@ func ExampleTagsetIterator_Passed() {
 		3, 0, 4, 0, 10, 0, 0, 0,
 		4, 0, 12, 0, 115, 111, 109, 101, 102, 105, 108, 101, 46, 100, 97, 116,
 	}
-	var tsi = wpk.MakeTagset[TID_t, TSize_t](slice).Iterator()
+	var tsi = wpk.MakeTagset[TID_t, TSize_t](slice, tidsz, tagsz).Iterator()
 	for tsi.Next() {
 		// place some handler code here
 	}

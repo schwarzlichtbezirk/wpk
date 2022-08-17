@@ -22,6 +22,8 @@ const (
 	foffset = 8
 	fsize   = 8
 	fidsz   = 4
+	tidsz   = 2
+	tagsz   = 2
 	tssize  = 2
 )
 
@@ -95,7 +97,7 @@ func PushPack(ls *lua.LState, v *LuaPackage) {
 // NewPack is LuaPackage constructor.
 func NewPack(ls *lua.LState) int {
 	var pack LuaPackage
-	pack.Init(foffset, fsize, fidsz, tssize)
+	pack.Init(foffset, fsize, fidsz, tidsz, tagsz, tssize)
 	PushPack(ls, &pack)
 	return 1
 }

@@ -224,12 +224,14 @@ func TagTime(val time.Time) Tag_t {
 // (at number of tags), and can continues after record end.
 // fs.FileInfo interface implementation.
 type Tagset_t[TID_t TID_i, TSize_t TSize_i] struct {
-	data []byte
+	data  []byte
+	tidsz byte
+	tagsz byte
 }
 
 // MakeTagset returns tagset with given slice.
-func MakeTagset[TID_t TID_i, TSize_t TSize_i](data []byte) *Tagset_t[TID_t, TSize_t] {
-	return &Tagset_t[TID_t, TSize_t]{data}
+func MakeTagset[TID_t TID_i, TSize_t TSize_i](data []byte, tidsz, tagsz byte) *Tagset_t[TID_t, TSize_t] {
+	return &Tagset_t[TID_t, TSize_t]{data, tidsz, tagsz}
 }
 
 // Data returns whole tagset content.
