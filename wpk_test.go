@@ -10,11 +10,6 @@ import (
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
-type (
-	TID_t   = uint16
-	TSize_t = uint16
-)
-
 const (
 	foffset = 8
 	fsize   = 8
@@ -41,7 +36,7 @@ var memdata = map[string][]byte{
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 	var err error
-	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
 
 	if err = pack.OpenFTT(fwph); err != nil {
 		t.Fatal(err)
@@ -117,7 +112,7 @@ func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 func TestInfo(t *testing.T) {
 	var err error
 	var fwpk *os.File
-	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
 
 	const (
 		label  = "empty-package"
@@ -149,7 +144,7 @@ func TestInfo(t *testing.T) {
 
 	// at the end checkup package info
 	var ts *wpk.Tagset_t
-	if ts, err = wpk.GetPackageInfo[TID_t, TSize_t](fwpk, tidsz, tagsz); err != nil {
+	if ts, err = wpk.GetPackageInfo(fwpk, tidsz, tagsz); err != nil {
 		t.Fatal(err)
 	}
 	if ts == nil {
@@ -183,7 +178,7 @@ func TestPackDir(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
 
 	defer os.Remove(testpack)
 
@@ -226,7 +221,7 @@ func TestPackDirSplit(t *testing.T) {
 	var fwph, fwpd *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
 
 	defer os.Remove(testpkgh)
 	defer os.Remove(testpkgd)
@@ -276,7 +271,7 @@ func TestPutFiles(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
 
 	defer os.Remove(testpack)
 
@@ -375,7 +370,7 @@ func TestAppendContinues(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
 
 	defer os.Remove(testpack)
 
@@ -449,7 +444,7 @@ func TestAppendDiscrete(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
 
 	defer os.Remove(testpack)
 

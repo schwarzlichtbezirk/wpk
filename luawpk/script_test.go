@@ -10,11 +10,6 @@ import (
 	lw "github.com/schwarzlichtbezirk/wpk/luawpk"
 )
 
-type (
-	TID_t   = uint16
-	TSize_t = uint16
-)
-
 const (
 	foffset = 8
 	fsize   = 8
@@ -31,7 +26,7 @@ var mediadir = scrdir + "media/"
 func CheckPackage(t *testing.T, wpkname string) {
 	var err error
 	var fwpk *os.File
-	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
 
 	// open temporary file for read/write
 	if fwpk, err = os.Open(wpkname); err != nil {

@@ -41,7 +41,7 @@ var (
 )
 
 var (
-	pack wpk.Packager[TID_t, TSize_t]
+	pack wpk.Packager
 )
 
 func parseargs() {
@@ -100,7 +100,7 @@ func checkargs() int {
 	return ec
 }
 
-func openpackage(pkgpath string) (pack wpk.Packager[TID_t, TSize_t], err error) {
+func openpackage(pkgpath string) (pack wpk.Packager, err error) {
 	switch PkgMode {
 	case "bulk":
 		if pack, err = bulk.OpenPackage[TID_t, TSize_t](pkgpath, foffset, fsize, fidsz, tidsz, tagsz, tssize); err != nil {

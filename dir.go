@@ -25,50 +25,30 @@ func MakeDataPath(fpath string) string {
 	return fpath[:len(fpath)-len(ext)] + ".wpf"
 }
 
-// DirEntry is directory representation of nested into package files.
-// No any reader for directory implementation.
-// fs.DirEntry interface implementation.
-type DirEntry[TID_t, TSize_t TSize_i] struct {
-	Tagset_t // has fs.FileInfo interface
-}
-
-// Type is for fs.DirEntry interface compatibility.
-func (f *DirEntry[TID_t, TSize_t]) Type() fs.FileMode {
-	if f.Has(TIDsize) { // file size is absent for dir
-		return 0444
-	}
-	return fs.ModeDir
-}
-
-// Info returns the FileInfo for the file or subdirectory described by the entry.
-func (f *DirEntry[TID_t, TSize_t]) Info() (fs.FileInfo, error) {
-	return &f.Tagset_t, nil
-}
-
 // ReadDirFile is a directory file whose entries can be read with the ReadDir method.
 // fs.ReadDirFile interface implementation.
-type ReadDirFile[TID_t TID_i, TSize_t TSize_i] struct {
+type ReadDirFile struct {
 	Tagset_t // has fs.FileInfo interface
-	Pack     Tagger[TID_t, TSize_t]
+	Pack     Tagger
 }
 
 // Stat is for fs.ReadDirFile interface compatibility.
-func (f *ReadDirFile[TID_t, TSize_t]) Stat() (fs.FileInfo, error) {
-	return &f.Tagset_t, nil
+func (f *ReadDirFile) Stat() (fs.FileInfo, error) {
+	return f, nil
 }
 
 // Read is for fs.ReadDirFile interface compatibility.
-func (f *ReadDirFile[TID_t, TSize_t]) Read(b []byte) (n int, err error) {
+func (f *ReadDirFile) Read(b []byte) (n int, err error) {
 	return 0, io.EOF
 }
 
 // Close is for fs.ReadDirFile interface compatibility.
-func (f *ReadDirFile[TID_t, TSize_t]) Close() error {
+func (f *ReadDirFile) Close() error {
 	return nil
 }
 
 // ReadDir returns fs.FileInfo array with nested into given package directory presentation.
-func (f *ReadDirFile[TID_t, TSize_t]) ReadDir(n int) (matches []fs.DirEntry, err error) {
+func (f *ReadDirFile) ReadDir(n int) (matches []fs.DirEntry, err error) {
 	return ReadDir(f.Pack, strings.TrimSuffix(f.Path(), "/"), n)
 }
 
@@ -128,7 +108,7 @@ func Normalize(fpath string) string {
 
 // ReadDir returns fs.FileInfo array with nested into given package directory presentation.
 // It's core function for ReadDirFile and ReadDirFS structures.
-func ReadDir[TID_t TID_i, TSize_t TSize_i](pack Tagger[TID_t, TSize_t], dir string, n int) (matches []fs.DirEntry, err error) {
+func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) {
 	if !fs.ValidPath(dir) {
 		return nil, &fs.PathError{Op: "readdir", Path: dir, Err: fs.ErrInvalid}
 	}
@@ -143,7 +123,7 @@ func ReadDir[TID_t TID_i, TSize_t TSize_i](pack Tagger[TID_t, TSize_t], dir stri
 			var sp = strings.IndexByte(suffix, '/')
 			if sp < 0 { // file detected
 				var ts, _ = pack.Tagset(fkey)
-				matches = append(matches, &DirEntry[TID_t, TSize_t]{*ts})
+				matches = append(matches, ts)
 				n--
 			} else { // dir detected
 				var subdir = path.Join(prefix, suffix[:sp])
@@ -151,9 +131,9 @@ func ReadDir[TID_t TID_i, TSize_t TSize_i](pack Tagger[TID_t, TSize_t], dir stri
 					dirs[subdir] = struct{}{}
 					var ts, _ = pack.Tagset(fkey)
 					var fp = ts.Path() // extract not normalized path
-					var de DirEntry[TID_t, TSize_t]
-					de.Put(TIDpath, TagString(fp[:len(subdir)]))
-					matches = append(matches, &de)
+					var de = (&Tagset_t{nil, ts.tidsz, ts.tagsz}).
+						Put(TIDpath, TagString(fp[:len(subdir)]))
+					matches = append(matches, de)
 					n--
 				}
 			}
@@ -171,7 +151,7 @@ func ReadDir[TID_t TID_i, TSize_t TSize_i](pack Tagger[TID_t, TSize_t], dir stri
 
 // OpenDir returns ReadDirFile structure associated with group of files in package
 // pooled with common directory prefix. Usable to implement fs.FileSystem interface.
-func OpenDir[TID_t TID_i, TSize_t TSize_i](pack Tagger[TID_t, TSize_t], dir string) (df fs.ReadDirFile, err error) {
+func OpenDir(pack Tagger, dir string) (df fs.ReadDirFile, err error) {
 	if !fs.ValidPath(dir) {
 		return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrInvalid}
 	}
@@ -183,7 +163,7 @@ func OpenDir[TID_t TID_i, TSize_t TSize_i](pack Tagger[TID_t, TSize_t], dir stri
 		if strings.HasPrefix(fkey, prefix) {
 			var dts Tagset_t
 			dts.Put(TIDpath, TagString(ToSlash(dir)))
-			df, err = &ReadDirFile[TID_t, TSize_t]{
+			df, err = &ReadDirFile{
 				Tagset_t: dts,
 				Pack:     pack,
 			}, nil

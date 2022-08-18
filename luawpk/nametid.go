@@ -8,7 +8,7 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-// NameTid helps convert Lua-table string keys to associated TID_t values.
+// NameTid helps convert Lua-table string keys to associated uint values.
 var NameTid = map[string]uint{
 	"offset": wpk.TIDoffset,
 	"size":   wpk.TIDsize,
@@ -46,7 +46,7 @@ var NameTid = map[string]uint{
 	"comment":  wpk.TIDcomment,
 }
 
-// TidName helps format Lua-tables with string keys associated to TID_t values.
+// TidName helps format Lua-tables with string keys associated to uint values.
 var TidName = func() map[uint]string {
 	var tn = map[uint]string{}
 	for name, tid := range NameTid {

@@ -13,11 +13,6 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-type (
-	TID_t   = uint16
-	TSize_t = uint16
-)
-
 const (
 	foffset = 8
 	fsize   = 8
@@ -49,7 +44,7 @@ const PackMT = "wpk"
 
 // LuaPackage is "wpk" userdata structure.
 type LuaPackage struct {
-	wpk.Package[TID_t, TSize_t]
+	wpk.Package
 	automime bool
 	nolink   bool
 	secret   []byte

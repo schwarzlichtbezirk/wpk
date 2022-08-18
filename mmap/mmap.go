@@ -62,7 +62,7 @@ func (f *MappedFile) Close() error {
 // Gives access to pointed directory in package.
 // fs.FS interface implementation.
 type Package[TID_t wpk.TID_i, TSize_t wpk.TSize_i] struct {
-	*wpk.Package[TID_t, TSize_t]
+	*wpk.Package
 	workspace string   // workspace directory in package
 	filewpk   *os.File // open package file descriptor
 }
@@ -75,7 +75,7 @@ func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFil
 // OpenPackage opens WPK-file package by given file name.
 func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fname string, foffset, fsize, fidsz, tidsz, tagsz, tssize byte) (pack *Package[TID_t, TSize_t], err error) {
 	pack = &Package[TID_t, TSize_t]{
-		Package:   wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize),
+		Package:   wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize),
 		workspace: ".",
 	}
 
@@ -179,7 +179,7 @@ func (pack *Package[TID_t, TSize_t]) ReadFile(name string) ([]byte, error) {
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
 func (pack *Package[TID_t, TSize_t]) ReadDir(dir string) ([]fs.DirEntry, error) {
-	return wpk.ReadDir[TID_t, TSize_t](pack, path.Join(pack.workspace, dir), -1)
+	return wpk.ReadDir(pack, path.Join(pack.workspace, dir), -1)
 }
 
 // Open implements access to nested into package file or directory by keyname.
@@ -193,7 +193,7 @@ func (pack *Package[TID_t, TSize_t]) Open(dir string) (fs.File, error) {
 	if ts, is := pack.Tagset(fullname); is {
 		return NewMappedFile(pack, ts)
 	}
-	return wpk.OpenDir[TID_t, TSize_t](pack, fullname)
+	return wpk.OpenDir(pack, fullname)
 }
 
 // The End.

@@ -14,52 +14,6 @@ type (
 	TSize_i interface{ uint8 | uint16 | uint32 }
 )
 
-func Uint_l[T uint8 | uint16 | uint32 | uint64]() byte {
-	var v T
-	switch any(v).(type) {
-	case uint8:
-		return 1
-	case uint16:
-		return 2
-	case uint32:
-		return 4
-	case uint64:
-		return 8
-	default:
-		panic("unreachable condition")
-	}
-}
-
-func Uint_r[T uint8 | uint16 | uint32 | uint64](b []byte) (ret T) {
-	switch any(ret).(type) {
-	case uint8:
-		return T(b[0])
-	case uint16:
-		return T(binary.LittleEndian.Uint16(b))
-	case uint32:
-		return T(binary.LittleEndian.Uint32(b))
-	case uint64:
-		return T(binary.LittleEndian.Uint64(b))
-	default:
-		panic("unreachable condition")
-	}
-}
-
-func Uint_w[T uint8 | uint16 | uint32 | uint64](b []byte, v T) {
-	switch v := any(v).(type) {
-	case uint8:
-		b[0] = v
-	case uint16:
-		binary.LittleEndian.PutUint16(b, v)
-	case uint32:
-		binary.LittleEndian.PutUint32(b, v)
-	case uint64:
-		binary.LittleEndian.PutUint64(b, v)
-	default:
-		panic("unreachable condition")
-	}
-}
-
 func ReadUintBuf(b []byte) uint {
 	switch len(b) {
 	case 1:

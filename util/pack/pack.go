@@ -14,11 +14,6 @@ import (
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
-type (
-	TID_t   = uint16
-	TSize_t = uint16
-)
-
 const (
 	foffset = 8
 	fsize   = 8
@@ -121,7 +116,7 @@ func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
 func writepackage() (err error) {
 	var fwpk, fwpd wpk.WriteSeekCloser
 	var pkgfile, datfile = DstFile, DstFile
-	var pack = wpk.NewPackage[TID_t, TSize_t](foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
 	if Split {
 		pkgfile, datfile = wpk.MakeTagsPath(pkgfile), wpk.MakeDataPath(datfile)
 	}

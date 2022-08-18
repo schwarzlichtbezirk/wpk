@@ -381,16 +381,6 @@ func (ts *Tagset_t) Uint64(tid uint) (uint64, bool) {
 	return 0, false
 }
 
-// UintTagset is unspecified size unsigned int tag getter.
-func UintTagset[T uint8 | uint16 | uint32 | uint64](ts *Tagset_t, tid uint) (ret T, ok bool) {
-	if data, ok := ts.Get(tid); ok {
-		var u uint
-		u, ok = data.Uint()
-		return T(u), ok
-	}
-	return 0, false
-}
-
 // Uint is unspecified size unsigned int tag getter.
 func (ts *Tagset_t) Uint(tid uint) (uint, bool) {
 	if data, ok := ts.Get(tid); ok {
@@ -459,6 +449,20 @@ func (ts *Tagset_t) IsDir() bool {
 // Sys is for fs.FileInfo interface compatibility.
 func (ts *Tagset_t) Sys() interface{} {
 	return nil
+}
+
+// Type is for fs.DirEntry interface compatibility.
+func (ts *Tagset_t) Type() fs.FileMode {
+	if ts.Has(TIDsize) { // file size is absent for dir
+		return 0444
+	}
+	return fs.ModeDir
+}
+
+// Info returns the FileInfo for the file or subdirectory described by the entry.
+// fs.DirEntry interface implementation.
+func (ts *Tagset_t) Info() (fs.FileInfo, error) {
+	return ts, nil
 }
 
 // AccessTime returns file access timestamp of nested into package file.
