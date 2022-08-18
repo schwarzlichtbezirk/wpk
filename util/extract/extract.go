@@ -15,11 +15,6 @@ import (
 	"github.com/schwarzlichtbezirk/wpk/mmap"
 )
 
-type (
-	TID_t   = uint16
-	TSize_t = uint16
-)
-
 const (
 	foffset = 8
 	fsize   = 8
@@ -103,15 +98,15 @@ func checkargs() int {
 func openpackage(pkgpath string) (pack wpk.Packager, err error) {
 	switch PkgMode {
 	case "bulk":
-		if pack, err = bulk.OpenPackage[TID_t, TSize_t](pkgpath, foffset, fsize, fidsz, tidsz, tagsz, tssize); err != nil {
+		if pack, err = bulk.OpenPackage(pkgpath, foffset, fsize, fidsz, tidsz, tagsz, tssize); err != nil {
 			return
 		}
 	case "mmap":
-		if pack, err = mmap.OpenPackage[TID_t, TSize_t](pkgpath, foffset, fsize, fidsz, tidsz, tagsz, tssize); err != nil {
+		if pack, err = mmap.OpenPackage(pkgpath, foffset, fsize, fidsz, tidsz, tagsz, tssize); err != nil {
 			return
 		}
 	case "fsys":
-		if pack, err = fsys.OpenPackage[TID_t, TSize_t](pkgpath, foffset, fsize, fidsz, tidsz, tagsz, tssize); err != nil {
+		if pack, err = fsys.OpenPackage(pkgpath, foffset, fsize, fidsz, tidsz, tagsz, tssize); err != nil {
 			return
 		}
 	default:

@@ -47,20 +47,20 @@ func (f *ChunkFile) Close() error {
 // Package is wrapper for package to get access to nested files as to memory mapped blocks.
 // Gives access to pointed directory in package. This type of package can be used for write.
 // fs.FS interface implementation.
-type Package[TID_t, TSize_t wpk.TSize_i] struct {
+type Package struct {
 	*wpk.Package
 	workspace string // workspace directory in package
 	fpath     string // package filename
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
-func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
+func (pack *Package) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewChunkFile(pack.fpath, ts)
 }
 
 // NewPackage creates new package with given data-part file.
-func NewPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](datpath string, foffset, fsize, fidsz, tidsz, tagsz, tssize byte) *Package[TID_t, TSize_t] {
-	return &Package[TID_t, TSize_t]{
+func NewPackage(datpath string, foffset, fsize, fidsz, tidsz, tagsz, tssize byte) *Package {
+	return &Package{
 		Package:   wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize),
 		workspace: ".",
 		fpath:     datpath,
@@ -68,8 +68,8 @@ func NewPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](datpath string, foffset, f
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fpath string, foffset, fsize, fidsz, tidsz, tagsz, tssize byte) (pack *Package[TID_t, TSize_t], err error) {
-	pack = &Package[TID_t, TSize_t]{
+func OpenPackage(fpath string, foffset, fsize, fidsz, tidsz, tagsz, tssize byte) (pack *Package, err error) {
+	pack = &Package{
 		Package:   wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize),
 		workspace: ".",
 	}
@@ -95,14 +95,14 @@ func OpenPackage[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fpath string, foffset, fs
 // Close file handle. This function must be called only for root object,
 // not subdirectories.
 // io.Closer implementation.
-func (pack *Package[TID_t, TSize_t]) Close() error {
+func (pack *Package) Close() error {
 	return nil
 }
 
 // Sub clones object and gives access to pointed subdirectory.
 // Copies file handle, so it must be closed only once for root object.
 // fs.SubFS implementation.
-func (pack *Package[TID_t, TSize_t]) Sub(dir string) (df fs.FS, err error) {
+func (pack *Package) Sub(dir string) (df fs.FS, err error) {
 	if !fs.ValidPath(dir) {
 		err = &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrInvalid}
 		return
@@ -114,7 +114,7 @@ func (pack *Package[TID_t, TSize_t]) Sub(dir string) (df fs.FS, err error) {
 	}
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefixdir) {
-			df, err = &Package[TID_t, TSize_t]{
+			df, err = &Package{
 				pack.Package,
 				workspace,
 				pack.fpath,
@@ -131,7 +131,7 @@ func (pack *Package[TID_t, TSize_t]) Sub(dir string) (df fs.FS, err error) {
 
 // Stat returns a fs.FileInfo describing the file.
 // fs.StatFS implementation.
-func (pack *Package[TID_t, TSize_t]) Stat(name string) (fs.FileInfo, error) {
+func (pack *Package) Stat(name string) (fs.FileInfo, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrInvalid}
 	}
@@ -146,7 +146,7 @@ func (pack *Package[TID_t, TSize_t]) Stat(name string) (fs.FileInfo, error) {
 // ReadFile returns slice with nested into package file content.
 // Makes content copy to prevent ambiguous access to closed mapped memory block.
 // fs.ReadFileFS implementation.
-func (pack *Package[TID_t, TSize_t]) ReadFile(name string) ([]byte, error) {
+func (pack *Package) ReadFile(name string) ([]byte, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
 	}
@@ -169,13 +169,13 @@ func (pack *Package[TID_t, TSize_t]) ReadFile(name string) ([]byte, error) {
 
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
-func (pack *Package[TID_t, TSize_t]) ReadDir(dir string) ([]fs.DirEntry, error) {
+func (pack *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
 	return wpk.ReadDir(pack, path.Join(pack.workspace, dir), -1)
 }
 
 // Open implements access to nested into package file or directory by keyname.
 // fs.FS implementation.
-func (pack *Package[TID_t, TSize_t]) Open(dir string) (fs.File, error) {
+func (pack *Package) Open(dir string) (fs.File, error) {
 	if dir == "wpk" && pack.workspace == "." {
 		return os.Open(pack.fpath)
 	}
