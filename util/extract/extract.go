@@ -132,7 +132,7 @@ func readpackage() (err error) {
 			defer pack.Close()
 
 			var num, sum int64
-			pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) (next bool) {
+			pack.Enum(func(fkey string, ts *wpk.Tagset_t) (next bool) {
 				defer func() {
 					next = err == nil
 				}()

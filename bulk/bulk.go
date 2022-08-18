@@ -13,16 +13,16 @@ import (
 
 // SliceFile structure gives access to nested into package file.
 // wpk.NestedFile interface implementation.
-type SliceFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i] struct {
+type SliceFile struct {
 	wpk.FileReader
-	tags *wpk.Tagset_t[TID_t, TSize_t] // has fs.FileInfo interface
+	tags *wpk.Tagset_t // has fs.FileInfo interface
 }
 
 // NewSliceFile creates SliceFile file structure based on given tags slice.
-func NewSliceFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](pack *Package[TID_t, TSize_t], ts *wpk.Tagset_t[TID_t, TSize_t]) (f *SliceFile[TID_t, TSize_t], err error) {
+func NewSliceFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](pack *Package[TID_t, TSize_t], ts *wpk.Tagset_t) (f *SliceFile, err error) {
 	var offset, _ = ts.Uint(wpk.TIDoffset)
 	var size, _ = ts.Uint(wpk.TIDsize)
-	f = &SliceFile[TID_t, TSize_t]{
+	f = &SliceFile{
 		tags:       ts,
 		FileReader: bytes.NewReader(pack.bulk[offset : offset+size]),
 	}
@@ -30,12 +30,12 @@ func NewSliceFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](pack *Package[TID_t, TSi
 }
 
 // Stat is for fs.File interface compatibility.
-func (f *SliceFile[TID_t, TSize_t]) Stat() (fs.FileInfo, error) {
+func (f *SliceFile) Stat() (fs.FileInfo, error) {
 	return f.tags, nil
 }
 
 // Close is for fs.File interface compatibility.
-func (f *SliceFile[TID_t, TSize_t]) Close() error {
+func (f *SliceFile) Close() error {
 	return nil
 }
 
@@ -49,7 +49,7 @@ type Package[TID_t wpk.TID_i, TSize_t wpk.TSize_i] struct {
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
-func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t[TID_t, TSize_t]) (wpk.NestedFile, error) {
+func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewSliceFile(pack, ts)
 }
 
@@ -108,7 +108,7 @@ func (pack *Package[TID_t, TSize_t]) Sub(dir string) (df fs.FS, err error) {
 	if workspace != "." {
 		prefixdir = workspace + "/" // make prefix slash-terminated
 	}
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefixdir) {
 			df, err = &Package[TID_t, TSize_t]{
 				pack.Package,
@@ -131,7 +131,7 @@ func (pack *Package[TID_t, TSize_t]) Stat(name string) (fs.FileInfo, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrInvalid}
 	}
-	var ts *wpk.Tagset_t[TID_t, TSize_t]
+	var ts *wpk.Tagset_t
 	var is bool
 	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
@@ -145,7 +145,7 @@ func (pack *Package[TID_t, TSize_t]) ReadFile(name string) ([]byte, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
 	}
-	var ts *wpk.Tagset_t[TID_t, TSize_t]
+	var ts *wpk.Tagset_t
 	var is bool
 	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
@@ -165,7 +165,7 @@ func (pack *Package[TID_t, TSize_t]) ReadDir(dir string) ([]fs.DirEntry, error) 
 // fs.FS implementation.
 func (pack *Package[TID_t, TSize_t]) Open(dir string) (fs.File, error) {
 	if dir == "wpk" && pack.workspace == "." {
-		var ts = (&wpk.Tagset_t[TID_t, TSize_t]{}).
+		var ts = pack.NewTagset().
 			Put(wpk.TIDoffset, wpk.TagUintLen(0, pack.PTS(wpk.PTSfoffset))).
 			Put(wpk.TIDsize, wpk.TagUintLen(uint(len(pack.bulk)), pack.PTS(wpk.PTSfsize)))
 		return NewSliceFile(pack, ts)

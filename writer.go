@@ -145,7 +145,7 @@ func (pack *Package[TID_t, TSize_t]) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 // PackData puts data streamed by given reader into package as a file
 // and associate keyname "kpath" with it.
-func (pack *Package[TID_t, TSize_t]) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *Tagset_t[TID_t, TSize_t], err error) {
+func (pack *Package[TID_t, TSize_t]) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *Tagset_t, err error) {
 	if _, ok := pack.Tagset(fpath); ok {
 		err = &fs.PathError{Op: "packdata", Path: fpath, Err: fs.ErrExist}
 		return
@@ -168,7 +168,7 @@ func (pack *Package[TID_t, TSize_t]) PackData(w io.WriteSeeker, r io.Reader, fpa
 	}
 
 	// insert new entry to tags table
-	ts = (&Tagset_t[TID_t, TSize_t]{}).
+	ts = pack.NewTagset().
 		Put(TIDoffset, TagUintLen(uint(offset), pack.PTS(PTSfoffset))).
 		Put(TIDsize, TagUintLen(uint(size), pack.PTS(PTSfsize))).
 		Put(TIDpath, TagString(ToSlash(fpath)))
@@ -177,7 +177,7 @@ func (pack *Package[TID_t, TSize_t]) PackData(w io.WriteSeeker, r io.Reader, fpa
 }
 
 // PackFile puts file with given file handle into package and associate keyname "kpath" with it.
-func (pack *Package[TID_t, TSize_t]) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ts *Tagset_t[TID_t, TSize_t], err error) {
+func (pack *Package[TID_t, TSize_t]) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ts *Tagset_t, err error) {
 	var fi os.FileInfo
 	if fi, err = file.Stat(); err != nil {
 		return
@@ -202,7 +202,7 @@ func (pack *Package[TID_t, TSize_t]) PackFile(w io.WriteSeeker, file *os.File, k
 
 // PackDirLogger is function called during PackDir processing after each
 // file with OS file object and inserted tagset, that can be modified.
-type PackDirLogger[TID_t TID_i, TSize_t TSize_i] func(r io.ReadSeeker, ts *Tagset_t[TID_t, TSize_t]) error
+type PackDirLogger[TID_t TID_i, TSize_t TSize_i] func(r io.ReadSeeker, ts *Tagset_t) error
 
 // PackDir puts all files of given folder and it's subfolders into package.
 // Logger function can be nil.
@@ -231,7 +231,7 @@ func (pack *Package[TID_t, TSize_t]) PackDir(w io.WriteSeeker, dirname, prefix s
 				}
 			} else if func() {
 				var file *os.File
-				var ts *Tagset_t[TID_t, TSize_t]
+				var ts *Tagset_t
 				if file, err = os.Open(fpath); err != nil {
 					return
 				}
@@ -280,7 +280,7 @@ func (pack *Package[TID_t, TSize_t]) PutAlias(oldname, newname string) error {
 	}
 
 	var tsi = ts1.Iterator()
-	var ts2 = &Tagset_t[TID_t, TSize_t]{}
+	var ts2 = pack.NewTagset()
 	for tsi.Next() {
 		if tsi.tid != TIDpath {
 			ts2.Put(tsi.tid, tsi.Tag())

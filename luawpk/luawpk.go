@@ -30,7 +30,7 @@ const (
 // ErrProtected is "protected tag" error.
 type ErrProtected struct {
 	key string
-	tid TID_t
+	tid uint
 }
 
 func (e *ErrProtected) Error() string {
@@ -159,7 +159,7 @@ func tostringPack(ls *lua.LState) int {
 
 	var m = map[uint]struct{}{}
 	var n = 0
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if offset, ok := ts.Uint(wpk.TIDoffset); ok {
 			m[offset] = struct{}{}
 		}
@@ -293,7 +293,7 @@ func getdatpath(ls *lua.LState) int {
 func getrecnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var m = map[uint]struct{}{}
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if offset, ok := ts.Uint(wpk.TIDoffset); ok {
 			m[offset] = struct{}{}
 		}
@@ -306,7 +306,7 @@ func getrecnum(ls *lua.LState) int {
 func gettagnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var n int
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		n++
 		return true
 	})
@@ -317,7 +317,7 @@ func gettagnum(ls *lua.LState) int {
 func getfftsize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var size int
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		size += len(ts.Data())
 		return true
 	})
@@ -664,7 +664,7 @@ func wpksumsize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
 	var sum int64
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		var size = ts.Size()
 		sum += size
 		return true
@@ -689,7 +689,7 @@ func wpkglob(ls *lua.LState) int {
 	if _, err = filepath.Match(pattern, ""); err != nil {
 		return 0
 	}
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if matched, _ = filepath.Match(pattern, fkey); matched {
 			ls.Push(lua.LString(fkey))
 			n++
@@ -719,7 +719,7 @@ func wpkfilesize(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 
-	var ts *wpk.Tagset_t[TID_t, TSize_t]
+	var ts *wpk.Tagset_t
 	var ok bool
 	if ts, ok = pack.Tagset(fkey); !ok {
 		err = &fs.PathError{Op: "filesize", Path: fkey, Err: fs.ErrNotExist}
@@ -753,7 +753,7 @@ func wpkputdata(ls *lua.LState) int {
 	if pack.wpf != nil {
 		w = pack.wpf
 	}
-	var ts *wpk.Tagset_t[TID_t, TSize_t]
+	var ts *wpk.Tagset_t
 	if ts, err = pack.PackData(w, r, kpath); err != nil {
 		return 0
 	}
@@ -791,7 +791,7 @@ func wpkputfile(ls *lua.LState) int {
 	if pack.wpf != nil {
 		w = pack.wpf
 	}
-	var ts *wpk.Tagset_t[TID_t, TSize_t]
+	var ts *wpk.Tagset_t
 	if ts, err = pack.PackFile(w, file, kpath); err != nil {
 		return 0
 	}
@@ -868,12 +868,12 @@ func wpkhastag(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
-	var tid TID_t
+	var tid uint
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
 
-	var ts *wpk.Tagset_t[TID_t, TSize_t]
+	var ts *wpk.Tagset_t
 	var ok bool
 	if ts, ok = pack.Tagset(fkey); !ok {
 		err = &fs.PathError{Op: "hastag", Path: fkey, Err: fs.ErrNotExist}
@@ -897,12 +897,12 @@ func wpkgettag(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
-	var tid TID_t
+	var tid uint
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
 
-	var ts *wpk.Tagset_t[TID_t, TSize_t]
+	var ts *wpk.Tagset_t
 	var ok bool
 	if ts, ok = pack.Tagset(fkey); !ok {
 		err = &fs.PathError{Op: "gettag", Path: fkey, Err: fs.ErrNotExist}
@@ -931,7 +931,7 @@ func wpksettag(ls *lua.LState) int {
 	var k = ls.Get(3)
 	var v = ls.Get(4)
 
-	var tid TID_t
+	var tid uint
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
@@ -968,7 +968,7 @@ func wpkdeltag(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
-	var tid TID_t
+	var tid uint
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
@@ -1033,7 +1033,7 @@ func wpksettags(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
-	var opts *wpk.Tagset_t[TID_t, TSize_t]
+	var opts *wpk.Tagset_t
 	if opts, err = TableToTagset(lt); err != nil {
 		return 0
 	}
@@ -1074,7 +1074,7 @@ func wpkaddtags(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
-	var opts *wpk.Tagset_t[TID_t, TSize_t]
+	var opts *wpk.Tagset_t
 	if opts, err = TableToTagset(lt); err != nil {
 		return 0
 	}
@@ -1112,7 +1112,7 @@ func wpkdeltags(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
-	var opts *wpk.Tagset_t[TID_t, TSize_t]
+	var opts *wpk.Tagset_t
 	if opts, err = TableToTagset(lt); err != nil {
 		return 0
 	}
@@ -1188,7 +1188,7 @@ func wpksetinfo(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var lt = ls.CheckTable(2)
 
-	var opts *wpk.Tagset_t[TID_t, TSize_t]
+	var opts *wpk.Tagset_t
 	if opts, err = TableToTagset(lt); err != nil {
 		return 0
 	}

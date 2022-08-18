@@ -19,15 +19,15 @@ const pagesize = 64 * 1024
 
 // MappedFile structure gives access to nested into package file by memory mapping.
 // wpk.NestedFile interface implementation.
-type MappedFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i] struct {
+type MappedFile struct {
 	wpk.FileReader
-	tags   *wpk.Tagset_t[TID_t, TSize_t] // has fs.FileInfo interface
+	tags   *wpk.Tagset_t // has fs.FileInfo interface
 	region []byte
 	mm.MMap
 }
 
 // NewMappedFile maps nested to package file based on given tags slice.
-func NewMappedFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](pack *Package[TID_t, TSize_t], ts *wpk.Tagset_t[TID_t, TSize_t]) (f *MappedFile[TID_t, TSize_t], err error) {
+func NewMappedFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](pack *Package[TID_t, TSize_t], ts *wpk.Tagset_t) (f *MappedFile, err error) {
 	// calculate paged size/offset
 	var offset, _ = ts.Uint(wpk.TIDoffset)
 	var size, _ = ts.Uint(wpk.TIDsize)
@@ -39,7 +39,7 @@ func NewMappedFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](pack *Package[TID_t, TS
 	if mmap, err = mm.MapRegion(pack.filewpk, int(sizex), mm.RDONLY, 0, int64(offsetx)); err != nil {
 		return
 	}
-	f = &MappedFile[TID_t, TSize_t]{
+	f = &MappedFile{
 		tags:       ts,
 		FileReader: bytes.NewReader(mmap[pgoff : pgoff+size]),
 		region:     mmap[pgoff : pgoff+size],
@@ -49,12 +49,12 @@ func NewMappedFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](pack *Package[TID_t, TS
 }
 
 // Stat is for fs.File interface compatibility.
-func (f *MappedFile[TID_t, TSize_t]) Stat() (fs.FileInfo, error) {
+func (f *MappedFile) Stat() (fs.FileInfo, error) {
 	return f.tags, nil
 }
 
 // Close unmaps memory and closes mapped memory handle.
-func (f *MappedFile[TID_t, TSize_t]) Close() error {
+func (f *MappedFile) Close() error {
 	return f.Unmap()
 }
 
@@ -68,7 +68,7 @@ type Package[TID_t wpk.TID_i, TSize_t wpk.TSize_i] struct {
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
-func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t[TID_t, TSize_t]) (wpk.NestedFile, error) {
+func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewMappedFile(pack, ts)
 }
 
@@ -121,7 +121,7 @@ func (pack *Package[TID_t, TSize_t]) Sub(dir string) (df fs.FS, err error) {
 	if workspace != "." {
 		prefixdir = workspace + "/" // make prefix slash-terminated
 	}
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefixdir) {
 			df, err = &Package[TID_t, TSize_t]{
 				pack.Package,
@@ -144,7 +144,7 @@ func (pack *Package[TID_t, TSize_t]) Stat(name string) (fs.FileInfo, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrInvalid}
 	}
-	var ts *wpk.Tagset_t[TID_t, TSize_t]
+	var ts *wpk.Tagset_t
 	var is bool
 	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
@@ -159,7 +159,7 @@ func (pack *Package[TID_t, TSize_t]) ReadFile(name string) ([]byte, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
 	}
-	var ts *wpk.Tagset_t[TID_t, TSize_t]
+	var ts *wpk.Tagset_t
 	var is bool
 	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}

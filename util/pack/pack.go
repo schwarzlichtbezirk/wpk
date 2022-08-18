@@ -85,7 +85,7 @@ func checkargs() int {
 
 var num, sum int64
 
-func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t[TID_t, TSize_t]) (err error) {
+func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
 	var size = ts.Size()
 	var fname, _ = ts.String(wpk.TIDpath)
 	num++

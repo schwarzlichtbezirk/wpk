@@ -50,7 +50,7 @@ func CheckPackage(t *testing.T, wpkname string) {
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 	var n = 0
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		var ok bool
 		var offset, _ = ts.Uint(wpk.TIDoffset)
 		var size, _ = ts.Uint(wpk.TIDsize)

@@ -9,7 +9,7 @@ import (
 )
 
 // NameTid helps convert Lua-table string keys to associated TID_t values.
-var NameTid = map[string]TID_t{
+var NameTid = map[string]uint{
 	"offset": wpk.TIDoffset,
 	"size":   wpk.TIDsize,
 	"fid":    wpk.TIDfid,
@@ -47,8 +47,8 @@ var NameTid = map[string]TID_t{
 }
 
 // TidName helps format Lua-tables with string keys associated to TID_t values.
-var TidName = func() map[TID_t]string {
-	var tn = map[TID_t]string{}
+var TidName = func() map[uint]string {
+	var tn = map[uint]string{}
 	for name, tid := range NameTid {
 		tn[tid] = name
 	}
@@ -73,9 +73,9 @@ var (
 // ValueToTID converts LValue to uint16 tag identifier.
 // Numbers converts explicitly, strings converts to uint16
 // values which they presents. Error returns on any other case.
-func ValueToTID(k lua.LValue) (tid TID_t, err error) {
+func ValueToTID(k lua.LValue) (tid uint, err error) {
 	if n, ok := k.(lua.LNumber); ok {
-		tid = TID_t(n)
+		tid = uint(n)
 	} else if name, ok := k.(lua.LString); ok {
 		if n, ok := NameTid[string(name)]; ok {
 			tid = n
@@ -116,11 +116,11 @@ func ValueToTag(v lua.LValue) (tag wpk.Tag_t, err error) {
 // or string names associated ID values. Lua-table values can be strings,
 // boolean or "tag" userdata values. Numbers can not be passed to table
 // to prevent ambiguous type representation.
-func TableToTagset(lt *lua.LTable) (ts *wpk.Tagset_t[TID_t, TSize_t], err error) {
-	ts = &wpk.Tagset_t[TID_t, TSize_t]{}
+func TableToTagset(lt *lua.LTable) (ts *wpk.Tagset_t, err error) {
+	ts = wpk.MakeTagset(nil, tidsz, tagsz)
 	lt.ForEach(func(k lua.LValue, v lua.LValue) {
 		var (
-			tid TID_t
+			tid uint
 			tag wpk.Tag_t
 		)
 

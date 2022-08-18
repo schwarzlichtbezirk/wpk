@@ -12,21 +12,21 @@ import (
 
 // ChunkFile structure gives access to nested into package file.
 // wpk.NestedFile interface implementation.
-type ChunkFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i] struct {
+type ChunkFile struct {
 	wpk.FileReader
-	tags *wpk.Tagset_t[TID_t, TSize_t] // has fs.FileInfo interface
+	tags *wpk.Tagset_t // has fs.FileInfo interface
 	wpkf *os.File
 }
 
 // NewChunkFile creates ChunkFile file structure based on given tags slice.
-func NewChunkFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fpath string, ts *wpk.Tagset_t[TID_t, TSize_t]) (f *ChunkFile[TID_t, TSize_t], err error) {
+func NewChunkFile(fpath string, ts *wpk.Tagset_t) (f *ChunkFile, err error) {
 	var wpkf *os.File
 	if wpkf, err = os.Open(fpath); err != nil {
 		return
 	}
 	var offset, _ = ts.Uint(wpk.TIDoffset)
 	var size, _ = ts.Uint(wpk.TIDsize)
-	f = &ChunkFile[TID_t, TSize_t]{
+	f = &ChunkFile{
 		tags:       ts,
 		FileReader: io.NewSectionReader(wpkf, int64(offset), int64(size)),
 		wpkf:       wpkf,
@@ -35,12 +35,12 @@ func NewChunkFile[TID_t wpk.TID_i, TSize_t wpk.TSize_i](fpath string, ts *wpk.Ta
 }
 
 // Stat is for fs.File interface compatibility.
-func (f *ChunkFile[TID_t, TSize_t]) Stat() (fs.FileInfo, error) {
+func (f *ChunkFile) Stat() (fs.FileInfo, error) {
 	return f.tags, nil
 }
 
 // Close closes associated wpk-file handle.
-func (f *ChunkFile[TID_t, TSize_t]) Close() error {
+func (f *ChunkFile) Close() error {
 	return f.wpkf.Close()
 }
 
@@ -54,7 +54,7 @@ type Package[TID_t, TSize_t wpk.TSize_i] struct {
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
-func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t[TID_t, TSize_t]) (wpk.NestedFile, error) {
+func (pack *Package[TID_t, TSize_t]) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 	return NewChunkFile(pack.fpath, ts)
 }
 
@@ -112,7 +112,7 @@ func (pack *Package[TID_t, TSize_t]) Sub(dir string) (df fs.FS, err error) {
 	if workspace != "." {
 		prefixdir = workspace + "/" // make prefix slash-terminated
 	}
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefixdir) {
 			df, err = &Package[TID_t, TSize_t]{
 				pack.Package,
@@ -135,7 +135,7 @@ func (pack *Package[TID_t, TSize_t]) Stat(name string) (fs.FileInfo, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrInvalid}
 	}
-	var ts *wpk.Tagset_t[TID_t, TSize_t]
+	var ts *wpk.Tagset_t
 	var is bool
 	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
@@ -150,7 +150,7 @@ func (pack *Package[TID_t, TSize_t]) ReadFile(name string) ([]byte, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
 	}
-	var ts *wpk.Tagset_t[TID_t, TSize_t]
+	var ts *wpk.Tagset_t
 	var is bool
 	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}

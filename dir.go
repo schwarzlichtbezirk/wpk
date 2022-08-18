@@ -29,7 +29,7 @@ func MakeDataPath(fpath string) string {
 // No any reader for directory implementation.
 // fs.DirEntry interface implementation.
 type DirEntry[TID_t, TSize_t TSize_i] struct {
-	Tagset_t[TID_t, TSize_t] // has fs.FileInfo interface
+	Tagset_t // has fs.FileInfo interface
 }
 
 // Type is for fs.DirEntry interface compatibility.
@@ -48,8 +48,8 @@ func (f *DirEntry[TID_t, TSize_t]) Info() (fs.FileInfo, error) {
 // ReadDirFile is a directory file whose entries can be read with the ReadDir method.
 // fs.ReadDirFile interface implementation.
 type ReadDirFile[TID_t TID_i, TSize_t TSize_i] struct {
-	Tagset_t[TID_t, TSize_t] // has fs.FileInfo interface
-	Pack                     Tagger[TID_t, TSize_t]
+	Tagset_t // has fs.FileInfo interface
+	Pack     Tagger[TID_t, TSize_t]
 }
 
 // Stat is for fs.ReadDirFile interface compatibility.
@@ -137,7 +137,7 @@ func ReadDir[TID_t TID_i, TSize_t TSize_i](pack Tagger[TID_t, TSize_t], dir stri
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
 	var dirs = map[string]struct{}{}
-	pack.Enum(func(fkey string, ts *Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			var suffix = fkey[len(prefix):]
 			var sp = strings.IndexByte(suffix, '/')
@@ -179,9 +179,9 @@ func OpenDir[TID_t TID_i, TSize_t TSize_i](pack Tagger[TID_t, TSize_t], dir stri
 	if dir != "." {
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
-	pack.Enum(func(fkey string, ts *Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefix) {
-			var dts Tagset_t[TID_t, TSize_t]
+			var dts Tagset_t
 			dts.Put(TIDpath, TagString(ToSlash(dir)))
 			df, err = &ReadDirFile[TID_t, TSize_t]{
 				Tagset_t: dts,

@@ -223,24 +223,24 @@ func TagTime(val time.Time) Tag_t {
 // not determined to record end, i.e. slice starts at record beginning
 // (at number of tags), and can continues after record end.
 // fs.FileInfo interface implementation.
-type Tagset_t[TID_t TID_i, TSize_t TSize_i] struct {
+type Tagset_t struct {
 	data  []byte
 	tidsz byte
 	tagsz byte
 }
 
 // MakeTagset returns tagset with given slice.
-func MakeTagset[TID_t TID_i, TSize_t TSize_i](data []byte, tidsz, tagsz byte) *Tagset_t[TID_t, TSize_t] {
-	return &Tagset_t[TID_t, TSize_t]{data, tidsz, tagsz}
+func MakeTagset(data []byte, tidsz, tagsz byte) *Tagset_t {
+	return &Tagset_t{data, tidsz, tagsz}
 }
 
 // Data returns whole tagset content.
-func (ts *Tagset_t[TID_t, TSize_t]) Data() []byte {
+func (ts *Tagset_t) Data() []byte {
 	return ts.data
 }
 
 // Num returns number of tags in tagset.
-func (ts *Tagset_t[TID_t, TSize_t]) Num() (n int) {
+func (ts *Tagset_t) Num() (n int) {
 	var tsi = ts.Iterator()
 	for tsi.Next() {
 		n++
@@ -249,7 +249,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Num() (n int) {
 }
 
 // Has checks existence of tag with given ID.
-func (ts *Tagset_t[TID_t, TSize_t]) Has(tid TID_t) bool {
+func (ts *Tagset_t) Has(tid uint) bool {
 	var tsi = ts.Iterator()
 	for tsi.Next() && tsi.tid != tid {
 	}
@@ -259,7 +259,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Has(tid TID_t) bool {
 // GetTag returns Tag_t with given identifier.
 // If tag is not found, slice content is broken,
 // returns false.
-func (ts *Tagset_t[TID_t, TSize_t]) Get(tid TID_t) (Tag_t, bool) {
+func (ts *Tagset_t) Get(tid uint) (Tag_t, bool) {
 	var tsi = ts.Iterator()
 	for tsi.Next() && tsi.tid != tid {
 	}
@@ -274,14 +274,14 @@ func (ts *Tagset_t[TID_t, TSize_t]) Get(tid TID_t) (Tag_t, bool) {
 
 // Put appends new tag to tagset.
 // Can be used in chain calls at initialization.
-func (ts *Tagset_t[TID_t, TSize_t]) Put(tid TID_t, tag Tag_t) *Tagset_t[TID_t, TSize_t] {
+func (ts *Tagset_t) Put(tid uint, tag Tag_t) *Tagset_t {
 	if tid == TIDnone { // special case
 		return ts
 	}
 
-	var buf = make([]byte, Uint_l[TID_t]()+Uint_l[TSize_t]())
-	Uint_w(buf[:Uint_l[TID_t]()], tid)
-	Uint_w(buf[Uint_l[TID_t]():], TSize_t(len(tag)))
+	var buf = make([]byte, ts.tidsz+ts.tagsz)
+	WriteUintBuf(buf[:ts.tidsz], tid)
+	WriteUintBuf(buf[ts.tidsz:], uint(len(tag)))
 	ts.data = append(ts.data, buf...)
 	ts.data = append(ts.data, tag...)
 	return ts
@@ -289,7 +289,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Put(tid TID_t, tag Tag_t) *Tagset_t[TID_t, T
 
 // Set replaces tag with given ID and equal size, or
 // appends it to tagset. Returns true if new one added.
-func (ts *Tagset_t[TID_t, TSize_t]) Set(tid TID_t, tag Tag_t) bool {
+func (ts *Tagset_t) Set(tid uint, tag Tag_t) bool {
 	if tid == TIDnone { // special case
 		return false
 	}
@@ -302,11 +302,11 @@ func (ts *Tagset_t[TID_t, TSize_t]) Set(tid TID_t, tag Tag_t) bool {
 		return true
 	}
 
-	var tl = TSize_t(len(tag))
-	if tl == TSize_t(tsi.pos-tsi.tag) {
+	var tl = uint(len(tag))
+	if tl == uint(tsi.pos-tsi.tag) {
 		copy(ts.data[tsi.tag:tsi.pos], tag)
 	} else {
-		Uint_w(ts.data[tsi.tag-int(Uint_l[TSize_t]()):tsi.tag], tl) // set tag length
+		WriteUintBuf(ts.data[tsi.tag-int(ts.tagsz):tsi.tag], tl) // set tag length
 		var suff = ts.data[tsi.pos:]
 		ts.data = append(ts.data[:tsi.tag], tag...)
 		ts.data = append(ts.data, suff...)
@@ -315,7 +315,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Set(tid TID_t, tag Tag_t) bool {
 }
 
 // Del deletes tag with given ID.
-func (ts *Tagset_t[TID_t, TSize_t]) Del(tid TID_t) bool {
+func (ts *Tagset_t) Del(tid uint) bool {
 	if tid == TIDnone { // special case
 		return false
 	}
@@ -326,12 +326,12 @@ func (ts *Tagset_t[TID_t, TSize_t]) Del(tid TID_t) bool {
 	if tsi.tid != tid {
 		return false // ErrNoTag
 	}
-	ts.data = append(ts.data[:tsi.tag-int(Uint_l[TSize_t]())-int(Uint_l[TID_t]())], ts.data[tsi.pos:]...)
+	ts.data = append(ts.data[:tsi.tag-int(ts.tagsz)-int(ts.tidsz)], ts.data[tsi.pos:]...)
 	return true
 }
 
 // String tag getter.
-func (ts *Tagset_t[TID_t, TSize_t]) String(tid TID_t) (string, bool) {
+func (ts *Tagset_t) String(tid uint) (string, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.String()
 	}
@@ -339,7 +339,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) String(tid TID_t) (string, bool) {
 }
 
 // Bool is boolean tag getter.
-func (ts *Tagset_t[TID_t, TSize_t]) Bool(tid TID_t) (bool, bool) {
+func (ts *Tagset_t) Bool(tid uint) (bool, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.Bool()
 	}
@@ -347,7 +347,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Bool(tid TID_t) (bool, bool) {
 }
 
 // Byte tag getter.
-func (ts *Tagset_t[TID_t, TSize_t]) Byte(tid TID_t) (byte, bool) {
+func (ts *Tagset_t) Byte(tid uint) (byte, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.Byte()
 	}
@@ -356,7 +356,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Byte(tid TID_t) (byte, bool) {
 
 // Uint16 is 16-bit unsigned int tag getter.
 // Conversion can be used to get signed 16-bit integers.
-func (ts *Tagset_t[TID_t, TSize_t]) Uint16(tid TID_t) (uint16, bool) {
+func (ts *Tagset_t) Uint16(tid uint) (uint16, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.Uint16()
 	}
@@ -365,7 +365,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Uint16(tid TID_t) (uint16, bool) {
 
 // Uint32 is 32-bit unsigned int tag getter.
 // Conversion can be used to get signed 32-bit integers.
-func (ts *Tagset_t[TID_t, TSize_t]) Uint32(tid TID_t) (uint32, bool) {
+func (ts *Tagset_t) Uint32(tid uint) (uint32, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.Uint32()
 	}
@@ -374,7 +374,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Uint32(tid TID_t) (uint32, bool) {
 
 // Uint64 is 64-bit unsigned int tag getter.
 // Conversion can be used to get signed 64-bit integers.
-func (ts *Tagset_t[TID_t, TSize_t]) Uint64(tid TID_t) (uint64, bool) {
+func (ts *Tagset_t) Uint64(tid uint) (uint64, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.Uint64()
 	}
@@ -382,7 +382,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Uint64(tid TID_t) (uint64, bool) {
 }
 
 // UintTagset is unspecified size unsigned int tag getter.
-func UintTagset[TID_t TID_i, TSize_t TSize_i, T uint8 | uint16 | uint32 | uint64](ts *Tagset_t[TID_t, TSize_t], tid TID_t) (ret T, ok bool) {
+func UintTagset[T uint8 | uint16 | uint32 | uint64](ts *Tagset_t, tid uint) (ret T, ok bool) {
 	if data, ok := ts.Get(tid); ok {
 		var u uint
 		u, ok = data.Uint()
@@ -392,7 +392,7 @@ func UintTagset[TID_t TID_i, TSize_t TSize_i, T uint8 | uint16 | uint32 | uint64
 }
 
 // Uint is unspecified size unsigned int tag getter.
-func (ts *Tagset_t[TID_t, TSize_t]) Uint(tid TID_t) (uint, bool) {
+func (ts *Tagset_t) Uint(tid uint) (uint, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.Uint()
 	}
@@ -400,7 +400,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Uint(tid TID_t) (uint, bool) {
 }
 
 // Number is 64-bit float tag getter.
-func (ts *Tagset_t[TID_t, TSize_t]) Number(tid TID_t) (float64, bool) {
+func (ts *Tagset_t) Number(tid uint) (float64, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.Number()
 	}
@@ -408,7 +408,7 @@ func (ts *Tagset_t[TID_t, TSize_t]) Number(tid TID_t) (float64, bool) {
 }
 
 // Time is time tag getter.
-func (ts *Tagset_t[TID_t, TSize_t]) Time(tid TID_t) (time.Time, bool) {
+func (ts *Tagset_t) Time(tid uint) (time.Time, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.Time()
 	}
@@ -416,27 +416,27 @@ func (ts *Tagset_t[TID_t, TSize_t]) Time(tid TID_t) (time.Time, bool) {
 }
 
 // Path returns path of nested into package file.
-func (ts *Tagset_t[TID_t, TSize_t]) Path() string {
+func (ts *Tagset_t) Path() string {
 	var fpath, _ = ts.String(TIDpath)
 	return fpath
 }
 
 // Name returns base name of nested into package file.
 // fs.FileInfo implementation.
-func (ts *Tagset_t[TID_t, TSize_t]) Name() string {
+func (ts *Tagset_t) Name() string {
 	var fpath, _ = ts.String(TIDpath)
 	return filepath.Base(fpath)
 }
 
 // Size returns size of nested into package file.
 // fs.FileInfo implementation.
-func (ts *Tagset_t[TID_t, TSize_t]) Size() int64 {
+func (ts *Tagset_t) Size() int64 {
 	var size, _ = ts.Uint(TIDsize)
 	return int64(size)
 }
 
 // Mode is for fs.FileInfo interface compatibility.
-func (ts *Tagset_t[TID_t, TSize_t]) Mode() fs.FileMode {
+func (ts *Tagset_t) Mode() fs.FileMode {
 	if ts.Has(TIDsize) { // file size is absent for dir
 		return 0444
 	}
@@ -445,84 +445,84 @@ func (ts *Tagset_t[TID_t, TSize_t]) Mode() fs.FileMode {
 
 // ModTime returns file modification timestamp of nested into package file.
 // fs.FileInfo & times.Timespec implementation.
-func (ts *Tagset_t[TID_t, TSize_t]) ModTime() time.Time {
+func (ts *Tagset_t) ModTime() time.Time {
 	var t, _ = ts.Time(TIDmtime)
 	return t
 }
 
 // IsDir detects that object presents a directory. Directory can not have file ID.
 // fs.FileInfo implementation.
-func (ts *Tagset_t[TID_t, TSize_t]) IsDir() bool {
+func (ts *Tagset_t) IsDir() bool {
 	return !ts.Has(TIDsize) // file size is absent for dir
 }
 
 // Sys is for fs.FileInfo interface compatibility.
-func (ts *Tagset_t[TID_t, TSize_t]) Sys() interface{} {
+func (ts *Tagset_t) Sys() interface{} {
 	return nil
 }
 
 // AccessTime returns file access timestamp of nested into package file.
 // times.Timespec implementation.
-func (ts *Tagset_t[TID_t, TSize_t]) AccessTime() time.Time {
+func (ts *Tagset_t) AccessTime() time.Time {
 	var t, _ = ts.Uint64(TIDatime)
 	return time.Unix(int64(t), 0)
 }
 
 // ChangeTime returns file change timestamp of nested into package file.
 // times.Timespec implementation.
-func (ts *Tagset_t[TID_t, TSize_t]) ChangeTime() time.Time {
+func (ts *Tagset_t) ChangeTime() time.Time {
 	var t, _ = ts.Uint64(TIDctime)
 	return time.Unix(int64(t), 0)
 }
 
 // BirthTime returns file access timestamp of nested into package file.
 // times.Timespec implementation.
-func (ts *Tagset_t[TID_t, TSize_t]) BirthTime() time.Time {
+func (ts *Tagset_t) BirthTime() time.Time {
 	var t, _ = ts.Uint64(TIDbtime)
 	return time.Unix(int64(t), 0)
 }
 
 // HasChangeTime is times.Timespec interface implementation.
 // Returns whether change timestamp is present.
-func (ts *Tagset_t[TID_t, TSize_t]) HasChangeTime() bool {
+func (ts *Tagset_t) HasChangeTime() bool {
 	return ts.Has(TIDctime)
 }
 
 // HasBirthTime is times.Timespec interface implementation.
 // Returns whether birth timestamp is present.
-func (ts *Tagset_t[TID_t, TSize_t]) HasBirthTime() bool {
+func (ts *Tagset_t) HasBirthTime() bool {
 	return ts.Has(TIDbtime)
 }
 
 // Iterator clones this tagset to iterate through all tags.
-func (ts *Tagset_t[TID_t, TSize_t]) Iterator() *TagsetIterator[TID_t, TSize_t] {
-	var tsi TagsetIterator[TID_t, TSize_t]
-	tsi.data = ts.data
+func (ts *Tagset_t) Iterator() *TagsetIterator {
+	var tsi TagsetIterator
+	tsi.Tagset_t = *ts
 	return &tsi
 }
 
 // TagsetIterator helps to iterate through all tags.
-type TagsetIterator[TID_t TID_i, TSize_t TSize_i] struct {
-	Tagset_t[TID_t, TSize_t]
-	tid TID_t // tag ID of last readed tag
-	pos int   // current position in the slice
-	tag int   // start position of last readed tag content
+type TagsetIterator struct {
+	Tagset_t
+	tid uint // tag ID of last readed tag
+	pos int  // current position in the slice
+	tag int  // start position of last readed tag content
 }
 
 // Reset restarts iterator for new iterations loop.
-func (tsi *TagsetIterator[TID_t, TSize_t]) Reset() {
+func (tsi *TagsetIterator) Reset() {
 	tsi.tid = TIDnone
 	tsi.pos = 0
 	tsi.tag = 0
 }
 
 // TID returns the tag ID of the last readed tag.
-func (tsi *TagsetIterator[TID_t, TSize_t]) TID() TID_t {
+func (tsi *TagsetIterator) TID() uint {
 	return tsi.tid
 }
 
 // Tag returns tag slice of the last readed tag content.
-func (tsi *TagsetIterator[TID_t, TSize_t]) Tag() Tag_t {
+func (tsi *TagsetIterator) Tag() Tag_t {
 	if tsi.Failed() {
 		return nil
 	}
@@ -530,7 +530,7 @@ func (tsi *TagsetIterator[TID_t, TSize_t]) Tag() Tag_t {
 }
 
 // TagLen returns length of last readed tag content.
-func (tsi *TagsetIterator[TID_t, TSize_t]) TagLen() int {
+func (tsi *TagsetIterator) TagLen() int {
 	if tsi.Failed() {
 		return 0
 	}
@@ -538,17 +538,17 @@ func (tsi *TagsetIterator[TID_t, TSize_t]) TagLen() int {
 }
 
 // Passed returns true if the end of iterations is successfully reached.
-func (tsi *TagsetIterator[TID_t, TSize_t]) Passed() bool {
+func (tsi *TagsetIterator) Passed() bool {
 	return tsi.pos == len(tsi.data)
 }
 
 // Failed points that iterator is finished by broken tagset state.
-func (tsi *TagsetIterator[TID_t, TSize_t]) Failed() bool {
+func (tsi *TagsetIterator) Failed() bool {
 	return tsi.pos > len(tsi.data)
 }
 
 // Next carries to the next tag position.
-func (tsi *TagsetIterator[TID_t, TSize_t]) Next() (ok bool) {
+func (tsi *TagsetIterator) Next() (ok bool) {
 	var tsl = len(tsi.data)
 	tsi.tid = TIDnone
 
@@ -558,16 +558,16 @@ func (tsi *TagsetIterator[TID_t, TSize_t]) Next() (ok bool) {
 	}
 
 	// get tag identifier
-	if tsi.pos += int(Uint_l[TID_t]()); tsi.pos > tsl {
+	if tsi.pos += int(tsi.tidsz); tsi.pos > tsl {
 		return
 	}
-	var tid = Uint_r[TID_t](tsi.data[tsi.pos-int(Uint_l[TID_t]()):])
+	var tid = ReadUintBuf(tsi.data[tsi.pos-int(tsi.tidsz) : tsi.pos])
 
 	// get tag length
-	if tsi.pos += int(Uint_l[TSize_t]()); tsi.pos > tsl {
+	if tsi.pos += int(tsi.tagsz); tsi.pos > tsl {
 		return
 	}
-	var len = Uint_r[TSize_t](tsi.data[tsi.pos-int(Uint_l[TSize_t]()):])
+	var len = ReadUintBuf(tsi.data[tsi.pos-int(tsi.tagsz) : tsi.pos])
 	// store tag content position
 	var tag = tsi.pos
 
@@ -584,17 +584,17 @@ func (tsi *TagsetIterator[TID_t, TSize_t]) Next() (ok bool) {
 const tsiconst = "content changes are disabled for iterator"
 
 // Put is the stub to disable any changes to data content of iterator.
-func (tsi *TagsetIterator[TID_t, TSize_t]) Put(tid TID_t, tag Tag_t) *Tagset_t[TID_t, TSize_t] {
+func (tsi *TagsetIterator) Put(tid uint, tag Tag_t) *Tagset_t {
 	panic(tsiconst)
 }
 
 // Set is the stub to disable any changes to data content of iterator.
-func (tsi *TagsetIterator[TID_t, TSize_t]) Set(tid TID_t, tag Tag_t) bool {
+func (tsi *TagsetIterator) Set(tid uint, tag Tag_t) bool {
 	panic(tsiconst)
 }
 
 // Del is the stub to disable any changes to data content of iterator.
-func (tsi *TagsetIterator[TID_t, TSize_t]) Del(tid TID_t) bool {
+func (tsi *TagsetIterator) Del(tid uint) bool {
 	panic(tsiconst)
 }
 

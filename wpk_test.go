@@ -55,7 +55,7 @@ func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 	}
 
 	var realtagsnum int
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t[TID_t, TSize_t]) bool {
+	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		var offset, _ = ts.Uint(wpk.TIDoffset)
 		var size, _ = ts.Uint(wpk.TIDsize)
 		var fid, _ = ts.Uint(wpk.TIDfid)
@@ -148,7 +148,7 @@ func TestInfo(t *testing.T) {
 	}
 
 	// at the end checkup package info
-	var ts *wpk.Tagset_t[TID_t, TSize_t]
+	var ts *wpk.Tagset_t
 	if ts, err = wpk.GetPackageInfo[TID_t, TSize_t](fwpk, tidsz, tagsz); err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +201,7 @@ func TestPackDir(t *testing.T) {
 	pack.Info().
 		Put(wpk.TIDlabel, wpk.TagString("packed-dir"))
 	// put media directory to file
-	if err = pack.PackDir(fwpk, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t[TID_t, TSize_t]) error {
+	if err = pack.PackDir(fwpk, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t) error {
 		tagsnum++
 		fidcount++
 		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfidsz)))
@@ -251,7 +251,7 @@ func TestPackDirSplit(t *testing.T) {
 	pack.Info().
 		Put(wpk.TIDlabel, wpk.TagString("splitted-pack"))
 	// put media directory to file
-	if err = pack.PackDir(fwpd, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t[TID_t, TSize_t]) error {
+	if err = pack.PackDir(fwpd, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t) error {
 		tagsnum++
 		fidcount++
 		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfidsz)))
@@ -288,7 +288,7 @@ func TestPutFiles(t *testing.T) {
 		}
 		defer file.Close()
 
-		var ts *wpk.Tagset_t[TID_t, TSize_t]
+		var ts *wpk.Tagset_t
 		if ts, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
@@ -302,7 +302,7 @@ func TestPutFiles(t *testing.T) {
 	var putdata = func(name string, data []byte) {
 		var r = bytes.NewReader(data)
 
-		var ts *wpk.Tagset_t[TID_t, TSize_t]
+		var ts *wpk.Tagset_t
 		if ts, err = pack.PackData(fwpk, r, name); err != nil {
 			t.Fatal(err)
 		}
@@ -387,7 +387,7 @@ func TestAppendContinues(t *testing.T) {
 		}
 		defer file.Close()
 
-		var ts *wpk.Tagset_t[TID_t, TSize_t]
+		var ts *wpk.Tagset_t
 		if ts, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
@@ -461,7 +461,7 @@ func TestAppendDiscrete(t *testing.T) {
 		}
 		defer file.Close()
 
-		var ts *wpk.Tagset_t[TID_t, TSize_t]
+		var ts *wpk.Tagset_t
 		if ts, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
