@@ -405,7 +405,16 @@ func (ts *Tagset_t) Time(tid uint) (time.Time, bool) {
 	return time.Time{}, false
 }
 
+// Pos returns file offset and file size in package.
+// Those values required to be present in any tagset.
+func (ts *Tagset_t) Pos() (offset, size uint) {
+	offset, _ = ts.Uint(TIDoffset)
+	size, _ = ts.Uint(TIDsize)
+	return
+}
+
 // Path returns path of nested into package file.
+// Path required to be present in any tagset.
 func (ts *Tagset_t) Path() string {
 	var fpath, _ = ts.String(TIDpath)
 	return fpath

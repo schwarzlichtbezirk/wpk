@@ -24,8 +24,7 @@ func NewChunkFile(fpath string, ts *wpk.Tagset_t) (f *ChunkFile, err error) {
 	if wpkf, err = os.Open(fpath); err != nil {
 		return
 	}
-	var offset, _ = ts.Uint(wpk.TIDoffset)
-	var size, _ = ts.Uint(wpk.TIDsize)
+	var offset, size = ts.Pos()
 	f = &ChunkFile{
 		tags:       ts,
 		FileReader: io.NewSectionReader(wpkf, int64(offset), int64(size)),
@@ -59,18 +58,18 @@ func (pack *Package) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 }
 
 // NewPackage creates new package with given data-part file.
-func NewPackage(datpath string, foffset, fsize, fidsz, tidsz, tagsz, tssize byte) *Package {
+func NewPackage(datpath string, pts wpk.TypeSize) *Package {
 	return &Package{
-		Package:   wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize),
+		Package:   wpk.NewPackage(pts),
 		workspace: ".",
 		fpath:     datpath,
 	}
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage(fpath string, foffset, fsize, fidsz, tidsz, tagsz, tssize byte) (pack *Package, err error) {
+func OpenPackage(fpath string) (pack *Package, err error) {
 	pack = &Package{
-		Package:   wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize),
+		Package:   &wpk.Package{},
 		workspace: ".",
 	}
 

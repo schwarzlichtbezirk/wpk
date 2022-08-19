@@ -20,8 +20,7 @@ type SliceFile struct {
 
 // NewSliceFile creates SliceFile file structure based on given tags slice.
 func NewSliceFile(pack *Package, ts *wpk.Tagset_t) (f *SliceFile, err error) {
-	var offset, _ = ts.Uint(wpk.TIDoffset)
-	var size, _ = ts.Uint(wpk.TIDsize)
+	var offset, size = ts.Pos()
 	f = &SliceFile{
 		tags:       ts,
 		FileReader: bytes.NewReader(pack.bulk[offset : offset+size]),
@@ -54,9 +53,9 @@ func (pack *Package) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage(fname string, foffset, fsize, fidsz, tidsz, tagsz, tssize byte) (pack *Package, err error) {
+func OpenPackage(fname string) (pack *Package, err error) {
 	pack = &Package{
-		Package:   wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize),
+		Package:   &wpk.Package{},
 		workspace: ".",
 	}
 
@@ -150,8 +149,7 @@ func (pack *Package) ReadFile(name string) ([]byte, error) {
 	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
-	var offset, _ = ts.Uint(wpk.TIDoffset)
-	var size, _ = ts.Uint(wpk.TIDsize)
+	var offset, size = ts.Pos()
 	return pack.bulk[offset : offset+size], nil
 }
 
@@ -165,9 +163,7 @@ func (pack *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
 // fs.FS implementation.
 func (pack *Package) Open(dir string) (fs.File, error) {
 	if dir == "wpk" && pack.workspace == "." {
-		var ts = pack.NewTagset().
-			Put(wpk.TIDoffset, wpk.TagUintLen(0, pack.PTS(wpk.PTSfoffset))).
-			Put(wpk.TIDsize, wpk.TagUintLen(uint(len(pack.bulk)), pack.PTS(wpk.PTSfsize)))
+		var ts = pack.BaseTagset(0, uint(len(pack.bulk)), "wpk")
 		return NewSliceFile(pack, ts)
 	}
 

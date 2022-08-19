@@ -15,15 +15,6 @@ import (
 	"github.com/schwarzlichtbezirk/wpk/mmap"
 )
 
-const (
-	foffset = 8
-	fsize   = 8
-	fidsz   = 4
-	tidsz   = 2
-	tagsz   = 2
-	tssize  = 2
-)
-
 // command line settings
 var (
 	srcfile string
@@ -98,15 +89,15 @@ func checkargs() int {
 func openpackage(pkgpath string) (pack wpk.Packager, err error) {
 	switch PkgMode {
 	case "bulk":
-		if pack, err = bulk.OpenPackage(pkgpath, foffset, fsize, fidsz, tidsz, tagsz, tssize); err != nil {
+		if pack, err = bulk.OpenPackage(pkgpath); err != nil {
 			return
 		}
 	case "mmap":
-		if pack, err = mmap.OpenPackage(pkgpath, foffset, fsize, fidsz, tidsz, tagsz, tssize); err != nil {
+		if pack, err = mmap.OpenPackage(pkgpath); err != nil {
 			return
 		}
 	case "fsys":
-		if pack, err = fsys.OpenPackage(pkgpath, foffset, fsize, fidsz, tidsz, tagsz, tssize); err != nil {
+		if pack, err = fsys.OpenPackage(pkgpath); err != nil {
 			return
 		}
 	default:

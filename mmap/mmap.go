@@ -29,8 +29,7 @@ type MappedFile struct {
 // NewMappedFile maps nested to package file based on given tags slice.
 func NewMappedFile(pack *Package, ts *wpk.Tagset_t) (f *MappedFile, err error) {
 	// calculate paged size/offset
-	var offset, _ = ts.Uint(wpk.TIDoffset)
-	var size, _ = ts.Uint(wpk.TIDsize)
+	var offset, size = ts.Pos()
 	var pgoff = offset % pagesize
 	var offsetx = offset - pgoff
 	var sizex = size + pgoff
@@ -73,9 +72,9 @@ func (pack *Package) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage(fname string, foffset, fsize, fidsz, tidsz, tagsz, tssize byte) (pack *Package, err error) {
+func OpenPackage(fname string) (pack *Package, err error) {
 	pack = &Package{
-		Package:   wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize),
+		Package:   &wpk.Package{},
 		workspace: ".",
 	}
 

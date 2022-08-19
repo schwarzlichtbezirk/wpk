@@ -5,15 +5,8 @@ import (
 	"io"
 )
 
-// Size-dependent types definitions.
-
-type (
-	// TID_i - tag identifier type, can be 8, 16, 32 bit integer. TID <= TSSize.
-	TID_i interface{ uint8 | uint16 | uint32 }
-	// TSize_i - tag size type, can be 8, 16, 32 bit integer. TSize <= TSSize.
-	TSize_i interface{ uint8 | uint16 | uint32 }
-)
-
+// ReadUintBuf reads unsigned integer from buffer of predefined size.
+// Dimension of integer depended from size of buffer, size can be 1, 2, 4, 8.
 func ReadUintBuf(b []byte) uint {
 	switch len(b) {
 	case 1:
@@ -29,6 +22,8 @@ func ReadUintBuf(b []byte) uint {
 	}
 }
 
+// WriteUintBuf writes unsigned integer into buffer with predefined size.
+// Size of buffer can be 1, 2, 4, 8.
 func WriteUintBuf(b []byte, v uint) {
 	switch len(b) {
 	case 8:
@@ -51,6 +46,8 @@ func WriteUintBuf(b []byte, v uint) {
 	}
 }
 
+// ReadUint reads from stream unsigned integer with given size in bytes.
+// Size can be 1, 2, 4, 8.
 func ReadUint(r io.Reader, l byte) (data uint, err error) {
 	var buf = make([]byte, l)
 	_, err = r.Read(buf)
@@ -58,6 +55,8 @@ func ReadUint(r io.Reader, l byte) (data uint, err error) {
 	return
 }
 
+// WriteUint writes to stream given unsigned integer with given size in bytes.
+// Size can be 1, 2, 4, 8.
 func WriteUint(w io.Writer, data uint, l byte) (err error) {
 	var buf = make([]byte, l)
 	WriteUintBuf(buf, data)

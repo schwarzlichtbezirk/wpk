@@ -168,10 +168,7 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *
 	}
 
 	// insert new entry to tags table
-	ts = pack.NewTagset().
-		Put(TIDoffset, TagUintLen(uint(offset), pack.PTS(PTSfoffset))).
-		Put(TIDsize, TagUintLen(uint(size), pack.PTS(PTSfsize))).
-		Put(TIDpath, TagString(ToSlash(fpath)))
+	ts = pack.BaseTagset(uint(offset), uint(size), fpath)
 	pack.SetTagset(fpath, ts)
 	return
 }

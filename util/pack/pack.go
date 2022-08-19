@@ -14,13 +14,14 @@ import (
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
-const (
-	foffset = 8
-	fsize   = 8
-	fidsz   = 4
-	tidsz   = 2
-	tagsz   = 2
-	tssize  = 2
+// package type sizes
+var (
+	foffset uint
+	fsize   uint
+	fidsz   uint
+	tidsz   uint
+	tagsz   uint
+	tssize  uint
 )
 
 // command line settings
@@ -33,7 +34,16 @@ var (
 	Split   bool
 )
 
+var pts wpk.TypeSize
+
 func parseargs() {
+	flag.UintVar(&foffset, "foffset", 8, "file offset type size")
+	flag.UintVar(&fsize, "fsize", 8, "file size type size")
+	flag.UintVar(&fidsz, "fidsz", 4, "file ID type size")
+	flag.UintVar(&fidsz, "tidsz", 2, "tag ID type size")
+	flag.UintVar(&fidsz, "tagsz", 2, "tag size type size")
+	flag.UintVar(&fidsz, "tssize", 2, "tagset size type size")
+
 	flag.StringVar(&srcpath, "src", "", "full path to folder with source files to be packaged, or list of folders divided by ';'")
 	flag.StringVar(&DstFile, "dst", "", "full path to output package file")
 	flag.BoolVar(&PutMIME, "mime", false, "put content MIME type defined by file extension")
@@ -44,6 +54,21 @@ func parseargs() {
 
 func checkargs() int {
 	var ec = 0 // error counter
+
+	pts = wpk.TypeSize{
+		byte(foffset),
+		byte(fsize),
+		byte(fidsz),
+		byte(tidsz),
+		byte(tagsz),
+		byte(tssize),
+		0,
+		0,
+	}
+	if err := pts.Checkup(); err != nil {
+		log.Println(err.Error())
+		ec++
+	}
 
 	srcpath = filepath.ToSlash(strings.Trim(srcpath, ";"))
 	if srcpath == "" {
@@ -82,7 +107,7 @@ var num, sum int64
 
 func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
 	var size = ts.Size()
-	var fname, _ = ts.String(wpk.TIDpath)
+	var fname = ts.Path()
 	num++
 	sum += size
 	if ShowLog {
@@ -116,7 +141,7 @@ func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
 func writepackage() (err error) {
 	var fwpk, fwpd wpk.WriteSeekCloser
 	var pkgfile, datfile = DstFile, DstFile
-	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(pts)
 	if Split {
 		pkgfile, datfile = wpk.MakeTagsPath(pkgfile), wpk.MakeDataPath(datfile)
 	}

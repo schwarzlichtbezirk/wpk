@@ -20,9 +20,9 @@ const (
 const (
 	TIDnone = 0
 
-	TIDoffset = 1  // required, uint64
-	TIDsize   = 2  // required, uint64
-	TIDfid    = 3  // required, uint32
+	TIDoffset = 1  // required, defenid at TypeSize
+	TIDsize   = 2  // required, defenid at TypeSize
+	TIDfid    = 3  // defenid at TypeSize
 	TIDpath   = 4  // required, unique, string
 	TIDmtime  = 5  // required for files, 8/12 bytes (mod-time)
 	TIDatime  = 6  // 8/12 bytes (access-time)
@@ -78,12 +78,12 @@ var (
 	ErrSignBad = errors.New("signature does not pass")
 	ErrSignFTT = errors.New("header contains incorrect data")
 
-	ErrSizeFOffset = errors.New("size of file offset type is differs from expected")
-	ErrSizeFSize   = errors.New("size of file size type is differs from expected")
-	ErrSizeFID     = errors.New("size of file ID type is differs from expected")
-	ErrSizeTID     = errors.New("size of tag ID type is differs from expected")
-	ErrSizeTSize   = errors.New("size of tag size type is differs from expected")
-	ErrSizeTSSize  = errors.New("size of tagset size type is differs from expected")
+	ErrSizeFOffset = errors.New("size of file offset type is not in set {4, 8}")
+	ErrSizeFSize   = errors.New("size of file size type is not in set {4, 8}")
+	ErrSizeFID     = errors.New("size of file ID type is not in set {2, 4, 8}")
+	ErrSizeTID     = errors.New("size of tag ID type is not in set {1, 2, 4}")
+	ErrSizeTSize   = errors.New("size of tag size type is not in set {1, 2, 4}")
+	ErrSizeTSSize  = errors.New("size of tagset size type is not in set {2, 4}")
 	ErrCondFSize   = errors.New("size of file size type should be not more than file offset size")
 	ErrCondTID     = errors.New("size of tag ID type should be not more than tagset size")
 	ErrCondTSize   = errors.New("size of tag size type should be not more than tagset size")
@@ -155,7 +155,7 @@ func (pts TypeSize) Checkup() error {
 	}
 
 	switch pts[PTSfsize] {
-	case 4, 8:
+	case 2, 4, 8:
 	default:
 		return ErrSizeFSize
 	}
@@ -499,27 +499,28 @@ type Package struct {
 }
 
 // NewPackage returns pointer to new initialized Package structure.
-func NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize byte) (pack *Package) {
+func NewPackage(pts TypeSize) (pack *Package) {
 	pack = &Package{}
-	pack.Init(foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	pack.Init(pts)
 	return
 }
 
 // Init performs initialization for given Package structure.
-func (pack *Package) Init(foffset, fsize, fidsz, tidsz, tagsz, tssize byte) {
-	pack.Header.typesize = TypeSize{
-		foffset, // can be: 4, 8
-		fsize,   // can be: 4, 8
-		fidsz,   // can be: 2, 4, 8
-		tidsz,   // can be: 1, 2, 4
-		tagsz,   // can be: 1, 2, 4
-		tssize,  // can be: 2, 4
-		0,
-		0,
-	}
-	pack.FTT_t.tidsz = tidsz
-	pack.FTT_t.tagsz = tagsz
-	pack.FTT_t.tssize = tssize
+func (pack *Package) Init(pts TypeSize) {
+	pack.Header.typesize = pts
+	pack.FTT_t.tidsz = pts[PTStidsz]
+	pack.FTT_t.tagsz = pts[PTStagsz]
+	pack.FTT_t.tssize = pts[PTStssize]
+}
+
+// BaseTagset returns new tagset based on predefined TID type size and tag size type,
+// and puts file offset and file size into tagset with predefined sizes.
+func (pack *Package) BaseTagset(offset, size uint, fpath string) *Tagset_t {
+	var ts = pack.NewTagset()
+	return ts.
+		Put(TIDoffset, TagUintLen(offset, pack.typesize[PTSfoffset])).
+		Put(TIDsize, TagUintLen(size, pack.typesize[PTSfsize])).
+		Put(TIDpath, TagString(ToSlash(fpath)))
 }
 
 // Glob returns the names of all files in package matching pattern or nil

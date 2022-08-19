@@ -11,13 +11,24 @@ import (
 )
 
 const (
-	foffset = 8
-	fsize   = 8
-	fidsz   = 4
-	tidsz   = 2
-	tagsz   = 2
-	tssize  = 2
+	foffset = 8 // can be: 4, 8
+	fsize   = 8 // can be: 2, 4, 8
+	fidsz   = 4 // can be: 2, 4, 8
+	tidsz   = 2 // can be: 1, 2, 4
+	tagsz   = 2 // can be: 1, 2, 4
+	tssize  = 2 // can be: 2, 4
 )
+
+var pts = wpk.TypeSize{
+	foffset,
+	fsize,
+	fidsz,
+	tidsz,
+	tagsz,
+	tssize,
+	0,
+	0,
+}
 
 var mediadir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/media/")
 var testpack = filepath.Join(os.TempDir(), "testpack.wpk")
@@ -36,23 +47,22 @@ var memdata = map[string][]byte{
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 	var err error
-	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
 
+	// Open package files tags table
+	var pack = &wpk.Package{}
 	if err = pack.OpenFTT(fwph); err != nil {
 		t.Fatal(err)
 	}
 
 	if ts, ok := pack.Tagset(""); ok {
-		var offset, _ = ts.Uint(wpk.TIDoffset)
-		var size, _ = ts.Uint(wpk.TIDsize)
+		var offset, size = ts.Pos()
 		var label, _ = ts.String(wpk.TIDlabel)
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 
 	var realtagsnum int
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-		var offset, _ = ts.Uint(wpk.TIDoffset)
-		var size, _ = ts.Uint(wpk.TIDsize)
+		var offset, size = ts.Pos()
 		var fid, _ = ts.Uint(wpk.TIDfid)
 		var fpath = ts.Path()
 		realtagsnum++
@@ -112,7 +122,7 @@ func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
 func TestInfo(t *testing.T) {
 	var err error
 	var fwpk *os.File
-	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(pts)
 
 	const (
 		label  = "empty-package"
@@ -178,7 +188,7 @@ func TestPackDir(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(pts)
 
 	defer os.Remove(testpack)
 
@@ -200,8 +210,7 @@ func TestPackDir(t *testing.T) {
 		tagsnum++
 		fidcount++
 		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfidsz)))
-		var fname, _ = ts.String(wpk.TIDpath)
-		t.Logf("put file #%d '%s', %d bytes", fidcount, fname, ts.Size())
+		t.Logf("put file #%d '%s', %d bytes", fidcount, ts.Path(), ts.Size())
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -221,7 +230,7 @@ func TestPackDirSplit(t *testing.T) {
 	var fwph, fwpd *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(pts)
 
 	defer os.Remove(testpkgh)
 	defer os.Remove(testpkgd)
@@ -250,8 +259,7 @@ func TestPackDirSplit(t *testing.T) {
 		tagsnum++
 		fidcount++
 		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfidsz)))
-		var fname, _ = ts.String(wpk.TIDpath)
-		t.Logf("put file #%d '%s', %d bytes", fidcount, fname, ts.Size())
+		t.Logf("put file #%d '%s', %d bytes", fidcount, ts.Path(), ts.Size())
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -271,7 +279,7 @@ func TestPutFiles(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(pts)
 
 	defer os.Remove(testpack)
 
@@ -370,7 +378,7 @@ func TestAppendContinues(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(pts)
 
 	defer os.Remove(testpack)
 
@@ -444,7 +452,7 @@ func TestAppendDiscrete(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage(foffset, fsize, fidsz, tidsz, tagsz, tssize)
+	var pack = wpk.NewPackage(pts)
 
 	defer os.Remove(testpack)
 
