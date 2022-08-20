@@ -1,4 +1,12 @@
 
+--[[
+Package can be used as files database without deleting. For this task
+package stored at two splitted files. First is file with header and
+tagset table. Second file is set of datablocks with nested files content.
+So, if program abnormal failure is happens, package contains state with
+files on last flush-function call, or package finalize.
+]]
+
 local pkgpath = path.join(bindir, "build.wph") -- make package header full file name on temporary directory
 local datpath = path.join(bindir, "build.wpd") -- make package data full file name on temporary directory
 

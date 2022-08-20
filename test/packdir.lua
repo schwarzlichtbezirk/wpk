@@ -1,4 +1,11 @@
 
+--[[
+Script with sample that shows how can be packed whole directory with
+subdirectories. There is present checkup-function that checks name of
+any enumerated file on skip condition. File will be skipped if it has
+extension "tmp", "bak", "log" and so on.
+]]
+
 -- inits new package
 local pkg = wpk.new()
 pkg.automime = true -- put MIME type for each file if it is not given explicit
@@ -62,9 +69,10 @@ local function packdir(prefix, dir)
 			if isdir then
 				packdir(fkey.."/", fpath.."/")
 			else
-				pkg:putfile(fkey, fpath)
-				pkg:settag(fkey, "author", "schwarzlichtbezirk")
 				n = n + 1
+				pkg:putfile(fkey, fpath)
+				pkg:settag(fkey, "fid", n)
+				pkg:settag(fkey, "author", "schwarzlichtbezirk")
 				logfmt("#%d %s, %d bytes, %s", n, fkey,
 					pkg:filesize(fkey), pkg:gettag(fkey, "mime").string)
 			end

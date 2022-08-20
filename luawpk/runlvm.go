@@ -46,8 +46,8 @@ func RunLuaVM(fpath string) (err error) {
 	RegTag(ls)
 	RegPack(ls)
 
-	var bindir = wpk.ToSlash(path.Dir(os.Args[0]))
-	var scrdir = wpk.ToSlash(path.Dir(fpath))
+	var bindir = path.Dir(wpk.ToSlash(os.Args[0]))
+	var scrdir = path.Dir(wpk.ToSlash(fpath))
 	ls.SetGlobal("bindir", lua.LString(bindir))
 	ls.SetGlobal("scrdir", lua.LString(scrdir))
 	ls.SetGlobal("tmpdir", lua.LString(wpk.ToSlash(os.TempDir())))

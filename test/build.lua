@@ -1,4 +1,9 @@
 
+--[[
+There is simple sample how can be packed list of files into package
+with virtual directories "img1" and "img2".
+]]
+
 local pkgpath = path.join(bindir, "build.wpk") -- make package full file name on temporary directory
 
 -- inits new package

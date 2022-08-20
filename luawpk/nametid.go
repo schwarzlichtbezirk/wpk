@@ -94,7 +94,18 @@ func ValueToTID(k lua.LValue) (tid uint, err error) {
 // boolen converts to 1 byte slice with 1 for 'true' and 0 for 'false'.
 // Otherwise if it is not 'tag' uservalue with Tag_t, returns error.
 func ValueToTag(v lua.LValue) (tag wpk.Tag_t, err error) {
-	if val, ok := v.(lua.LString); ok {
+	if val, ok := v.(lua.LNumber); ok {
+		var u = uint(val)
+		if val < 0 || val-lua.LNumber(u) != 0 {
+			tag = wpk.TagNumber(float64(val))
+		} else if u < 0xffff {
+			tag = wpk.TagUintLen(u, 2)
+		} else if u < 0xffffffff {
+			tag = wpk.TagUintLen(u, 4)
+		} else {
+			tag = wpk.TagUintLen(u, 8)
+		}
+	} else if val, ok := v.(lua.LString); ok {
 		tag = wpk.TagString(string(val))
 	} else if val, ok := v.(lua.LBool); ok {
 		tag = wpk.TagBool(bool(val))

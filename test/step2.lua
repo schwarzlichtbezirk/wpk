@@ -1,4 +1,9 @@
 
+--[[
+This script is second step of package forming. On this step package
+opened again and second portion of files appended to the end of package.
+]]
+
 -- ensure package existence
 local pkgpath = path.join(tmpdir, "steps.wpk") -- make package full file name on temporary directory
 if not checkfile(pkgpath) then
@@ -19,6 +24,7 @@ pkg.sha1 = true -- generate SHA1 hash for each file on this step
 -- read records table, tags table of existing package
 pkg:load(pkgpath)
 -- check if files from this step are appended by test any of them
+-- it helps to prevent placement of some files twice
 if pkg:hasfile "img2/marble.jpg" then
 	log "files from step 2 already appended"
 	os.exit()
@@ -34,15 +40,15 @@ local function logfile(fkey) -- write record log
 		tostring(pkg:gettag(fkey, "crc32")))
 end
 local function packfile(fkey, keywords) -- pack given file with common preset
-	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
-	pkg:addtags(fkey, {keywords=keywords, author="schwarzlichtbezirk"})
 	n = n + 1
+	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
+	pkg:addtags(fkey, {fid=n, keywords=keywords, author="schwarzlichtbezirk"})
 	logfile(fkey)
 end
 local function packdata(fkey, data, keywords) -- put text file created from given string
-	pkg:putdata(fkey, data)
-	pkg:settags(fkey, {keywords=keywords, mime="text/plain;charset=utf-8"})
 	n = n + 1
+	pkg:putdata(fkey, data)
+	pkg:settags(fkey, {fid=n, keywords=keywords, mime="text/plain;charset=utf-8"})
 	logfile(fkey)
 end
 local function safealias(fname1, fname2) -- make 2 file name aliases to 1 file

@@ -22,7 +22,7 @@ const (
 
 	TIDoffset = 1  // required, defenid at TypeSize
 	TIDsize   = 2  // required, defenid at TypeSize
-	TIDfid    = 3  // defenid at TypeSize
+	TIDfid    = 3  // unique, defenid at TypeSize
 	TIDpath   = 4  // required, unique, string
 	TIDmtime  = 5  // required for files, 8/12 bytes (mod-time)
 	TIDatime  = 6  // 8/12 bytes (access-time)
@@ -30,9 +30,6 @@ const (
 	TIDbtime  = 8  // 8/12 bytes (birth-time)
 	TIDattr   = 9  // uint32
 	TIDmime   = 10 // string
-
-	TIDconst = 4 // marker of tags that should be unchanged
-	TIDsys   = 8 // system protection marker
 
 	TIDcrc32ieee = 11 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
 	TIDcrc32c    = 12 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1

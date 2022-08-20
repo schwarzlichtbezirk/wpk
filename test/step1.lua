@@ -1,4 +1,11 @@
 
+--[[
+Package can be formed by several steps. At first step package is created
+and placed there first portion of files. Then this existing package opens
+again and then placed there next portion of files. This script is the
+first step with package creation.
+]]
+
 local pkgpath = path.join(tmpdir, "steps.wpk") -- make package full file name on temporary directory
 
 print ""
@@ -15,9 +22,9 @@ pkg.md5 = true -- generate MD5 hash for each file
 -- pack given file with common preset
 local n = 0
 local function packfile(fkey, keywords)
-	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
-	pkg:addtags(fkey, {keywords=keywords, [104]="schwarzlichtbezirk"})
 	n = n + 1
+	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
+	pkg:addtags(fkey, {fid=n, keywords=keywords, author="schwarzlichtbezirk"})
 	log(string.format("#%d file %s, crc=%s", n, fkey,
 		tostring(pkg:gettag(fkey, "crc32"))))
 end
