@@ -160,7 +160,15 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *
 		if offset, err = w.Seek(0, io.SeekCurrent); err != nil {
 			return
 		}
+		if uint(offset) > uint(1<<(pack.PTS(PTSfoffset)*8)-1) {
+			err = ErrRangeOffset
+			return
+		}
 		if size, err = io.Copy(w, r); err != nil {
+			return
+		}
+		if uint(size) > uint(1<<(pack.PTS(PTSfsize)*8)-1) {
+			err = ErrRangeSize
 			return
 		}
 	}(); err != nil {

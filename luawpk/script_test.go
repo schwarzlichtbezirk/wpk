@@ -14,15 +14,24 @@ var scrdir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/")
 var mediadir = scrdir + "media/"
 
 // Test package content on nested and external files equivalent.
-func CheckPackage(t *testing.T, wpkname string) {
+func CheckPackage(t *testing.T, wptname, wpdname string) {
 	var err error
 
 	// open temporary file for read/write
-	var fwpk *os.File
-	if fwpk, err = os.Open(wpkname); err != nil {
+	var fwpk, fwpd *os.File
+	if fwpk, err = os.Open(wptname); err != nil {
 		t.Fatal(err)
 	}
 	defer fwpk.Close()
+
+	if wpdname != "" && wptname != wpdname {
+		if fwpd, err = os.Open(wpdname); err != nil {
+			t.Fatal(err)
+		}
+		defer fwpd.Close()
+	} else {
+		fwpd = fwpk
+	}
 
 	// Open package files tags table
 	var pack = &wpk.Package{}
@@ -64,7 +73,7 @@ func CheckPackage(t *testing.T, wpkname string) {
 
 		var extr = make([]byte, size)
 		var readed int
-		if readed, err = fwpk.ReadAt(extr, int64(offset)); err != nil {
+		if readed, err = fwpd.ReadAt(extr, int64(offset)); err != nil {
 			t.Fatal(err)
 		}
 		if readed != len(extr) {
@@ -93,7 +102,7 @@ func TestPackdir(t *testing.T) {
 	}
 
 	// make package file check up
-	CheckPackage(t, wpkname)
+	CheckPackage(t, wpkname, "")
 }
 
 // Test append package ability by scripts.
@@ -106,14 +115,29 @@ func TestSteps(t *testing.T) {
 	}
 
 	// make package file check up
-	CheckPackage(t, wpkname)
+	CheckPackage(t, wpkname, "")
 
 	if err := lw.RunLuaVM(scrdir + "step2.lua"); err != nil {
 		t.Fatal(err)
 	}
 
 	// make package file check up
-	CheckPackage(t, wpkname)
+	CheckPackage(t, wpkname, "")
+}
+
+// Test splitted package forming.
+func TestSplitted(t *testing.T) {
+	var wptname = filepath.Join(os.TempDir(), "build.wpt")
+	var wpdname = filepath.Join(os.TempDir(), "build.wpd")
+	defer os.Remove(wptname)
+	defer os.Remove(wpdname)
+
+	if err := lw.RunLuaVM(scrdir + "split.lua"); err != nil {
+		t.Fatal(err)
+	}
+
+	// make package file check up
+	CheckPackage(t, wptname, wpdname)
 }
 
 // The End.

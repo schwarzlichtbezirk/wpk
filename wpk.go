@@ -84,6 +84,9 @@ var (
 	ErrCondFSize   = errors.New("size of file size type should be not more than file offset size")
 	ErrCondTID     = errors.New("size of tag ID type should be not more than tagset size")
 	ErrCondTSize   = errors.New("size of tag size type should be not more than tagset size")
+	ErrRangeOffset = errors.New("file offset value is exceeds out of the type dimension")
+	ErrRangeSize   = errors.New("file size value is exceeds out of the type dimension")
+	ErrRangeTSSize = errors.New("tagset size value is exceeds out of the type dimension")
 
 	ErrNoTag    = errors.New("tag with given ID not found")
 	ErrNoPath   = errors.New("file name is absent")
@@ -446,6 +449,10 @@ func (ftt *FTT_t) WriteTo(w io.Writer) (n int64, err error) {
 	// write tagset with package info at first
 	if ts, ok := ftt.Tagset(""); ok {
 		var tsl = uint(len(ts.Data()))
+		if tsl > uint(1<<(ftt.tssize*8)-1) {
+			err = ErrRangeTSSize
+			return
+		}
 
 		// write tagset length
 		if err = WriteUint(w, tsl, ftt.tssize); err != nil {
@@ -463,6 +470,10 @@ func (ftt *FTT_t) WriteTo(w io.Writer) (n int64, err error) {
 	// write files tags table
 	ftt.Enum(func(fkey string, ts *Tagset_t) bool {
 		var tsl = uint(len(ts.Data()))
+		if tsl > uint(1<<(ftt.tssize*8)-1) {
+			err = ErrRangeTSSize
+			return false
+		}
 
 		// write tagset length
 		if err = WriteUint(w, tsl, ftt.tssize); err != nil {

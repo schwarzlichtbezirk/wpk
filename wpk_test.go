@@ -32,7 +32,7 @@ var pts = wpk.TypeSize{
 
 var mediadir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/media/")
 var testpack = filepath.Join(os.TempDir(), "testpack.wpk")
-var testpkgh = filepath.Join(os.TempDir(), "testpack.wph")
+var testpkgt = filepath.Join(os.TempDir(), "testpack.wpt")
 var testpkgd = filepath.Join(os.TempDir(), "testpack.wpd")
 
 var memdata = map[string][]byte{
@@ -45,12 +45,12 @@ var memdata = map[string][]byte{
 }
 
 // Test package content on nested and external files equivalent.
-func CheckPackage(t *testing.T, fwph, fwpd *os.File, tagsnum int) {
+func CheckPackage(t *testing.T, fwpt, fwpd *os.File, tagsnum int) {
 	var err error
 
 	// Open package files tags table
 	var pack = &wpk.Package{}
-	if err = pack.OpenFTT(fwph); err != nil {
+	if err = pack.OpenFTT(fwpt); err != nil {
 		t.Fatal(err)
 	}
 
@@ -227,19 +227,19 @@ func TestPackDir(t *testing.T) {
 // Test package writing to splitted header and data files.
 func TestPackDirSplit(t *testing.T) {
 	var err error
-	var fwph, fwpd *os.File
+	var fwpt, fwpd *os.File
 	var tagsnum = 0
 	var fidcount uint
 	var pack = wpk.NewPackage(pts)
 
-	defer os.Remove(testpkgh)
+	defer os.Remove(testpkgt)
 	defer os.Remove(testpkgd)
 
 	// open temporary header file for read/write
-	if fwph, err = os.OpenFile(testpkgh, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
+	if fwpt, err = os.OpenFile(testpkgt, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
 		t.Fatal(err)
 	}
-	defer fwph.Close()
+	defer fwpt.Close()
 
 	// open temporary data file for read/write
 	if fwpd, err = os.OpenFile(testpkgd, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
@@ -248,7 +248,7 @@ func TestPackDirSplit(t *testing.T) {
 	defer fwpd.Close()
 
 	// starts new package
-	if err = pack.Begin(fwph); err != nil {
+	if err = pack.Begin(fwpt); err != nil {
 		t.Fatal(err)
 	}
 	// put package info somewhere before finalize
@@ -265,12 +265,12 @@ func TestPackDirSplit(t *testing.T) {
 		t.Fatal(err)
 	}
 	// finalize
-	if err = pack.Sync(fwph, fwpd); err != nil {
+	if err = pack.Sync(fwpt, fwpd); err != nil {
 		t.Fatal(err)
 	}
 
 	// make package file check up
-	CheckPackage(t, fwph, fwpd, tagsnum)
+	CheckPackage(t, fwpt, fwpd, tagsnum)
 }
 
 // Test ability of files sequence packing, and make alias.

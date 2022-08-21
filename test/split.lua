@@ -7,8 +7,8 @@ So, if program abnormal failure is happens, package contains state with
 files on last flush-function call, or package finalize.
 ]]
 
-local pkgpath = path.join(bindir, "build.wph") -- make package header full file name on temporary directory
-local datpath = path.join(bindir, "build.wpd") -- make package data full file name on temporary directory
+local pkgpath = path.join(tmpdir, "build.wpt") -- make package tagset full file name on temporary directory
+local datpath = path.join(tmpdir, "build.wpd") -- make package data full file name on temporary directory
 
 -- inits new package
 local pkg = wpk.new()
@@ -30,8 +30,8 @@ log("starts header file: "..pkgpath)
 log("starts data file:   "..datpath)
 
 -- pack given file, then add keywords and author to tagset
-local function packfile(fkey, fpath, keywords)
-	pkg:putfile(fkey, fpath)
+local function packfile(fkey, keywords)
+	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
 	pkg:addtags(fkey, {keywords=keywords, author="schwarzlichtbezirk"})
 end
 
@@ -39,22 +39,22 @@ end
 local mediadir = path.join(scrdir, "media").."/"
 
 -- workflow part 1
-packfile("bounty.jpg", mediadir.."bounty.jpg", "beach")
-packfile("qarataslar.jpg", mediadir.."img1/qarataslar.jpg", "beach;rock")
-packfile("claustral.jpg", mediadir.."img1/claustral.jpg", "beach;rock")
+packfile("bounty.jpg", "beach")
+packfile("img1/qarataslar.jpg", "beach;rock")
+packfile("img1/claustral.jpg", "beach;rock")
 pkg:flush() -- after this point process can be broken, and files above will remains.
 
 -- workflow part 2
-packfile("marble.jpg", mediadir.."img2/marble.jpg", "beach")
-packfile("uzunji.jpg", mediadir.."img2/uzunji.jpg", "rock")
+packfile("img2/marble.jpg", "beach")
+packfile("img2/uzunji.jpg", "rock")
 pkg:flush() -- after this point process can be broken, and files above will remains.
 
 -- workflow part 3
 pkg:putdata("sample.txt", "The quick brown fox jumps over the lazy dog")
 pkg:settags("sample.txt", {mime="text/plain;charset=utf-8", keywords="fox;dog"})
-pkg:putalias("claustral.jpg", "jasper.jpg") -- make 2 file name aliases to 1 file
+pkg:putalias("img1/claustral.jpg", "jasper.jpg") -- make 2 file name aliases to 1 file
 
-log(string.format("qarataşlar file size: %d bytes", pkg:filesize("qarataslar.jpg")))
+log(string.format("qarataşlar file size: %d bytes", pkg:filesize("img1/qarataslar.jpg")))
 log(string.format("total files size sum: %d bytes", pkg:sumsize()))
 log(string.format("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum))
 

@@ -8,7 +8,7 @@ del "%GOPATH%\bin\build.wpk"
 del "%TEMP%\packdir.wpk"
 
 %GOPATH%/bin/wpkbuild.exe %~dp0../test/split.lua
-del "%GOPATH%\bin\build.wph"
+del "%GOPATH%\bin\build.wpt"
 del "%GOPATH%\bin\build.wpd"
 
 %GOPATH%/bin/wpkbuild.exe %~dp0../test/step1.lua
