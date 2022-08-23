@@ -117,7 +117,6 @@ type Tagger interface {
 
 // Packager refers to package data access management implementation.
 type Packager interface {
-	Tagger
 	io.Closer
 	fs.SubFS
 	fs.StatFS

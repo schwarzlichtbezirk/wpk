@@ -29,7 +29,7 @@ func MakeDataPath(fpath string) string {
 // fs.ReadDirFile interface implementation.
 type ReadDirFile struct {
 	Tagset_t // has fs.FileInfo interface
-	Pack     Tagger
+	FTT      *FTT_t
 }
 
 // Stat is for fs.ReadDirFile interface compatibility.
@@ -49,7 +49,7 @@ func (f *ReadDirFile) Close() error {
 
 // ReadDir returns fs.FileInfo array with nested into given package directory presentation.
 func (f *ReadDirFile) ReadDir(n int) (matches []fs.DirEntry, err error) {
-	return ReadDir(f.Pack, strings.TrimSuffix(f.Path(), "/"), n)
+	return f.FTT.ReadDir(strings.TrimSuffix(f.Path(), "/"), n)
 }
 
 var (
@@ -108,7 +108,7 @@ func Normalize(fpath string) string {
 
 // ReadDir returns fs.FileInfo array with nested into given package directory presentation.
 // It's core function for ReadDirFile and ReadDirFS structures.
-func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) {
+func (ftt *FTT_t) ReadDir(dir string, n int) (matches []fs.DirEntry, err error) {
 	if !fs.ValidPath(dir) {
 		return nil, &fs.PathError{Op: "readdir", Path: dir, Err: fs.ErrInvalid}
 	}
@@ -117,19 +117,19 @@ func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) 
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
 	var dirs = map[string]struct{}{}
-	pack.Enum(func(fkey string, ts *Tagset_t) bool {
+	ftt.Enum(func(fkey string, ts *Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			var suffix = fkey[len(prefix):]
 			var sp = strings.IndexByte(suffix, '/')
 			if sp < 0 { // file detected
-				var ts, _ = pack.Tagset(fkey)
+				var ts, _ = ftt.Tagset(fkey)
 				matches = append(matches, ts)
 				n--
 			} else { // dir detected
 				var subdir = path.Join(prefix, suffix[:sp])
 				if _, ok := dirs[subdir]; !ok {
 					dirs[subdir] = struct{}{}
-					var ts, _ = pack.Tagset(fkey)
+					var ts, _ = ftt.Tagset(fkey)
 					var fp = ts.Path() // extract not normalized path
 					var de = (&Tagset_t{nil, ts.tidsz, ts.tagsz}).
 						Put(TIDpath, TagString(fp[:len(subdir)]))
@@ -149,9 +149,9 @@ func ReadDir(pack Tagger, dir string, n int) (matches []fs.DirEntry, err error) 
 	return
 }
 
-// OpenDir returns ReadDirFile structure associated with group of files in package
+// Open returns ReadDirFile structure associated with group of files in package
 // pooled with common directory prefix. Usable to implement fs.FileSystem interface.
-func OpenDir(pack Tagger, dir string) (df fs.ReadDirFile, err error) {
+func (ftt *FTT_t) Open(dir string) (df fs.ReadDirFile, err error) {
 	if !fs.ValidPath(dir) {
 		return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrInvalid}
 	}
@@ -159,13 +159,13 @@ func OpenDir(pack Tagger, dir string) (df fs.ReadDirFile, err error) {
 	if dir != "." {
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
-	pack.Enum(func(fkey string, ts *Tagset_t) bool {
+	ftt.Enum(func(fkey string, ts *Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			var dts Tagset_t
 			dts.Put(TIDpath, TagString(ToSlash(dir)))
 			df, err = &ReadDirFile{
 				Tagset_t: dts,
-				Pack:     pack,
+				FTT:      ftt,
 			}, nil
 			return false
 		}

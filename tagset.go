@@ -140,23 +140,31 @@ func TagUint(val uint) Tag_t {
 	var buf [8]byte
 	switch {
 	case val > 0xffffffff:
-		l = 8
+		if l == 0 {
+			l = 8
+		}
 		buf[7] = byte(val >> 56)
 		buf[6] = byte(val >> 48)
 		buf[5] = byte(val >> 40)
 		buf[4] = byte(val >> 32)
 		fallthrough
 	case val > 0xffff:
-		l = 4
+		if l == 0 {
+			l = 4
+		}
 		buf[3] = byte(val >> 24)
 		buf[2] = byte(val >> 16)
 		fallthrough
 	case val > 0xff:
-		l = 2
+		if l == 0 {
+			l = 2
+		}
 		buf[1] = byte(val >> 8)
 		fallthrough
 	default:
-		l = 1
+		if l == 0 {
+			l = 1
+		}
 		buf[0] = byte(val)
 	}
 	return buf[:l]

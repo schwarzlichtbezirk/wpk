@@ -169,7 +169,8 @@ func (pack *Package) ReadFile(name string) ([]byte, error) {
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
 func (pack *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
-	return wpk.ReadDir(pack, path.Join(pack.workspace, dir), -1)
+	var fullname = path.Join(pack.workspace, dir)
+	return pack.FTT_t.ReadDir(fullname, -1)
 }
 
 // Open implements access to nested into package file or directory by keyname.
@@ -183,7 +184,7 @@ func (pack *Package) Open(dir string) (fs.File, error) {
 	if ts, is := pack.Tagset(fullname); is {
 		return NewChunkFile(pack.fpath, ts)
 	}
-	return wpk.OpenDir(pack, fullname)
+	return pack.FTT_t.Open(fullname)
 }
 
 // The End.

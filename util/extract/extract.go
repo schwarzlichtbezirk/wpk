@@ -27,7 +27,8 @@ var (
 )
 
 var (
-	pack wpk.Packager
+	packager wpk.Packager
+	tagger   wpk.Tagger
 )
 
 func parseargs() {
@@ -86,20 +87,26 @@ func checkargs() int {
 	return ec
 }
 
-func openpackage(pkgpath string) (pack wpk.Packager, err error) {
+func openpackage(pkgpath string) (err error) {
 	switch PkgMode {
 	case "bulk":
+		var pack *bulk.Package
 		if pack, err = bulk.OpenPackage(pkgpath); err != nil {
 			return
 		}
+		packager, tagger = pack, pack
 	case "mmap":
+		var pack *mmap.Package
 		if pack, err = mmap.OpenPackage(pkgpath); err != nil {
 			return
 		}
+		packager, tagger = pack, pack
 	case "fsys":
+		var pack *fsys.Package
 		if pack, err = fsys.OpenPackage(pkgpath); err != nil {
 			return
 		}
+		packager, tagger = pack, pack
 	default:
 		panic("no way to here")
 	}
@@ -112,13 +119,13 @@ func readpackage() (err error) {
 	for _, pkgpath := range SrcList {
 		log.Printf("source package: %s", pkgpath)
 		func() {
-			if pack, err = openpackage(pkgpath); err != nil {
+			if err = openpackage(pkgpath); err != nil {
 				return
 			}
-			defer pack.Close()
+			defer packager.Close()
 
 			var num, sum int64
-			pack.Enum(func(fkey string, ts *wpk.Tagset_t) (next bool) {
+			tagger.Enum(func(fkey string, ts *wpk.Tagset_t) (next bool) {
 				defer func() {
 					next = err == nil
 				}()
@@ -130,7 +137,7 @@ func readpackage() (err error) {
 				}
 
 				var src wpk.NestedFile
-				if src, err = pack.OpenTagset(ts); err != nil {
+				if src, err = tagger.OpenTagset(ts); err != nil {
 					return
 				}
 				defer src.Close()
