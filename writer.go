@@ -89,8 +89,8 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 		// update package info if it has
 		if ts, ok := pack.Tagset(""); ok {
-			ts.Set(TIDoffset, TagUintLen(uint(datpos), pack.PTS(PTSfoffset)))
-			ts.Set(TIDsize, TagUintLen(uint(datend-datpos), pack.PTS(PTSfsize)))
+			ts.Set(TIDoffset, TagUint(uint(datpos)))
+			ts.Set(TIDsize, TagUint(uint(datend-datpos)))
 		}
 
 		// write file tags table
@@ -114,8 +114,8 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 		// update package info if it has
 		if ts, ok := pack.Tagset(""); ok {
-			ts.Set(TIDoffset, TagUintLen(uint(datpos), pack.PTS(PTSfoffset)))
-			ts.Set(TIDsize, TagUintLen(uint(datend-datpos), pack.PTS(PTSfsize)))
+			ts.Set(TIDoffset, TagUint(uint(datpos)))
+			ts.Set(TIDsize, TagUint(uint(datend-datpos)))
 		}
 
 		// write file tags table
@@ -160,15 +160,7 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *
 		if offset, err = w.Seek(0, io.SeekCurrent); err != nil {
 			return
 		}
-		if uint(offset) > uint(1<<(pack.PTS(PTSfoffset)*8)-1) {
-			err = ErrRangeOffset
-			return
-		}
 		if size, err = io.Copy(w, r); err != nil {
-			return
-		}
-		if uint(size) > uint(1<<(pack.PTS(PTSfsize)*8)-1) {
-			err = ErrRangeSize
 			return
 		}
 	}(); err != nil {

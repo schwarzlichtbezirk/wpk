@@ -22,8 +22,8 @@ const (
 
 	TIDoffset = 1  // required, defenid at TypeSize
 	TIDsize   = 2  // required, defenid at TypeSize
-	TIDfid    = 3  // unique, defenid at TypeSize
-	TIDpath   = 4  // required, unique, string
+	TIDpath   = 3  // required, unique, string
+	TIDfid    = 4  // unique, defenid at TypeSize
 	TIDmtime  = 5  // required for files, 8/12 bytes (mod-time)
 	TIDatime  = 6  // 8/12 bytes (access-time)
 	TIDctime  = 7  // 8/12 bytes (change-time)
@@ -84,8 +84,6 @@ var (
 	ErrCondFSize   = errors.New("size of file size type should be not more than file offset size")
 	ErrCondTID     = errors.New("size of tag ID type should be not more than tagset size")
 	ErrCondTSize   = errors.New("size of tag size type should be not more than tagset size")
-	ErrRangeOffset = errors.New("file offset value is exceeds out of the type dimension")
-	ErrRangeSize   = errors.New("file size value is exceeds out of the type dimension")
 	ErrRangeTSSize = errors.New("tagset size value is exceeds out of the type dimension")
 
 	ErrNoTag    = errors.New("tag with given ID not found")
@@ -137,35 +135,14 @@ const (
 type TypeSize [8]byte
 
 const (
-	PTSfoffset = iota // Index of "file offset" type size.
-	PTSfsize          // Index of "file size" type size.
-	PTSfidsz          // Index of "file ID" type size.
-	PTStidsz          // Index of "tag ID" type size.
-	PTStagsz          // Index of "tag size" type size.
-	PTStssize         // Index of "tagset size" type size.
+	PTStidsz  = iota // Index of "tag ID" type size.
+	PTStagsz         // Index of "tag size" type size.
+	PTStssize        // Index of "tagset size" type size.
 )
 
 // Checkup performs check up sizes of all types in bytes
 // used in current WPK-file.
 func (pts TypeSize) Checkup() error {
-	switch pts[PTSfoffset] {
-	case 4, 8:
-	default:
-		return ErrSizeFOffset
-	}
-
-	switch pts[PTSfsize] {
-	case 2, 4, 8:
-	default:
-		return ErrSizeFSize
-	}
-
-	switch pts[PTSfidsz] {
-	case 2, 4, 8:
-	default:
-		return ErrSizeFID
-	}
-
 	switch pts[PTStidsz] {
 	case 1, 2, 4:
 	default:
@@ -184,9 +161,6 @@ func (pts TypeSize) Checkup() error {
 		return ErrSizeTSSize
 	}
 
-	if pts[PTSfsize] > pts[PTSfoffset] {
-		return ErrCondFSize
-	}
 	if pts[PTStidsz] > pts[PTStssize] {
 		return ErrCondTID
 	}
@@ -526,8 +500,8 @@ func (pack *Package) Init(pts TypeSize) {
 func (pack *Package) BaseTagset(offset, size uint, fpath string) *Tagset_t {
 	var ts = pack.NewTagset()
 	return ts.
-		Put(TIDoffset, TagUintLen(offset, pack.typesize[PTSfoffset])).
-		Put(TIDsize, TagUintLen(size, pack.typesize[PTSfsize])).
+		Put(TIDoffset, TagUint(offset)).
+		Put(TIDsize, TagUint(size)).
 		Put(TIDpath, TagString(ToSlash(fpath)))
 }
 

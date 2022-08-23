@@ -1,25 +1,32 @@
 package wpk
 
 import (
-	"encoding/binary"
 	"io"
 )
 
 // ReadUintBuf reads unsigned integer from buffer of predefined size.
 // Dimension of integer depended from size of buffer, size can be 1, 2, 4, 8.
-func ReadUintBuf(b []byte) uint {
+func ReadUintBuf(b []byte) (r uint) {
 	switch len(b) {
-	case 1:
-		return uint(b[0])
-	case 2:
-		return uint(binary.LittleEndian.Uint16(b))
-	case 4:
-		return uint(binary.LittleEndian.Uint32(b))
 	case 8:
-		return uint(binary.LittleEndian.Uint64(b))
+		r |= uint(b[7]) << 56
+		r |= uint(b[6]) << 48
+		r |= uint(b[5]) << 40
+		r |= uint(b[4]) << 32
+		fallthrough
+	case 4:
+		r |= uint(b[3]) << 24
+		r |= uint(b[2]) << 16
+		fallthrough
+	case 2:
+		r |= uint(b[1]) << 8
+		fallthrough
+	case 1:
+		r |= uint(b[0])
 	default:
 		panic("undefined condition")
 	}
+	return
 }
 
 // WriteUintBuf writes unsigned integer into buffer with predefined size.

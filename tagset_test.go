@@ -20,9 +20,9 @@ func TestTagset(t *testing.T) {
 		mime   = "image/jpeg"
 	)
 	var ts = wpk.MakeTagset(nil, tidsz, tagsz).
-		Put(wpk.TIDoffset, wpk.TagUintLen(offset, foffset)).
-		Put(wpk.TIDsize, wpk.TagUintLen(size, fsize)).
-		Put(wpk.TIDfid, wpk.TagUintLen(fid, fidsz)).
+		Put(wpk.TIDoffset, wpk.TagUint(offset)).
+		Put(wpk.TIDsize, wpk.TagUint(size)).
+		Put(wpk.TIDfid, wpk.TagUint(fid)).
 		Put(wpk.TIDpath, wpk.TagString(wpk.ToSlash(kpath1)))
 	var tsi = ts.Iterator()
 
@@ -224,7 +224,7 @@ func ExampleTagsetIterator_Next() {
 		fmt.Printf("tid=%d, len=%d\n", tsi.TID(), tsi.TagLen())
 	}
 	// Output:
-	// tid=4, len=11
+	// tid=3, len=11
 	// tid=5, len=12
 	// tid=10, len=10
 }

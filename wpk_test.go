@@ -11,23 +11,15 @@ import (
 )
 
 const (
-	foffset = 8 // can be: 4, 8
-	fsize   = 8 // can be: 2, 4, 8
-	fidsz   = 4 // can be: 2, 4, 8
-	tidsz   = 2 // can be: 1, 2, 4
-	tagsz   = 2 // can be: 1, 2, 4
-	tssize  = 2 // can be: 2, 4
+	tidsz  = 2 // can be: 1, 2, 4
+	tagsz  = 2 // can be: 1, 2, 4
+	tssize = 2 // can be: 2, 4
 )
 
 var pts = wpk.TypeSize{
-	foffset,
-	fsize,
-	fidsz,
 	tidsz,
 	tagsz,
 	tssize,
-	0,
-	0,
 }
 
 var mediadir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/media/")
@@ -209,7 +201,7 @@ func TestPackDir(t *testing.T) {
 	if err = pack.PackDir(fwpk, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t) error {
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfidsz)))
+		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
 		t.Logf("put file #%d '%s', %d bytes", fidcount, ts.Path(), ts.Size())
 		return nil
 	}); err != nil {
@@ -258,7 +250,7 @@ func TestPackDirSplit(t *testing.T) {
 	if err = pack.PackDir(fwpd, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t) error {
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfidsz)))
+		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
 		t.Logf("put file #%d '%s', %d bytes", fidcount, ts.Path(), ts.Size())
 		return nil
 	}); err != nil {
@@ -298,7 +290,7 @@ func TestPutFiles(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfidsz)))
+		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -312,7 +304,7 @@ func TestPutFiles(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfidsz)))
+		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
 		var size = ts.Size()
 		t.Logf("put data #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -397,7 +389,7 @@ func TestAppendContinues(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfidsz)))
+		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -471,7 +463,7 @@ func TestAppendDiscrete(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUintLen(fidcount, pack.PTS(wpk.PTSfidsz)))
+		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}

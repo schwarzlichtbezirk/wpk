@@ -14,12 +14,9 @@ import (
 )
 
 const (
-	foffset = 8 // can be: 4, 8
-	fsize   = 8 // can be: 2, 4, 8
-	fidsz   = 4 // can be: 2, 4, 8
-	tidsz   = 2 // can be: 1, 2, 4
-	tagsz   = 2 // can be: 1, 2, 4
-	tssize  = 2 // can be: 2, 4
+	tidsz  = 2 // can be: 1, 2, 4
+	tagsz  = 2 // can be: 1, 2, 4
+	tssize = 2 // can be: 2, 4
 )
 
 // ErrProtected is "protected tag" error.
@@ -93,14 +90,9 @@ func PushPack(ls *lua.LState, v *LuaPackage) {
 func NewPack(ls *lua.LState) int {
 	var pack LuaPackage
 	pack.Init(wpk.TypeSize{
-		foffset,
-		fsize,
-		fidsz,
 		tidsz,
 		tagsz,
 		tssize,
-		0,
-		0,
 	})
 	PushPack(ls, &pack)
 	return 1

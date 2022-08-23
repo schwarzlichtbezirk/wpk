@@ -112,18 +112,54 @@ func TagUint64(val uint64) Tag_t {
 }
 
 // Uint is unspecified size unsigned int tag converter.
-func (t Tag_t) Uint() (uint, bool) {
+func (t Tag_t) Uint() (ret uint, ok bool) {
 	switch len(t) {
-	case 1:
-		return uint(t[0]), true
-	case 2:
-		return uint(binary.LittleEndian.Uint16(t)), true
-	case 4:
-		return uint(binary.LittleEndian.Uint32(t)), true
 	case 8:
-		return uint(binary.LittleEndian.Uint64(t)), true
+		ret |= uint(t[7]) << 56
+		ret |= uint(t[6]) << 48
+		ret |= uint(t[5]) << 40
+		ret |= uint(t[4]) << 32
+		fallthrough
+	case 4:
+		ret |= uint(t[3]) << 24
+		ret |= uint(t[2]) << 16
+		fallthrough
+	case 2:
+		ret |= uint(t[1]) << 8
+		fallthrough
+	case 1:
+		ret |= uint(t[0])
+		ok = true
 	}
-	return 0, false
+	return
+}
+
+// TagUint is unspecified size unsigned int tag constructor.
+func TagUint(val uint) Tag_t {
+	var l int
+	var buf [8]byte
+	switch {
+	case val > 0xffffffff:
+		l = 8
+		buf[7] = byte(val >> 56)
+		buf[6] = byte(val >> 48)
+		buf[5] = byte(val >> 40)
+		buf[4] = byte(val >> 32)
+		fallthrough
+	case val > 0xffff:
+		l = 4
+		buf[3] = byte(val >> 24)
+		buf[2] = byte(val >> 16)
+		fallthrough
+	case val > 0xff:
+		l = 2
+		buf[1] = byte(val >> 8)
+		fallthrough
+	default:
+		l = 1
+		buf[0] = byte(val)
+	}
+	return buf[:l]
 }
 
 // TagUintLen is unsigned int tag constructor with specified length in bytes.
@@ -149,30 +185,6 @@ func TagUintLen(val uint, l byte) Tag_t {
 		panic("undefined condition")
 	}
 	return buf[:l]
-}
-
-// TagUint is unspecified size unsigned int tag constructor.
-func TagUint[T uint8 | uint16 | uint32 | uint64](val T) Tag_t {
-	switch val := any(val).(type) {
-	case uint8:
-		var buf [1]byte
-		buf[0] = val
-		return buf[:]
-	case uint16:
-		var buf [2]byte
-		binary.LittleEndian.PutUint16(buf[:], val)
-		return buf[:]
-	case uint32:
-		var buf [4]byte
-		binary.LittleEndian.PutUint32(buf[:], val)
-		return buf[:]
-	case uint64:
-		var buf [8]byte
-		binary.LittleEndian.PutUint64(buf[:], val)
-		return buf[:]
-	default:
-		panic("unreachable condition")
-	}
 }
 
 // Number is 64-bit float tag converter.

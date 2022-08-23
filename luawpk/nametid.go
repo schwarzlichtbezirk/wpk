@@ -96,14 +96,10 @@ func ValueToTID(k lua.LValue) (tid uint, err error) {
 func ValueToTag(v lua.LValue) (tag wpk.Tag_t, err error) {
 	if val, ok := v.(lua.LNumber); ok {
 		var u = uint(val)
-		if val < 0 || val-lua.LNumber(u) != 0 {
+		if val < 0 || val > lua.LNumber(uint(1<<64-1)) || val-lua.LNumber(u) != 0 {
 			tag = wpk.TagNumber(float64(val))
-		} else if u < 0xffff {
-			tag = wpk.TagUintLen(u, 2)
-		} else if u < 0xffffffff {
-			tag = wpk.TagUintLen(u, 4)
 		} else {
-			tag = wpk.TagUintLen(u, 8)
+			tag = wpk.TagUint(u)
 		}
 	} else if val, ok := v.(lua.LString); ok {
 		tag = wpk.TagString(string(val))

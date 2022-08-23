@@ -16,12 +16,9 @@ import (
 
 // package type sizes
 var (
-	foffset uint
-	fsize   uint
-	fidsz   uint
-	tidsz   uint
-	tagsz   uint
-	tssize  uint
+	tidsz  uint
+	tagsz  uint
+	tssize uint
 )
 
 // command line settings
@@ -37,12 +34,9 @@ var (
 var pts wpk.TypeSize
 
 func parseargs() {
-	flag.UintVar(&foffset, "foffset", 8, "file offset type size")
-	flag.UintVar(&fsize, "fsize", 8, "file size type size")
-	flag.UintVar(&fidsz, "fidsz", 4, "file ID type size")
-	flag.UintVar(&fidsz, "tidsz", 2, "tag ID type size")
-	flag.UintVar(&fidsz, "tagsz", 2, "tag size type size")
-	flag.UintVar(&fidsz, "tssize", 2, "tagset size type size")
+	flag.UintVar(&tidsz, "tidsz", 2, "tag ID type size")
+	flag.UintVar(&tagsz, "tagsz", 2, "tag size type size")
+	flag.UintVar(&tssize, "tssize", 2, "tagset size type size")
 
 	flag.StringVar(&srcpath, "src", "", "full path to folder with source files to be packaged, or list of folders divided by ';'")
 	flag.StringVar(&DstFile, "dst", "", "full path to output package file")
@@ -56,14 +50,9 @@ func checkargs() int {
 	var ec = 0 // error counter
 
 	pts = wpk.TypeSize{
-		byte(foffset),
-		byte(fsize),
-		byte(fidsz),
 		byte(tidsz),
 		byte(tagsz),
 		byte(tssize),
-		0,
-		0,
 	}
 	if err := pts.Checkup(); err != nil {
 		log.Println(err.Error())
