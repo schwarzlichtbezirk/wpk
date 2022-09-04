@@ -103,15 +103,12 @@ var ToSlash = filepath.ToSlash
 // Normalize brings file path to normalized form. It makes argument lowercase,
 // change back slashes to normal slashes. Normalized path is the key to FTT map.
 func Normalize(fpath string) string {
-	return strings.ToLower(ToSlash(fpath))
+	return strings.ToLower(path.Clean(ToSlash(fpath)))
 }
 
 // ReadDir returns fs.FileInfo array with nested into given package directory presentation.
 // It's core function for ReadDirFile and ReadDirFS structures.
 func (ftt *FTT_t) ReadDir(dir string, n int) (matches []fs.DirEntry, err error) {
-	if !fs.ValidPath(dir) {
-		return nil, &fs.PathError{Op: "readdir", Path: dir, Err: fs.ErrInvalid}
-	}
 	var prefix string
 	if dir != "." {
 		prefix = Normalize(dir) + "/" // set terminated slash
@@ -138,10 +135,7 @@ func (ftt *FTT_t) ReadDir(dir string, n int) (matches []fs.DirEntry, err error) 
 				}
 			}
 		}
-		if n == 0 {
-			return false
-		}
-		return true
+		return n > 0
 	})
 	if n > 0 {
 		err = io.EOF
@@ -152,9 +146,6 @@ func (ftt *FTT_t) ReadDir(dir string, n int) (matches []fs.DirEntry, err error) 
 // Open returns ReadDirFile structure associated with group of files in package
 // pooled with common directory prefix. Usable to implement fs.FileSystem interface.
 func (ftt *FTT_t) Open(dir string) (df fs.ReadDirFile, err error) {
-	if !fs.ValidPath(dir) {
-		return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrInvalid}
-	}
 	var prefix string
 	if dir != "." {
 		prefix = Normalize(dir) + "/" // set terminated slash
@@ -172,7 +163,7 @@ func (ftt *FTT_t) Open(dir string) (df fs.ReadDirFile, err error) {
 		return true
 	})
 	if df == nil { // on case if not found
-		err = &fs.PathError{Op: "opendir", Path: dir, Err: fs.ErrNotExist}
+		err = &fs.PathError{Op: "open", Path: dir, Err: fs.ErrNotExist}
 	}
 	return
 }

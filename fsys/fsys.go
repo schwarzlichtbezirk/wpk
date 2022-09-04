@@ -102,10 +102,6 @@ func (pack *Package) Close() error {
 // Copies file handle, so it must be closed only once for root object.
 // fs.SubFS implementation.
 func (pack *Package) Sub(dir string) (df fs.FS, err error) {
-	if !fs.ValidPath(dir) {
-		err = &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrInvalid}
-		return
-	}
 	var workspace = path.Join(pack.workspace, dir)
 	var prefixdir string
 	if workspace != "." {
@@ -131,27 +127,21 @@ func (pack *Package) Sub(dir string) (df fs.FS, err error) {
 // Stat returns a fs.FileInfo describing the file.
 // fs.StatFS implementation.
 func (pack *Package) Stat(name string) (fs.FileInfo, error) {
-	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrInvalid}
+	var fullname = path.Join(pack.workspace, name)
+	if ts, is := pack.Tagset(fullname); is {
+		return ts, nil
 	}
-	var ts *wpk.Tagset_t
-	var is bool
-	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
-		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
-	}
-	return ts, nil
+	return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
 }
 
 // ReadFile returns slice with nested into package file content.
 // Makes content copy to prevent ambiguous access to closed mapped memory block.
 // fs.ReadFileFS implementation.
 func (pack *Package) ReadFile(name string) ([]byte, error) {
-	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
-	}
+	var fullname = path.Join(pack.workspace, name)
 	var ts *wpk.Tagset_t
 	var is bool
-	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
+	if ts, is = pack.Tagset(fullname); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
 	var f, err = NewChunkFile(pack.fpath, ts)

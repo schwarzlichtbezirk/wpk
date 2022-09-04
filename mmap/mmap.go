@@ -110,11 +110,7 @@ func (pack *Package) Close() error {
 // Sub clones object and gives access to pointed subdirectory.
 // Copies file handle, so it must be closed only once for root object.
 // fs.SubFS implementation.
-func (pack *Package) Sub(dir string) (df fs.FS, err error) {
-	if !fs.ValidPath(dir) {
-		err = &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrInvalid}
-		return
-	}
+func (pack *Package) Sub(dir string) (sub fs.FS, err error) {
 	var workspace = path.Join(pack.workspace, dir)
 	var prefixdir string
 	if workspace != "." {
@@ -122,7 +118,7 @@ func (pack *Package) Sub(dir string) (df fs.FS, err error) {
 	}
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefixdir) {
-			df, err = &Package{
+			sub, err = &Package{
 				pack.Package,
 				workspace,
 				pack.filewpk,
@@ -131,7 +127,7 @@ func (pack *Package) Sub(dir string) (df fs.FS, err error) {
 		}
 		return true
 	})
-	if df == nil { // on case if not found
+	if sub == nil { // on case if not found
 		err = &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrNotExist}
 	}
 	return
@@ -140,27 +136,21 @@ func (pack *Package) Sub(dir string) (df fs.FS, err error) {
 // Stat returns a fs.FileInfo describing the file.
 // fs.StatFS implementation.
 func (pack *Package) Stat(name string) (fs.FileInfo, error) {
-	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrInvalid}
+	var fullname = path.Join(pack.workspace, name)
+	if ts, is := pack.Tagset(fullname); is {
+		return ts, nil
 	}
-	var ts *wpk.Tagset_t
-	var is bool
-	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
-		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
-	}
-	return ts, nil
+	return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
 }
 
 // ReadFile returns slice with nested into package file content.
 // Makes content copy to prevent ambiguous access to closed mapped memory block.
 // fs.ReadFileFS implementation.
 func (pack *Package) ReadFile(name string) ([]byte, error) {
-	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrInvalid}
-	}
+	var fullname = path.Join(pack.workspace, name)
 	var ts *wpk.Tagset_t
 	var is bool
-	if ts, is = pack.Tagset(path.Join(pack.workspace, name)); !is {
+	if ts, is = pack.Tagset(fullname); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
 	}
 	var f, err = NewMappedFile(pack, ts)

@@ -115,14 +115,20 @@ type Tagger interface {
 	Enum(func(string, *Tagset_t) bool)
 }
 
-// Packager refers to package data access management implementation.
-type Packager interface {
+// CompleteFS includes all FS interfaces.
+type CompleteFS interface {
 	io.Closer
 	fs.SubFS
 	fs.StatFS
 	fs.GlobFS
 	fs.ReadFileFS
 	fs.ReadDirFS
+}
+
+// Packager refers to package data access management implementation.
+type Packager interface {
+	CompleteFS
+	Tagger
 }
 
 const (
