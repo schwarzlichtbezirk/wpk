@@ -20,6 +20,7 @@ Package keeps all files together with warranty that no any file will be deleted,
 * Access to package by file mapping, as to slice, as to file.
 * Package can be formed by several steps.
 * Package can be used as insert-read database.
+* Can be used union of packages as single file system.
 
 # Structure
 

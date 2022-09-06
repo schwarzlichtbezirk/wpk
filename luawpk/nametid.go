@@ -123,8 +123,7 @@ func ValueToTag(v lua.LValue) (tag wpk.Tag_t, err error) {
 // or string names associated ID values. Lua-table values can be strings,
 // boolean or "tag" userdata values. Numbers can not be passed to table
 // to prevent ambiguous type representation.
-func TableToTagset(lt *lua.LTable) (ts *wpk.Tagset_t, err error) {
-	ts = wpk.MakeTagset(nil, tidsz, tagsz)
+func TableToTagset(lt *lua.LTable, ts *wpk.Tagset_t) (err error) {
 	lt.ForEach(func(k lua.LValue, v lua.LValue) {
 		var (
 			tid uint

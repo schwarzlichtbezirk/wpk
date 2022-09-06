@@ -13,12 +13,6 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-const (
-	tidsz  = 2 // can be: 1, 2, 4
-	tagsz  = 2 // can be: 1, 2, 4
-	tssize = 2 // can be: 2, 4
-)
-
 // ErrProtected is "protected tag" error.
 type ErrProtected struct {
 	key string
@@ -88,12 +82,21 @@ func PushPack(ls *lua.LState, v *LuaPackage) {
 
 // NewPack is LuaPackage constructor.
 func NewPack(ls *lua.LState) int {
-	var pack LuaPackage
-	pack.Init(wpk.TypeSize{
+	var tidsz = byte(ls.OptInt(1, 2))  // can be: 1, 2, 4
+	var tagsz = byte(ls.OptInt(2, 2))  // can be: 1, 2, 4
+	var tssize = byte(ls.OptInt(3, 2)) // can be: 2, 4
+
+	var pts = wpk.TypeSize{
 		tidsz,
 		tagsz,
 		tssize,
-	})
+	}
+	if err := pts.Checkup(); err != nil {
+		ls.RaiseError(err.Error())
+	}
+
+	var pack LuaPackage
+	pack.Init(pts)
 	PushPack(ls, &pack)
 	return 1
 }
@@ -1029,8 +1032,8 @@ func wpksettags(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
-	var opts *wpk.Tagset_t
-	if opts, err = TableToTagset(lt); err != nil {
+	var opts = pack.NewTagset()
+	if err = TableToTagset(lt, opts); err != nil {
 		return 0
 	}
 
@@ -1070,8 +1073,8 @@ func wpkaddtags(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
-	var opts *wpk.Tagset_t
-	if opts, err = TableToTagset(lt); err != nil {
+	var opts = pack.NewTagset()
+	if err = TableToTagset(lt, opts); err != nil {
 		return 0
 	}
 
@@ -1108,8 +1111,8 @@ func wpkdeltags(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
-	var opts *wpk.Tagset_t
-	if opts, err = TableToTagset(lt); err != nil {
+	var opts = pack.NewTagset()
+	if err = TableToTagset(lt, opts); err != nil {
 		return 0
 	}
 
@@ -1184,8 +1187,8 @@ func wpksetinfo(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var lt = ls.CheckTable(2)
 
-	var opts *wpk.Tagset_t
-	if opts, err = TableToTagset(lt); err != nil {
+	var opts = pack.NewTagset()
+	if err = TableToTagset(lt, opts); err != nil {
 		return 0
 	}
 	var optsi = opts.Iterator()
