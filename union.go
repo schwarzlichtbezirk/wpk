@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 )
 
+type Void = struct{}
+
 type Union struct {
 	List      []Packager
 	workspace string // workspace directory in package
@@ -22,6 +24,23 @@ func (u *Union) Close() (err error) {
 	return
 }
 
+// AllKeys returns list of all accessible files in union of packages.
+// If union have more than one file with the same name, only first
+// entry will be included to result.
+func (u *Union) AllKeys() (res []string) {
+	var m = map[string]Void{}
+	for _, pack := range u.List {
+		pack.Enum(func(fkey string, ts *Tagset_t) bool {
+			if _, ok := m[fkey]; !ok {
+				res = append(res, fkey)
+				m[fkey] = Void{}
+			}
+			return true
+		})
+	}
+	return
+}
+
 // Glob returns the names of all files in union matching pattern or nil
 // if there is no matching file.
 func (u *Union) Glob(pattern string) (res []string, err error) {
@@ -29,14 +48,14 @@ func (u *Union) Glob(pattern string) (res []string, err error) {
 	if _, err = filepath.Match(pattern, ""); err != nil {
 		return
 	}
-	var m = map[string]struct{}{}
+	var m = map[string]Void{}
 	for _, pack := range u.List {
 		pack.Enum(func(fkey string, ts *Tagset_t) bool {
 			if _, ok := m[fkey]; !ok {
 				if matched, _ := filepath.Match(pattern, fkey); matched {
 					res = append(res, fkey)
 				}
-				m[fkey] = struct{}{}
+				m[fkey] = Void{}
 			}
 			return true
 		})
@@ -103,7 +122,7 @@ func (u *Union) ReadFile(name string) ([]byte, error) {
 // and returns a list of directory entries sorted by filename.
 func (u *Union) ReadDir(dir string) (list []fs.DirEntry, err error) {
 	var fullname = path.Join(u.workspace, dir)
-	var m = map[string]struct{}{}
+	var m = map[string]Void{}
 	for _, pack := range u.List {
 		var pl []fs.DirEntry
 		if pl, err = pack.ReadDir(fullname); err != nil {
@@ -113,7 +132,7 @@ func (u *Union) ReadDir(dir string) (list []fs.DirEntry, err error) {
 			var name = de.Name()
 			if _, ok := m[name]; !ok {
 				list = append(list, de)
-				m[name] = struct{}{}
+				m[name] = Void{}
 			}
 		}
 	}

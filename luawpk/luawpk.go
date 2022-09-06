@@ -153,11 +153,11 @@ func setterPack(ls *lua.LState) int {
 func tostringPack(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	var m = map[uint]struct{}{}
+	var m = map[uint]wpk.Void{}
 	var n = 0
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if offset, ok := ts.Uint(wpk.TIDoffset); ok {
-			m[offset] = struct{}{}
+			m[offset] = wpk.Void{}
 		}
 		n++
 		return true
@@ -165,7 +165,7 @@ func tostringPack(ls *lua.LState) int {
 	var items []string
 	items = append(items, fmt.Sprintf("records: %d", len(m)))
 	items = append(items, fmt.Sprintf("aliases: %d", n))
-	if ts, ok := pack.Tagset(""); ok {
+	if ts, ok := pack.Info(); ok {
 		if size, ok := ts.Uint(wpk.TIDsize); ok {
 			items = append(items, fmt.Sprintf("datasize: %d", size))
 		}
@@ -248,7 +248,7 @@ var methodsPack = map[string]lua.LGFunction{
 func getlabel(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
-	if ts, ok := pack.Tagset(""); ok {
+	if ts, ok := pack.Info(); ok {
 		if str, ok := ts.String(wpk.TIDlabel); ok {
 			ls.Push(lua.LString(str))
 			return 1
@@ -262,7 +262,7 @@ func setlabel(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var label = ls.CheckString(2)
 
-	pack.Info().Set(wpk.TIDlabel, wpk.TagString(label))
+	pack.SetInfo().Set(wpk.TIDlabel, wpk.TagString(label))
 	return 0
 }
 
@@ -288,10 +288,10 @@ func getdatpath(ls *lua.LState) int {
 
 func getrecnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
-	var m = map[uint]struct{}{}
+	var m = map[uint]wpk.Void{}
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if offset, ok := ts.Uint(wpk.TIDoffset); ok {
-			m[offset] = struct{}{}
+			m[offset] = wpk.Void{}
 		}
 		return true
 	})
@@ -1151,7 +1151,7 @@ func wpkgetinfo(ls *lua.LState) int {
 	}()
 	var pack = CheckPack(ls, 1)
 
-	if ts, ok := pack.Tagset(""); ok {
+	if ts, ok := pack.Info(); ok {
 		var tb = ls.CreateTable(0, 0)
 		var tsi = ts.Iterator()
 		for tsi.Next() {
@@ -1189,7 +1189,7 @@ func wpksetinfo(ls *lua.LState) int {
 		return 0
 	}
 	var optsi = opts.Iterator()
-	var ts = pack.Info()
+	var ts = pack.SetInfo()
 	for optsi.Next() {
 		var tid, tag = optsi.TID(), optsi.Tag()
 		if tid == wpk.TIDfid || tid == wpk.TIDpath {

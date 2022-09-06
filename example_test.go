@@ -26,14 +26,14 @@ func ExamplePackage_OpenFTT() {
 	}
 
 	// How many records in package
-	var m = map[uint]struct{}{}
+	var m = map[uint]wpk.Void{}
 	var n = 0
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		if n < 5 { // print not more than 5 file names from package
 			log.Println(fkey)
 		}
 		if offset, ok := ts.Uint(wpk.TIDoffset); ok {
-			m[offset] = struct{}{}
+			m[offset] = wpk.Void{}
 		}
 		n++
 		return true
@@ -43,7 +43,7 @@ func ExamplePackage_OpenFTT() {
 	var items []string
 	items = append(items, fmt.Sprintf("records: %d", len(m)))
 	items = append(items, fmt.Sprintf("aliases: %d", n))
-	if ts, ok := pack.Tagset(""); ok { // get package info if it present
+	if ts, ok := pack.Info(); ok { // get package info if it present
 		if size, ok := ts.Uint(wpk.TIDsize); ok {
 			items = append(items, fmt.Sprintf("datasize: %d", size))
 		}

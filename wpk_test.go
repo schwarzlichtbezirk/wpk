@@ -46,7 +46,7 @@ func CheckPackage(t *testing.T, fwpt, fwpd *os.File, tagsnum int) {
 		t.Fatal(err)
 	}
 
-	if ts, ok := pack.Tagset(""); ok {
+	if ts, ok := pack.Info(); ok {
 		var offset, size = ts.Pos()
 		var label, _ = ts.String(wpk.TIDlabel)
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
@@ -135,7 +135,7 @@ func TestInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	// put package info somewhere before finalize
-	pack.Info().
+	pack.SetInfo().
 		Put(wpk.TIDlabel, wpk.TagString(label)).
 		Put(wpk.TIDlink, wpk.TagString(link)).
 		Put(wpk.TIDauthor, wpk.TagString(author))
@@ -195,7 +195,7 @@ func TestPackDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	// put package info somewhere before finalize
-	pack.Info().
+	pack.SetInfo().
 		Put(wpk.TIDlabel, wpk.TagString("packed-dir"))
 	// put media directory to file
 	if err = pack.PackDir(fwpk, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t) error {
@@ -244,7 +244,7 @@ func TestPackDirSplit(t *testing.T) {
 		t.Fatal(err)
 	}
 	// put package info somewhere before finalize
-	pack.Info().
+	pack.SetInfo().
 		Put(wpk.TIDlabel, wpk.TagString("splitted-pack"))
 	// put media directory to file
 	if err = pack.PackDir(fwpd, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t) error {

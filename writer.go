@@ -88,7 +88,7 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 		fftpos = HeaderSize
 
 		// update package info if it has
-		if ts, ok := pack.Tagset(""); ok {
+		if ts, ok := pack.Info(); ok {
 			ts.Set(TIDoffset, TagUint(uint(datpos)))
 			ts.Set(TIDsize, TagUint(uint(datend-datpos)))
 		}
@@ -113,7 +113,7 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 		fftpos = datend
 
 		// update package info if it has
-		if ts, ok := pack.Tagset(""); ok {
+		if ts, ok := pack.Info(); ok {
 			ts.Set(TIDoffset, TagUint(uint(datpos)))
 			ts.Set(TIDsize, TagUint(uint(datend-datpos)))
 		}

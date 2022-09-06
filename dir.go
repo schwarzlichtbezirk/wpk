@@ -113,7 +113,7 @@ func (ftt *FTT_t) ReadDir(dir string, n int) (matches []fs.DirEntry, err error) 
 	if dir != "." {
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
-	var dirs = map[string]struct{}{}
+	var dirs = map[string]Void{}
 	ftt.Enum(func(fkey string, ts *Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			var suffix = fkey[len(prefix):]
@@ -125,7 +125,7 @@ func (ftt *FTT_t) ReadDir(dir string, n int) (matches []fs.DirEntry, err error) 
 			} else { // dir detected
 				var subdir = path.Join(prefix, suffix[:sp])
 				if _, ok := dirs[subdir]; !ok {
-					dirs[subdir] = struct{}{}
+					dirs[subdir] = Void{}
 					var ts, _ = ftt.Tagset(fkey)
 					var fp = ts.Path() // extract not normalized path
 					var de = (&Tagset_t{nil, ts.tidsz, ts.tagsz}).

@@ -271,6 +271,8 @@ func (hdr *Header) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
+const InfoName = "."
+
 // File tags table.
 // Keys - package filenames in lower case, values - tagset slices.
 type FTT_t struct {
@@ -298,7 +300,7 @@ func (ftt *FTT_t) Tagset(fkey string) (ts *Tagset_t, ok bool) {
 // Enum calls given closure for each tagset in package. Skips package info.
 func (ftt *FTT_t) Enum(f func(string, *Tagset_t) bool) {
 	ftt.Range(func(key, value interface{}) bool {
-		return key.(string) == "" || f(key.(string), value.(*Tagset_t))
+		return key.(string) == InfoName || f(key.(string), value.(*Tagset_t))
 	})
 }
 
@@ -327,12 +329,21 @@ func (ftt *FTT_t) GetDelTagset(fkey string) (ts *Tagset_t, ok bool) {
 	return
 }
 
-// Info returns package information tagset,
+// Info returns package information tagset if it present.
+func (ftt *FTT_t) Info() (ts *Tagset_t, ok bool) {
+	var val interface{}
+	if val, ok = ftt.Load(InfoName); ok {
+		ts = val.(*Tagset_t)
+	}
+	return
+}
+
+// SetInfo returns package information tagset,
 // and stores if it not present before.
-func (ftt *FTT_t) Info() *Tagset_t {
+func (ftt *FTT_t) SetInfo() *Tagset_t {
 	var emptyinfo = ftt.NewTagset().
-		Put(TIDpath, TagString(""))
-	var val, _ = ftt.LoadOrStore("", emptyinfo)
+		Put(TIDpath, TagString(InfoName))
+	var val, _ = ftt.LoadOrStore(InfoName, emptyinfo)
 	if val == nil {
 		panic("can not obtain package info")
 	}
@@ -359,16 +370,16 @@ func (ftt *FTT_t) checkTagset(ts *Tagset_t, lim *filepos) (fpath string, err err
 	}
 
 	// check system tags
-	if pos.offset, ok = ts.Uint(TIDoffset); !ok && fpath != "" {
+	if pos.offset, ok = ts.Uint(TIDoffset); !ok && fpath != InfoName {
 		err = &ErrTag{ErrNoOffset, fpath, TIDoffset}
 		return
 	}
-	if pos.size, ok = ts.Uint(TIDsize); !ok && fpath != "" {
+	if pos.size, ok = ts.Uint(TIDsize); !ok && fpath != InfoName {
 		err = &ErrTag{ErrNoSize, fpath, TIDsize}
 		return
 	}
 
-	if fpath == "" { // setup whole package offset and size
+	if fpath == InfoName { // setup whole package offset and size
 		lim.offset, lim.size = pos.offset, pos.size
 	} else if lim.size > 0 { // check up offset and tag if package info is provided
 		if pos.offset < lim.offset || pos.offset > lim.offset+lim.size {
@@ -426,7 +437,7 @@ func (ftt *FTT_t) ReadFrom(r io.Reader) (n int64, err error) {
 // WriteTo writes file tags table whole content to the given stream.
 func (ftt *FTT_t) WriteTo(w io.Writer) (n int64, err error) {
 	// write tagset with package info at first
-	if ts, ok := ftt.Tagset(""); ok {
+	if ts, ok := ftt.Info(); ok {
 		var tsl = uint(len(ts.Data()))
 		if tsl > uint(1<<(ftt.tssize*8)-1) {
 			err = ErrRangeTSSize
@@ -621,7 +632,7 @@ func GetPackageInfo(r io.ReadSeeker, tidsz, tagsz byte) (ts *Tagset_t, err error
 		err = ErrNoPath
 		return
 	}
-	if fpath != "" {
+	if fpath != InfoName {
 		ts = nil // info is not found
 		return
 	}
