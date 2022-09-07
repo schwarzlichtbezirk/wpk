@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"io/fs"
 	"math"
-	"path/filepath"
+	"path"
 	"time"
 )
 
@@ -444,7 +444,7 @@ func (ts *Tagset_t) Path() string {
 // fs.FileInfo implementation.
 func (ts *Tagset_t) Name() string {
 	var fpath, _ = ts.String(TIDpath)
-	return filepath.Base(fpath)
+	return path.Base(fpath) // path should be here with true slashes
 }
 
 // Size returns size of nested into package file.

@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/schwarzlichtbezirk/wpk"
@@ -44,25 +43,24 @@ func parseargs() {
 func checkargs() int {
 	var ec = 0 // error counter
 
-	srcfile = filepath.ToSlash(strings.Trim(srcfile, ";"))
-	if srcfile == "" {
-		log.Println("package file does not specified")
-		ec++
-	}
-	for i, file := range strings.Split(srcfile, ";") {
-		if file == "" {
+	for i, fpath := range strings.Split(srcfile, ";") {
+		if fpath == "" {
 			continue
 		}
-		file = wpk.Envfmt(file)
-		if ok, _ := wpk.PathExists(file); !ok {
-			log.Printf("source file #%d '%s' does not exist", i+1, file)
+		fpath = wpk.ToSlash(wpk.Envfmt(fpath))
+		if ok, _ := wpk.PathExists(fpath); !ok {
+			log.Printf("source file #%d '%s' does not exist", i+1, fpath)
 			ec++
 			continue
 		}
-		SrcList = append(SrcList, file)
+		SrcList = append(SrcList, fpath)
+	}
+	if len(srcfile) == 0 {
+		log.Println("package file does not specified")
+		ec++
 	}
 
-	DstPath = wpk.Envfmt(DstPath)
+	DstPath = wpk.ToSlash(wpk.Envfmt(DstPath))
 	if DstPath == "" {
 		log.Println("destination path does not specified")
 		ec++
@@ -132,7 +130,7 @@ func readpackage() (err error) {
 				var fpath = ts.Path()
 
 				var fullpath = path.Join(DstPath, fpath)
-				if err = os.MkdirAll(filepath.Dir(fullpath), os.ModePerm); err != nil {
+				if err = os.MkdirAll(path.Dir(fullpath), os.ModePerm); err != nil {
 					return
 				}
 

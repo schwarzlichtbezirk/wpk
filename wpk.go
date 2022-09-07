@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"path/filepath"
+	"path"
 	"sync"
 )
 
@@ -525,11 +525,11 @@ func (pack *Package) BaseTagset(offset, size uint, fpath string) *Tagset_t {
 // if there is no matching file.
 func (pack *Package) Glob(pattern string) (res []string, err error) {
 	pattern = Normalize(pattern)
-	if _, err = filepath.Match(pattern, ""); err != nil {
+	if _, err = path.Match(pattern, ""); err != nil {
 		return
 	}
 	pack.Enum(func(fkey string, ts *Tagset_t) bool {
-		if matched, _ := filepath.Match(pattern, fkey); matched {
+		if matched, _ := path.Match(pattern, fkey); matched {
 			res = append(res, fkey)
 		}
 		return true

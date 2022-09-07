@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/schwarzlichtbezirk/wpk"
@@ -685,11 +685,11 @@ func wpkglob(ls *lua.LState) int {
 
 	var n int
 	var matched bool
-	if _, err = filepath.Match(pattern, ""); err != nil {
+	if _, err = path.Match(pattern, ""); err != nil {
 		return 0
 	}
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-		if matched, _ = filepath.Match(pattern, fkey); matched {
+		if matched, _ = path.Match(pattern, fkey); matched {
 			ls.Push(lua.LString(fkey))
 			n++
 		}

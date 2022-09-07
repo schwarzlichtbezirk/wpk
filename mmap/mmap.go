@@ -175,7 +175,7 @@ func (pack *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
 // Open implements access to nested into package file or directory by keyname.
 // fs.FS implementation.
 func (pack *Package) Open(dir string) (fs.File, error) {
-	if dir == "wpk" && pack.workspace == "." {
+	if dir == wpk.InfoName && pack.workspace == "." {
 		return pack.filewpk, nil
 	}
 

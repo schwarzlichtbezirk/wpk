@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/schwarzlichtbezirk/wpk"
@@ -23,9 +22,9 @@ var pts = wpk.TypeSize{
 }
 
 var mediadir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/media/")
-var testpack = filepath.Join(os.TempDir(), "testpack.wpk")
-var testpkgt = filepath.Join(os.TempDir(), "testpack.wpt")
-var testpkgd = filepath.Join(os.TempDir(), "testpack.wpd")
+var testpack = wpk.TempPath("testpack.wpk")
+var testpkgt = wpk.TempPath("testpack.wpt")
+var testpkgd = wpk.TempPath("testpack.wpd")
 
 var memdata = map[string][]byte{
 	"sample.txt": []byte("The quick brown fox jumps over the lazy dog"),

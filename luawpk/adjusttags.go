@@ -10,7 +10,7 @@ import (
 	"hash/crc64"
 	"io"
 	"mime"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/h2non/filetype"
@@ -22,7 +22,7 @@ func adjustmime(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool) (err error) {
 	if ok = ts.Has(wpk.TIDmime); ok || skip {
 		return
 	}
-	var ext = strings.ToLower(filepath.Ext(ts.Path()))
+	var ext = strings.ToLower(path.Ext(ts.Path()))
 	var ctype string
 	if ctype = mime.TypeByExtension(ext); ctype == "" {
 		if ctype, ok = MimeExt[ext]; !ok {

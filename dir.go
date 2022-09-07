@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -14,22 +13,22 @@ import (
 // MakeTagsPath receives file path and returns it with ".wpt" extension.
 // It hepls to open splitted package.
 func MakeTagsPath(fpath string) string {
-	var ext = filepath.Ext(fpath)
+	var ext = path.Ext(fpath)
 	return fpath[:len(fpath)-len(ext)] + ".wpt"
 }
 
 // MakeDataPath receives file path and returns it with ".wpf" extension.
 // It hepls to open splitted package.
 func MakeDataPath(fpath string) string {
-	var ext = filepath.Ext(fpath)
+	var ext = path.Ext(fpath)
 	return fpath[:len(fpath)-len(ext)] + ".wpf"
 }
 
 // ReadDirFile is a directory file whose entries can be read with the ReadDir method.
 // fs.ReadDirFile interface implementation.
 type ReadDirFile struct {
-	Tagset_t // has fs.FileInfo interface
-	FTT      *FTT_t
+	*Tagset_t // has fs.FileInfo interface
+	FTT       *FTT_t
 }
 
 // Stat is for fs.ReadDirFile interface compatibility.
@@ -97,8 +96,15 @@ func PathExists(path string) (bool, error) {
 	return true, err
 }
 
+// TempPath returns filename located at temporary directory.
+func TempPath(fname string) string {
+	return path.Join(ToSlash(os.TempDir()), fname)
+}
+
 // ToSlash brings filenames to true slashes.
-var ToSlash = filepath.ToSlash
+func ToSlash(fpath string) string {
+	return strings.ReplaceAll(fpath, "\\", "/")
+}
 
 // Normalize brings file path to normalized form. It makes argument lowercase,
 // change back slashes to normal slashes. Normalized path is the key to FTT map.
@@ -152,7 +158,7 @@ func (ftt *FTT_t) Open(dir string) (df fs.ReadDirFile, err error) {
 	}
 	ftt.Enum(func(fkey string, ts *Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefix) {
-			var dts Tagset_t
+			var dts = ftt.NewTagset()
 			dts.Put(TIDpath, TagString(ToSlash(dir)))
 			df, err = &ReadDirFile{
 				Tagset_t: dts,

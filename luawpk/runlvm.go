@@ -50,7 +50,7 @@ func RunLuaVM(fpath string) (err error) {
 	var scrdir = path.Dir(wpk.ToSlash(fpath))
 	ls.SetGlobal("bindir", lua.LString(bindir))
 	ls.SetGlobal("scrdir", lua.LString(scrdir))
-	ls.SetGlobal("tmpdir", lua.LString(wpk.ToSlash(os.TempDir())))
+	ls.SetGlobal("tmpdir", lua.LString(wpk.TempPath(".")))
 	ls.SetGlobal("log", ls.NewFunction(lualog))
 	ls.SetGlobal("checkfile", ls.NewFunction(luacheckfile))
 

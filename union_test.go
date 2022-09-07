@@ -2,7 +2,6 @@ package wpk_test
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/schwarzlichtbezirk/wpk"
@@ -10,8 +9,8 @@ import (
 	"github.com/schwarzlichtbezirk/wpk/mmap"
 )
 
-var testpack1 = filepath.Join(os.TempDir(), "testpack1.wpk")
-var testpack2 = filepath.Join(os.TempDir(), "testpack2.wpk")
+var testpack1 = wpk.TempPath("testpack1.wpk")
+var testpack2 = wpk.TempPath("testpack2.wpk")
 
 // PackFiles makes package with given list of files.
 func PackFiles(t *testing.T, wpkname string, list []string) {
@@ -62,7 +61,7 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 }
 
 // Test to make union of two different packages, and checks
-// that union have valid files set.
+// that union have valid files set. Glob test.
 func TestUnion(t *testing.T) {
 	PackFiles(t, testpack1, []string{
 		"bounty.jpg",
@@ -91,24 +90,51 @@ func TestUnion(t *testing.T) {
 	u.List = []wpk.Packager{pack1, pack2}
 	defer u.Close()
 
-	var m = map[string]wpk.Void{
+	var (
+		list  []string
+		check = func(testname string, m map[string]wpk.Void) {
+			if len(list) != len(m) {
+				t.Fatalf("%s test: expected %d filenames in union, got %d", testname, len(m), len(list))
+			}
+			for _, fname := range list {
+				if _, ok := m[fname]; !ok {
+					t.Fatalf("%s test: got filename '%s' from union that does not present at preset", testname, fname)
+				}
+			}
+		}
+	)
+
+	list = u.AllKeys()
+	check("all keys", map[string]wpk.Void{
 		"bounty.jpg":          {},
 		"img1/claustral.jpg":  {},
 		"img2/marble.jpg":     {},
 		"img1/qarataslar.jpg": {},
 		"img2/uzunji.jpg":     {},
-	}
+	})
 
-	var list = u.AllKeys()
-	t.Log(list)
-	if len(list) != len(m) {
-		t.Fatalf("expected %d filenames in union, got %d", len(m), len(list))
+	if list, err = u.Glob("*"); err != nil {
+		t.Fatal(err)
 	}
-	for _, fname := range list {
-		if _, ok := m[fname]; !ok {
-			t.Fatalf("got filename '%s' from union that does not present at preset", fname)
-		}
+	check("root files", map[string]wpk.Void{
+		"bounty.jpg": {},
+	})
+
+	if list, err = u.Glob("img2/*"); err != nil {
+		t.Fatal(err)
 	}
+	check("img2/*", map[string]wpk.Void{
+		"img2/marble.jpg": {},
+		"img2/uzunji.jpg": {},
+	})
+
+	if list, err = u.Glob("*/*a?.jpg"); err != nil {
+		t.Fatal(err)
+	}
+	check("*/*a?.jpg", map[string]wpk.Void{
+		"img1/claustral.jpg":  {},
+		"img1/qarataslar.jpg": {},
+	})
 }
 
 // The End.

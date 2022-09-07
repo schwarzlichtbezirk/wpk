@@ -3,7 +3,6 @@ package luawpk_test
 import (
 	"bytes"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/schwarzlichtbezirk/wpk"
@@ -94,7 +93,7 @@ func CheckPackage(t *testing.T, wptname, wpdname string) {
 
 // Test packdir script call.
 func TestPackdir(t *testing.T) {
-	var wpkname = filepath.Join(os.TempDir(), "packdir.wpk")
+	var wpkname = wpk.TempPath("packdir.wpk")
 	defer os.Remove(wpkname)
 
 	if err := lw.RunLuaVM(scrdir + "packdir.lua"); err != nil {
@@ -107,7 +106,7 @@ func TestPackdir(t *testing.T) {
 
 // Test append package ability by scripts.
 func TestSteps(t *testing.T) {
-	var wpkname = filepath.Join(os.TempDir(), "steps.wpk")
+	var wpkname = wpk.TempPath("steps.wpk")
 	defer os.Remove(wpkname)
 
 	if err := lw.RunLuaVM(scrdir + "step1.lua"); err != nil {
@@ -127,8 +126,8 @@ func TestSteps(t *testing.T) {
 
 // Test splitted package forming.
 func TestSplitted(t *testing.T) {
-	var wptname = filepath.Join(os.TempDir(), "build.wpt")
-	var wpdname = filepath.Join(os.TempDir(), "build.wpd")
+	var wptname = wpk.TempPath("build.wpt")
+	var wpdname = wpk.TempPath("build.wpd")
 	defer os.Remove(wptname)
 	defer os.Remove(wpdname)
 

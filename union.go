@@ -3,7 +3,8 @@ package wpk
 import (
 	"io/fs"
 	"path"
-	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 type Void = struct{}
@@ -45,14 +46,14 @@ func (u *Union) AllKeys() (res []string) {
 // if there is no matching file.
 func (u *Union) Glob(pattern string) (res []string, err error) {
 	pattern = path.Join(u.workspace, Normalize(pattern))
-	if _, err = filepath.Match(pattern, ""); err != nil {
+	if _, err = path.Match(pattern, ""); err != nil {
 		return
 	}
 	var m = map[string]Void{}
 	for _, pack := range u.List {
 		pack.Enum(func(fkey string, ts *Tagset_t) bool {
 			if _, ok := m[fkey]; !ok {
-				if matched, _ := filepath.Match(pattern, fkey); matched {
+				if matched, _ := path.Match(pattern, fkey); matched {
 					res = append(res, fkey)
 				}
 				m[fkey] = Void{}
@@ -143,6 +144,17 @@ func (u *Union) ReadDir(dir string) (list []fs.DirEntry, err error) {
 // If union have more than one file with the same name, first will be returned.
 // fs.FS implementation.
 func (u *Union) Open(dir string) (fs.File, error) {
+	if strings.HasPrefix(dir, InfoName+"/") && u.workspace == "." {
+		var idx, err = strconv.ParseUint(dir[len(InfoName)+1:], 10, 32)
+		if err != nil {
+			return nil, &fs.PathError{Op: "open", Path: dir, Err: err}
+		}
+		if idx >= uint64(len(u.List)) {
+			return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrNotExist}
+		}
+		return u.List[idx].Open(InfoName)
+	}
+
 	var fullname = path.Join(u.workspace, dir)
 	for _, pack := range u.List {
 		if ts, is := pack.Tagset(fullname); is {

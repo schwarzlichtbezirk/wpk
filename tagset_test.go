@@ -2,7 +2,7 @@ package wpk_test
 
 import (
 	"fmt"
-	"path/filepath"
+	"path"
 	"testing"
 	"time"
 
@@ -166,7 +166,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { return ts.Path() != wpk.ToSlash(kpath1) },
 			"'Path' function does not work correctly",
 		},
-		{func() bool { return ts.Name() != filepath.Base(kpath1) },
+		{func() bool { return ts.Name() != path.Base(wpk.ToSlash(kpath1)) },
 			"'Name' function does not work correctly",
 		},
 

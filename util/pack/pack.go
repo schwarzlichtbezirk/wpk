@@ -8,7 +8,7 @@ import (
 	"mime"
 	"net/http"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/schwarzlichtbezirk/wpk"
@@ -59,32 +59,31 @@ func checkargs() int {
 		ec++
 	}
 
-	srcpath = filepath.ToSlash(strings.Trim(srcpath, ";"))
-	if srcpath == "" {
-		log.Println("source path does not specified")
-		ec++
-	}
-	for i, path := range strings.Split(srcpath, ";") {
-		if path == "" {
+	for i, fpath := range strings.Split(srcpath, ";") {
+		if fpath == "" {
 			continue
 		}
-		path = wpk.Envfmt(path)
-		if !strings.HasSuffix(path, "/") {
-			path += "/"
+		fpath = wpk.ToSlash(wpk.Envfmt(fpath))
+		if !strings.HasSuffix(fpath, "/") {
+			fpath += "/"
 		}
-		if ok, _ := wpk.PathExists(path); !ok {
-			log.Printf("source path #%d '%s' does not exist", i+1, path)
+		if ok, _ := wpk.PathExists(fpath); !ok {
+			log.Printf("source path #%d '%s' does not exist", i+1, fpath)
 			ec++
 			continue
 		}
-		SrcList = append(SrcList, path)
+		SrcList = append(SrcList, fpath)
+	}
+	if len(SrcList) == 0 {
+		log.Println("source path does not specified")
+		ec++
 	}
 
-	DstFile = wpk.Envfmt(DstFile)
+	DstFile = wpk.ToSlash(wpk.Envfmt(DstFile))
 	if DstFile == "" {
 		log.Println("destination file does not specified")
 		ec++
-	} else if ok, _ := wpk.PathExists(filepath.Dir(DstFile)); !ok {
+	} else if ok, _ := wpk.PathExists(path.Dir(DstFile)); !ok {
 		log.Println("destination path does not exist")
 		ec++
 	}
@@ -106,7 +105,7 @@ func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
 	// adjust tags
 	if PutMIME {
 		const sniffLen = 512
-		var ctype = mime.TypeByExtension(filepath.Ext(fname))
+		var ctype = mime.TypeByExtension(path.Ext(fname))
 		if ctype == "" {
 			// rewind to file start
 			if _, err = r.Seek(0, io.SeekStart); err != nil {
