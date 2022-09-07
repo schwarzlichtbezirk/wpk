@@ -32,7 +32,7 @@ func ExamplePackage_OpenFTT() {
 		if n < 5 { // print not more than 5 file names from package
 			log.Println(fkey)
 		}
-		if offset, ok := ts.Uint(wpk.TIDoffset); ok {
+		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
 			m[offset] = wpk.Void{}
 		}
 		n++
@@ -44,10 +44,10 @@ func ExamplePackage_OpenFTT() {
 	items = append(items, fmt.Sprintf("records: %d", len(m)))
 	items = append(items, fmt.Sprintf("aliases: %d", n))
 	if ts, ok := pack.Info(); ok { // get package info if it present
-		if size, ok := ts.Uint(wpk.TIDsize); ok {
+		if size, ok := ts.TagUint(wpk.TIDsize); ok {
 			items = append(items, fmt.Sprintf("datasize: %d", size))
 		}
-		if str, ok := ts.String(wpk.TIDlabel); ok {
+		if str, ok := ts.TagStr(wpk.TIDlabel); ok {
 			items = append(items, fmt.Sprintf("label: %s", str))
 		}
 	}

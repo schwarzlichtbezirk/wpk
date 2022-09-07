@@ -159,7 +159,7 @@ func tostringPack(ls *lua.LState) int {
 	var m = map[uint]wpk.Void{}
 	var n = 0
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-		if offset, ok := ts.Uint(wpk.TIDoffset); ok {
+		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
 			m[offset] = wpk.Void{}
 		}
 		n++
@@ -169,22 +169,22 @@ func tostringPack(ls *lua.LState) int {
 	items = append(items, fmt.Sprintf("records: %d", len(m)))
 	items = append(items, fmt.Sprintf("aliases: %d", n))
 	if ts, ok := pack.Info(); ok {
-		if size, ok := ts.Uint(wpk.TIDsize); ok {
+		if size, ok := ts.TagUint(wpk.TIDsize); ok {
 			items = append(items, fmt.Sprintf("datasize: %d", size))
 		}
-		if str, ok := ts.String(wpk.TIDlabel); ok {
+		if str, ok := ts.TagStr(wpk.TIDlabel); ok {
 			items = append(items, fmt.Sprintf("label: %s", str))
 		}
-		if str, ok := ts.String(wpk.TIDlink); ok {
+		if str, ok := ts.TagStr(wpk.TIDlink); ok {
 			items = append(items, fmt.Sprintf("link: %s", str))
 		}
-		if str, ok := ts.String(wpk.TIDversion); ok {
+		if str, ok := ts.TagStr(wpk.TIDversion); ok {
 			items = append(items, fmt.Sprintf("version: %s", str))
 		}
-		if str, ok := ts.String(wpk.TIDauthor); ok {
+		if str, ok := ts.TagStr(wpk.TIDauthor); ok {
 			items = append(items, fmt.Sprintf("author: %s", str))
 		}
-		if str, ok := ts.String(wpk.TIDcomment); ok {
+		if str, ok := ts.TagStr(wpk.TIDcomment); ok {
 			items = append(items, fmt.Sprintf("comment: %s", str))
 		}
 	}
@@ -252,7 +252,7 @@ func getlabel(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 
 	if ts, ok := pack.Info(); ok {
-		if str, ok := ts.String(wpk.TIDlabel); ok {
+		if str, ok := ts.TagStr(wpk.TIDlabel); ok {
 			ls.Push(lua.LString(str))
 			return 1
 		}
@@ -265,7 +265,7 @@ func setlabel(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var label = ls.CheckString(2)
 
-	pack.SetInfo().Set(wpk.TIDlabel, wpk.TagString(label))
+	pack.SetInfo().Set(wpk.TIDlabel, wpk.StrTag(label))
 	return 0
 }
 
@@ -293,7 +293,7 @@ func getrecnum(ls *lua.LState) int {
 	var pack = CheckPack(ls, 1)
 	var m = map[uint]wpk.Void{}
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-		if offset, ok := ts.Uint(wpk.TIDoffset); ok {
+		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
 			m[offset] = wpk.Void{}
 		}
 		return true

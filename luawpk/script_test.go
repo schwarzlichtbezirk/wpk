@@ -40,7 +40,7 @@ func CheckPackage(t *testing.T, wptname, wpdname string) {
 
 	if ts, ok := pack.Info(); ok {
 		var offset, size = ts.Pos()
-		var label, _ = ts.String(wpk.TIDlabel)
+		var label, _ = ts.TagStr(wpk.TIDlabel)
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 	var n = 0

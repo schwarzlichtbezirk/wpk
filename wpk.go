@@ -342,7 +342,7 @@ func (ftt *FTT_t) Info() (ts *Tagset_t, ok bool) {
 // and stores if it not present before.
 func (ftt *FTT_t) SetInfo() *Tagset_t {
 	var emptyinfo = ftt.NewTagset().
-		Put(TIDpath, TagString(InfoName))
+		Put(TIDpath, StrTag(InfoName))
 	var val, _ = ftt.LoadOrStore(InfoName, emptyinfo)
 	if val == nil {
 		panic("can not obtain package info")
@@ -360,7 +360,7 @@ func (ftt *FTT_t) checkTagset(ts *Tagset_t, lim *filepos) (fpath string, err err
 	var pos filepos
 
 	// get file key
-	if fpath, ok = ts.String(TIDpath); !ok {
+	if fpath, ok = ts.TagStr(TIDpath); !ok {
 		err = &ErrTag{ErrNoPath, "", TIDpath}
 		return
 	}
@@ -370,11 +370,11 @@ func (ftt *FTT_t) checkTagset(ts *Tagset_t, lim *filepos) (fpath string, err err
 	}
 
 	// check system tags
-	if pos.offset, ok = ts.Uint(TIDoffset); !ok && fpath != InfoName {
+	if pos.offset, ok = ts.TagUint(TIDoffset); !ok && fpath != InfoName {
 		err = &ErrTag{ErrNoOffset, fpath, TIDoffset}
 		return
 	}
-	if pos.size, ok = ts.Uint(TIDsize); !ok && fpath != InfoName {
+	if pos.size, ok = ts.TagUint(TIDsize); !ok && fpath != InfoName {
 		err = &ErrTag{ErrNoSize, fpath, TIDsize}
 		return
 	}
@@ -516,9 +516,9 @@ func (pack *Package) Init(pts TypeSize) {
 func (pack *Package) BaseTagset(offset, size uint, fpath string) *Tagset_t {
 	var ts = pack.NewTagset()
 	return ts.
-		Put(TIDoffset, TagUint(offset)).
-		Put(TIDsize, TagUint(size)).
-		Put(TIDpath, TagString(ToSlash(fpath)))
+		Put(TIDoffset, UintTag(offset)).
+		Put(TIDsize, UintTag(size)).
+		Put(TIDpath, StrTag(ToSlash(fpath)))
 }
 
 // Glob returns the names of all files in package matching pattern or nil
@@ -628,7 +628,7 @@ func GetPackageInfo(r io.ReadSeeker, tidsz, tagsz byte) (ts *Tagset_t, err error
 	// get file key
 	var ok bool
 	var fpath string
-	if fpath, ok = ts.String(TIDpath); !ok {
+	if fpath, ok = ts.TagStr(TIDpath); !ok {
 		err = ErrNoPath
 		return
 	}

@@ -20,10 +20,10 @@ func TestTagset(t *testing.T) {
 		mime   = "image/jpeg"
 	)
 	var ts = wpk.MakeTagset(nil, tidsz, tagsz).
-		Put(wpk.TIDoffset, wpk.TagUint(offset)).
-		Put(wpk.TIDsize, wpk.TagUint(size)).
-		Put(wpk.TIDfid, wpk.TagUint(fid)).
-		Put(wpk.TIDpath, wpk.TagString(wpk.ToSlash(kpath1)))
+		Put(wpk.TIDoffset, wpk.UintTag(offset)).
+		Put(wpk.TIDsize, wpk.UintTag(size)).
+		Put(wpk.TIDfid, wpk.UintTag(fid)).
+		Put(wpk.TIDpath, wpk.StrTag(wpk.ToSlash(kpath1)))
 	var tsi = ts.Iterator()
 
 	var (
@@ -59,7 +59,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { tag = tsi.Tag(); return tag == nil },
 			"can not get 'offset' tag",
 		},
-		{func() bool { ov, ok = tsi.Uint(wpk.TIDoffset); return !ok },
+		{func() bool { ov, ok = tsi.TagUint(wpk.TIDoffset); return !ok },
 			"can not convert 'offset' tag to value",
 		},
 		{func() bool { return ov != offset },
@@ -76,7 +76,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { tag = tsi.Tag(); return tag == nil },
 			"can not get 'size' tag",
 		},
-		{func() bool { sv, ok = tsi.Uint(wpk.TIDsize); return !ok },
+		{func() bool { sv, ok = tsi.TagUint(wpk.TIDsize); return !ok },
 			"can not convert 'size' tag to value",
 		},
 		{func() bool { return sv != size },
@@ -93,7 +93,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { tag = tsi.Tag(); return tag == nil },
 			"can not get 'fid' tag",
 		},
-		{func() bool { fv, ok = tsi.Uint(wpk.TIDfid); return !ok },
+		{func() bool { fv, ok = tsi.TagUint(wpk.TIDfid); return !ok },
 			"can not convert 'fid' tag to value",
 		},
 		{func() bool { return fv != fid },
@@ -113,7 +113,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { tag = tsi.Tag(); return tag == nil },
 			"can not get 'path' tag",
 		},
-		{func() bool { str, ok = tag.String(); return !ok },
+		{func() bool { str, ok = tag.TagStr(); return !ok },
 			"can not convert 'path' tag to value",
 		},
 		{func() bool { return str != wpk.ToSlash(kpath1) },
@@ -146,19 +146,19 @@ func TestTagset(t *testing.T) {
 
 		// check up helpers functions
 		{func() bool {
-			v, ok := ts.Uint(wpk.TIDfid)
+			v, ok := ts.TagUint(wpk.TIDfid)
 			return !ok || v != fid
 		},
 			"FID getter does not work correctly",
 		},
 		{func() bool {
-			v, ok := ts.Uint(wpk.TIDoffset)
+			v, ok := ts.TagUint(wpk.TIDoffset)
 			return !ok || v != offset
 		},
 			"FOffset getter does not work correctly",
 		},
 		{func() bool {
-			v, ok := ts.Uint(wpk.TIDsize)
+			v, ok := ts.TagUint(wpk.TIDsize)
 			return !ok || v != size
 		},
 			"FSize getter does not work correctly",
@@ -171,7 +171,7 @@ func TestTagset(t *testing.T) {
 		},
 
 		// check up 'Set' and 'Del'
-		{func() bool { return ts.Set(wpk.TIDpath, wpk.TagString(wpk.ToSlash(kpath2))) },
+		{func() bool { return ts.Set(wpk.TIDpath, wpk.StrTag(wpk.ToSlash(kpath2))) },
 			"content of 'path' tag should be replaced by 'Set'",
 		},
 		{func() bool { return ts.Num() != 4 },
@@ -180,7 +180,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { return ts.Path() != wpk.ToSlash(kpath2) },
 			"'Set' function does not work correctly",
 		},
-		{func() bool { return !ts.Set(wpk.TIDmime, wpk.TagString(mime)) },
+		{func() bool { return !ts.Set(wpk.TIDmime, wpk.StrTag(mime)) },
 			"content of 'mime' tag should be added by 'Set'",
 		},
 		{func() bool { return ts.Num() != 4+1 },
@@ -189,7 +189,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { tag, ok = ts.Get(wpk.TIDmime); return !ok },
 			"can not get 'mime' tag content",
 		},
-		{func() bool { str, _ = tag.String(); return str != mime },
+		{func() bool { str, _ = tag.TagStr(); return str != mime },
 			"'mime' tag is not equal to original value",
 		},
 		{func() bool { return !ts.Del(wpk.TIDmime) },
@@ -216,9 +216,9 @@ func TestTagset(t *testing.T) {
 
 func ExampleTagsetIterator_Next() {
 	var ts = wpk.MakeTagset(nil, tidsz, tagsz).
-		Put(wpk.TIDpath, wpk.TagString("picture.jpg")).
-		Put(wpk.TIDmtime, wpk.TagTime(time.Now())).
-		Put(wpk.TIDmime, wpk.TagString("image/jpeg"))
+		Put(wpk.TIDpath, wpk.StrTag("picture.jpg")).
+		Put(wpk.TIDmtime, wpk.TimeTag(time.Now())).
+		Put(wpk.TIDmime, wpk.StrTag("image/jpeg"))
 	var tsi = ts.Iterator()
 	for tsi.Next() {
 		fmt.Printf("tid=%d, len=%d\n", tsi.TID(), tsi.TagLen())

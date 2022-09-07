@@ -47,14 +47,14 @@ func CheckPackage(t *testing.T, fwpt, fwpd *os.File, tagsnum int) {
 
 	if ts, ok := pack.Info(); ok {
 		var offset, size = ts.Pos()
-		var label, _ = ts.String(wpk.TIDlabel)
+		var label, _ = ts.TagStr(wpk.TIDlabel)
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 
 	var realtagsnum int
 	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
 		var offset, size = ts.Pos()
-		var fid, _ = ts.Uint(wpk.TIDfid)
+		var fid, _ = ts.TagUint(wpk.TIDfid)
 		var fpath = ts.Path()
 		realtagsnum++
 
@@ -135,9 +135,9 @@ func TestInfo(t *testing.T) {
 	}
 	// put package info somewhere before finalize
 	pack.SetInfo().
-		Put(wpk.TIDlabel, wpk.TagString(label)).
-		Put(wpk.TIDlink, wpk.TagString(link)).
-		Put(wpk.TIDauthor, wpk.TagString(author))
+		Put(wpk.TIDlabel, wpk.StrTag(label)).
+		Put(wpk.TIDlink, wpk.StrTag(link)).
+		Put(wpk.TIDauthor, wpk.StrTag(author))
 	// finalize
 	if err = pack.Sync(fwpk, nil); err != nil {
 		t.Fatal(err)
@@ -153,19 +153,19 @@ func TestInfo(t *testing.T) {
 	}
 	var ok bool
 	var str string
-	if str, ok = ts.String(wpk.TIDlabel); !ok {
+	if str, ok = ts.TagStr(wpk.TIDlabel); !ok {
 		t.Fatal("label tag not found in package info")
 	}
 	if str != label {
 		t.Fatal("label in package info is not equal to original")
 	}
-	if str, ok = ts.String(wpk.TIDlink); !ok {
+	if str, ok = ts.TagStr(wpk.TIDlink); !ok {
 		t.Fatal("link tag not found in package info")
 	}
 	if str != link {
 		t.Fatal("link in package info is not equal to original")
 	}
-	if str, ok = ts.String(wpk.TIDauthor); !ok {
+	if str, ok = ts.TagStr(wpk.TIDauthor); !ok {
 		t.Fatal("author tag not found in package info")
 	}
 	if str != author {
@@ -195,12 +195,12 @@ func TestPackDir(t *testing.T) {
 	}
 	// put package info somewhere before finalize
 	pack.SetInfo().
-		Put(wpk.TIDlabel, wpk.TagString("packed-dir"))
+		Put(wpk.TIDlabel, wpk.StrTag("packed-dir"))
 	// put media directory to file
 	if err = pack.PackDir(fwpk, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t) error {
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.UintTag(fidcount))
 		t.Logf("put file #%d '%s', %d bytes", fidcount, ts.Path(), ts.Size())
 		return nil
 	}); err != nil {
@@ -244,12 +244,12 @@ func TestPackDirSplit(t *testing.T) {
 	}
 	// put package info somewhere before finalize
 	pack.SetInfo().
-		Put(wpk.TIDlabel, wpk.TagString("splitted-pack"))
+		Put(wpk.TIDlabel, wpk.StrTag("splitted-pack"))
 	// put media directory to file
 	if err = pack.PackDir(fwpd, mediadir, "", func(r io.ReadSeeker, ts *wpk.Tagset_t) error {
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.UintTag(fidcount))
 		t.Logf("put file #%d '%s', %d bytes", fidcount, ts.Path(), ts.Size())
 		return nil
 	}); err != nil {
@@ -289,7 +289,7 @@ func TestPutFiles(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.UintTag(fidcount))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -303,7 +303,7 @@ func TestPutFiles(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.UintTag(fidcount))
 		var size = ts.Size()
 		t.Logf("put data #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -388,7 +388,7 @@ func TestAppendContinues(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.UintTag(fidcount))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -462,7 +462,7 @@ func TestAppendDiscrete(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.UintTag(fidcount))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}

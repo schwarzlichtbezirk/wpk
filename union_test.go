@@ -1,6 +1,7 @@
 package wpk_test
 
 import (
+	"io/fs"
 	"os"
 	"testing"
 
@@ -35,7 +36,7 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.TagUint(fidcount))
+		ts.Put(wpk.TIDfid, wpk.UintTag(fidcount))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -103,6 +104,12 @@ func TestUnion(t *testing.T) {
 			}
 		}
 	)
+
+	var img1 fs.File
+	if img1, err = u.Open("img1"); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = img1, err
 
 	list = u.AllKeys()
 	check("all keys", map[string]wpk.Void{

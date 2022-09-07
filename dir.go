@@ -135,7 +135,7 @@ func (ftt *FTT_t) ReadDir(dir string, n int) (matches []fs.DirEntry, err error) 
 					var ts, _ = ftt.Tagset(fkey)
 					var fp = ts.Path() // extract not normalized path
 					var de = (&Tagset_t{nil, ts.tidsz, ts.tagsz}).
-						Put(TIDpath, TagString(fp[:len(subdir)]))
+						Put(TIDpath, StrTag(fp[:len(subdir)]))
 					matches = append(matches, de)
 					n--
 				}
@@ -159,7 +159,7 @@ func (ftt *FTT_t) Open(dir string) (df fs.ReadDirFile, err error) {
 	ftt.Enum(func(fkey string, ts *Tagset_t) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			var dts = ftt.NewTagset()
-			dts.Put(TIDpath, TagString(ToSlash(dir)))
+			dts.Put(TIDpath, StrTag(ToSlash(dir)))
 			df, err = &ReadDirFile{
 				Tagset_t: dts,
 				FTT:      ftt,

@@ -36,7 +36,7 @@ func adjustmime(ts *wpk.Tagset_t, r io.ReadSeeker, skip bool) (err error) {
 			}
 		}
 	}
-	ts.Put(wpk.TIDmime, wpk.TagString(ctype))
+	ts.Put(wpk.TIDmime, wpk.StrTag(ctype))
 	return
 }
 

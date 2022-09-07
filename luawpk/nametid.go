@@ -97,14 +97,14 @@ func ValueToTag(v lua.LValue) (tag wpk.Tag_t, err error) {
 	if val, ok := v.(lua.LNumber); ok {
 		var u = uint(val)
 		if val < 0 || val > lua.LNumber(uint(1<<64-1)) || val-lua.LNumber(u) != 0 {
-			tag = wpk.TagNumber(float64(val))
+			tag = wpk.NumberTag(float64(val))
 		} else {
-			tag = wpk.TagUint(u)
+			tag = wpk.UintTag(u)
 		}
 	} else if val, ok := v.(lua.LString); ok {
-		tag = wpk.TagString(string(val))
+		tag = wpk.StrTag(string(val))
 	} else if val, ok := v.(lua.LBool); ok {
-		tag = wpk.TagBool(bool(val))
+		tag = wpk.BoolTag(bool(val))
 	} else if ud, ok := v.(*lua.LUserData); ok {
 		if val, ok := ud.Value.(*LuaTag); ok {
 			tag = val.Tag_t

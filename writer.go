@@ -89,8 +89,8 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 		// update package info if it has
 		if ts, ok := pack.Info(); ok {
-			ts.Set(TIDoffset, TagUint(uint(datpos)))
-			ts.Set(TIDsize, TagUint(uint(datend-datpos)))
+			ts.Set(TIDoffset, UintTag(uint(datpos)))
+			ts.Set(TIDsize, UintTag(uint(datend-datpos)))
 		}
 
 		// write file tags table
@@ -114,8 +114,8 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 		// update package info if it has
 		if ts, ok := pack.Info(); ok {
-			ts.Set(TIDoffset, TagUint(uint(datpos)))
-			ts.Set(TIDsize, TagUint(uint(datend-datpos)))
+			ts.Set(TIDoffset, UintTag(uint(datpos)))
+			ts.Set(TIDsize, UintTag(uint(datend-datpos)))
 		}
 
 		// write file tags table
@@ -183,17 +183,17 @@ func (pack *Package) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ts
 		return
 	}
 
-	//ts.Put(TIDmtime, TagTime(fi.ModTime()))
+	//ts.Put(TIDmtime, TimeTag(fi.ModTime()))
 	var tsp = times.Get(fi)
-	ts.Put(TIDmtime, TagTime(tsp.ModTime()))
-	ts.Put(TIDatime, TagTime(tsp.AccessTime()))
+	ts.Put(TIDmtime, TimeTag(tsp.ModTime()))
+	ts.Put(TIDatime, TimeTag(tsp.AccessTime()))
 	if tsp.HasChangeTime() {
-		ts.Put(TIDctime, TagTime(tsp.ChangeTime()))
+		ts.Put(TIDctime, TimeTag(tsp.ChangeTime()))
 	}
 	if tsp.HasBirthTime() {
-		ts.Put(TIDbtime, TagTime(tsp.BirthTime()))
+		ts.Put(TIDbtime, TimeTag(tsp.BirthTime()))
 	}
-	ts.Put(TIDlink, TagString(ToSlash(kpath)))
+	ts.Put(TIDlink, StrTag(ToSlash(kpath)))
 	return
 }
 
@@ -259,7 +259,7 @@ func (pack *Package) Rename(oldname, newname string) error {
 		return &fs.PathError{Op: "rename", Path: newname, Err: fs.ErrExist}
 	}
 
-	ts.Set(TIDpath, TagString(ToSlash(newname)))
+	ts.Set(TIDpath, StrTag(ToSlash(newname)))
 	pack.DelTagset(oldname)
 	pack.SetTagset(newname, ts)
 	return nil
@@ -282,7 +282,7 @@ func (pack *Package) PutAlias(oldname, newname string) error {
 		if tsi.tid != TIDpath {
 			ts2.Put(tsi.tid, tsi.Tag())
 		} else {
-			ts2.Put(TIDpath, TagString(ToSlash(newname)))
+			ts2.Put(TIDpath, StrTag(ToSlash(newname)))
 		}
 	}
 	pack.SetTagset(newname, ts2)

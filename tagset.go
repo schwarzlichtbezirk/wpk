@@ -11,26 +11,26 @@ import (
 // Tag_t - file description item.
 type Tag_t []byte
 
-// String tag converter.
-func (t Tag_t) String() (string, bool) {
+// TagStr tag converter.
+func (t Tag_t) TagStr() (string, bool) {
 	return string(t), true
 }
 
-// TagString is string tag constructor.
-func TagString(val string) Tag_t {
+// StrTag is string tag constructor.
+func StrTag(val string) Tag_t {
 	return Tag_t(val)
 }
 
-// Bool is boolean tag converter.
-func (t Tag_t) Bool() (bool, bool) {
+// TagBool is boolean tag converter.
+func (t Tag_t) TagBool() (bool, bool) {
 	if len(t) == 1 {
 		return t[0] > 0, true
 	}
 	return false, false
 }
 
-// TagBool is boolean tag constructor.
-func TagBool(val bool) Tag_t {
+// BoolTag is boolean tag constructor.
+func BoolTag(val bool) Tag_t {
 	var buf [1]byte
 	if val {
 		buf[0] = 1
@@ -38,81 +38,67 @@ func TagBool(val bool) Tag_t {
 	return buf[:]
 }
 
-// Byte tag converter.
-func (t Tag_t) Byte() (byte, bool) {
+// TagByte tag converter.
+func (t Tag_t) TagByte() (byte, bool) {
 	if len(t) == 1 {
 		return t[0], true
 	}
 	return 0, false
 }
 
-// TagByte is Byte tag constructor.
-func TagByte(val byte) Tag_t {
+// ByteTag is byte tag constructor.
+func ByteTag(val byte) Tag_t {
 	var buf = [1]byte{val}
 	return buf[:]
 }
 
-// Uint8 is 8-bit unsigned int tag converter.
-func (t Tag_t) Uint8() (uint8, bool) {
-	if len(t) == 1 {
-		return t[0], true
-	}
-	return 0, false
-}
-
-// TagUint8 is 8-bit unsigned int tag constructor.
-func TagUint8(val uint8) Tag_t {
-	var buf = [1]byte{val}
-	return buf[:]
-}
-
-// Uint16 is 16-bit unsigned int tag converter.
-func (t Tag_t) Uint16() (uint16, bool) {
+// TagUint16 is 16-bit unsigned int tag converter.
+func (t Tag_t) TagUint16() (uint16, bool) {
 	if len(t) == 2 {
 		return uint16(binary.LittleEndian.Uint16(t)), true
 	}
 	return 0, false
 }
 
-// TagUint16 is 16-bit unsigned int tag constructor.
-func TagUint16(val uint16) Tag_t {
+// Uint16Tag is 16-bit unsigned int tag constructor.
+func Uint16Tag(val uint16) Tag_t {
 	var buf [2]byte
 	binary.LittleEndian.PutUint16(buf[:], uint16(val))
 	return buf[:]
 }
 
-// Uint32 is 32-bit unsigned int tag converter.
-func (t Tag_t) Uint32() (uint32, bool) {
+// TagUint32 is 32-bit unsigned int tag converter.
+func (t Tag_t) TagUint32() (uint32, bool) {
 	if len(t) == 4 {
 		return binary.LittleEndian.Uint32(t), true
 	}
 	return 0, false
 }
 
-// TagUint32 is 32-bit unsigned int tag constructor.
-func TagUint32(val uint32) Tag_t {
+// Uint32Tag is 32-bit unsigned int tag constructor.
+func Uint32Tag(val uint32) Tag_t {
 	var buf [4]byte
 	binary.LittleEndian.PutUint32(buf[:], val)
 	return buf[:]
 }
 
-// Uint64 is 64-bit unsigned int tag converter.
-func (t Tag_t) Uint64() (uint64, bool) {
+// TagUint64 is 64-bit unsigned int tag converter.
+func (t Tag_t) TagUint64() (uint64, bool) {
 	if len(t) == 8 {
 		return binary.LittleEndian.Uint64(t), true
 	}
 	return 0, false
 }
 
-// TagUint64 is 64-bit unsigned int tag constructor.
-func TagUint64(val uint64) Tag_t {
+// Uint64Tag is 64-bit unsigned int tag constructor.
+func Uint64Tag(val uint64) Tag_t {
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], val)
 	return buf[:]
 }
 
-// Uint is unspecified size unsigned int tag converter.
-func (t Tag_t) Uint() (ret uint, ok bool) {
+// TagUint is unspecified size unsigned int tag converter.
+func (t Tag_t) TagUint() (ret uint, ok bool) {
 	switch len(t) {
 	case 8:
 		ret |= uint(t[7]) << 56
@@ -134,8 +120,8 @@ func (t Tag_t) Uint() (ret uint, ok bool) {
 	return
 }
 
-// TagUint is unspecified size unsigned int tag constructor.
-func TagUint(val uint) Tag_t {
+// UintTag is unspecified size unsigned int tag constructor.
+func UintTag(val uint) Tag_t {
 	var l int
 	var buf [8]byte
 	switch {
@@ -170,8 +156,8 @@ func TagUint(val uint) Tag_t {
 	return buf[:l]
 }
 
-// TagUintLen is unsigned int tag constructor with specified length in bytes.
-func TagUintLen(val uint, l byte) Tag_t {
+// UintLenTag is unsigned int tag constructor with specified length in bytes.
+func UintLenTag(val uint, l byte) Tag_t {
 	var buf [8]byte
 	switch l {
 	case 8:
@@ -195,23 +181,23 @@ func TagUintLen(val uint, l byte) Tag_t {
 	return buf[:l]
 }
 
-// Number is 64-bit float tag converter.
-func (t Tag_t) Number() (float64, bool) {
+// TagNumber is 64-bit float tag converter.
+func (t Tag_t) TagNumber() (float64, bool) {
 	if len(t) == 8 {
 		return math.Float64frombits(binary.LittleEndian.Uint64(t)), true
 	}
 	return 0, false
 }
 
-// TagNumber is 64-bit float tag constructor.
-func TagNumber(val float64) Tag_t {
+// NumberTag is 64-bit float tag constructor.
+func NumberTag(val float64) Tag_t {
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], math.Float64bits(val))
 	return buf[:]
 }
 
-// Time is 8/12-bytes time tag converter.
-func (t Tag_t) Time() (time.Time, bool) {
+// TagTime is 8/12-bytes time tag converter.
+func (t Tag_t) TagTime() (time.Time, bool) {
 	switch len(t) {
 	case 8:
 		var milli = int64(binary.LittleEndian.Uint64(t))
@@ -224,15 +210,15 @@ func (t Tag_t) Time() (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// TagUnix is 8-bytes UNIX time in milliseconds tag constructor.
-func TagUnix(val time.Time) Tag_t {
+// UnixTag is 8-bytes UNIX time in milliseconds tag constructor.
+func UnixTag(val time.Time) Tag_t {
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], uint64(val.UnixMilli()))
 	return buf[:]
 }
 
-// TagTime is 12-bytes UNIX time tag constructor.
-func TagTime(val time.Time) Tag_t {
+// TimeTag is 12-bytes UNIX time tag constructor.
+func TimeTag(val time.Time) Tag_t {
 	var buf [12]byte
 	binary.LittleEndian.PutUint64(buf[:8], uint64(val.Unix()))
 	binary.LittleEndian.PutUint32(buf[8:], uint32(val.Nanosecond()))
@@ -350,77 +336,77 @@ func (ts *Tagset_t) Del(tid uint) bool {
 	return true
 }
 
-// String tag getter.
-func (ts *Tagset_t) String(tid uint) (string, bool) {
+// TagStr tag getter.
+func (ts *Tagset_t) TagStr(tid uint) (string, bool) {
 	if data, ok := ts.Get(tid); ok {
-		return data.String()
+		return data.TagStr()
 	}
 	return "", false
 }
 
-// Bool is boolean tag getter.
-func (ts *Tagset_t) Bool(tid uint) (bool, bool) {
+// TagBool is boolean tag getter.
+func (ts *Tagset_t) TagBool(tid uint) (bool, bool) {
 	if data, ok := ts.Get(tid); ok {
-		return data.Bool()
+		return data.TagBool()
 	}
 	return false, false
 }
 
-// Byte tag getter.
-func (ts *Tagset_t) Byte(tid uint) (byte, bool) {
+// TagByte tag getter.
+func (ts *Tagset_t) TagByte(tid uint) (byte, bool) {
 	if data, ok := ts.Get(tid); ok {
-		return data.Byte()
+		return data.TagByte()
 	}
 	return 0, false
 }
 
-// Uint16 is 16-bit unsigned int tag getter.
+// TagUint16 is 16-bit unsigned int tag getter.
 // Conversion can be used to get signed 16-bit integers.
-func (ts *Tagset_t) Uint16(tid uint) (uint16, bool) {
+func (ts *Tagset_t) TagUint16(tid uint) (uint16, bool) {
 	if data, ok := ts.Get(tid); ok {
-		return data.Uint16()
+		return data.TagUint16()
 	}
 	return 0, false
 }
 
-// Uint32 is 32-bit unsigned int tag getter.
+// TagUint32 is 32-bit unsigned int tag getter.
 // Conversion can be used to get signed 32-bit integers.
-func (ts *Tagset_t) Uint32(tid uint) (uint32, bool) {
+func (ts *Tagset_t) TagUint32(tid uint) (uint32, bool) {
 	if data, ok := ts.Get(tid); ok {
-		return data.Uint32()
+		return data.TagUint32()
 	}
 	return 0, false
 }
 
-// Uint64 is 64-bit unsigned int tag getter.
+// TagUint64 is 64-bit unsigned int tag getter.
 // Conversion can be used to get signed 64-bit integers.
-func (ts *Tagset_t) Uint64(tid uint) (uint64, bool) {
+func (ts *Tagset_t) TagUint64(tid uint) (uint64, bool) {
 	if data, ok := ts.Get(tid); ok {
-		return data.Uint64()
+		return data.TagUint64()
 	}
 	return 0, false
 }
 
-// Uint is unspecified size unsigned int tag getter.
-func (ts *Tagset_t) Uint(tid uint) (uint, bool) {
+// TagUint is unspecified size unsigned int tag getter.
+func (ts *Tagset_t) TagUint(tid uint) (uint, bool) {
 	if data, ok := ts.Get(tid); ok {
-		return data.Uint()
+		return data.TagUint()
 	}
 	return 0, false
 }
 
-// Number is 64-bit float tag getter.
-func (ts *Tagset_t) Number(tid uint) (float64, bool) {
+// TagNumber is 64-bit float tag getter.
+func (ts *Tagset_t) TagNumber(tid uint) (float64, bool) {
 	if data, ok := ts.Get(tid); ok {
-		return data.Number()
+		return data.TagNumber()
 	}
 	return 0, false
 }
 
-// Time is time tag getter.
-func (ts *Tagset_t) Time(tid uint) (time.Time, bool) {
+// TagTime is time tag getter.
+func (ts *Tagset_t) TagTime(tid uint) (time.Time, bool) {
 	if data, ok := ts.Get(tid); ok {
-		return data.Time()
+		return data.TagTime()
 	}
 	return time.Time{}, false
 }
@@ -428,29 +414,29 @@ func (ts *Tagset_t) Time(tid uint) (time.Time, bool) {
 // Pos returns file offset and file size in package.
 // Those values required to be present in any tagset.
 func (ts *Tagset_t) Pos() (offset, size uint) {
-	offset, _ = ts.Uint(TIDoffset)
-	size, _ = ts.Uint(TIDsize)
+	offset, _ = ts.TagUint(TIDoffset)
+	size, _ = ts.TagUint(TIDsize)
 	return
 }
 
 // Path returns path of nested into package file.
 // Path required to be present in any tagset.
 func (ts *Tagset_t) Path() string {
-	var fpath, _ = ts.String(TIDpath)
+	var fpath, _ = ts.TagStr(TIDpath)
 	return fpath
 }
 
 // Name returns base name of nested into package file.
 // fs.FileInfo implementation.
 func (ts *Tagset_t) Name() string {
-	var fpath, _ = ts.String(TIDpath)
+	var fpath, _ = ts.TagStr(TIDpath)
 	return path.Base(fpath) // path should be here with true slashes
 }
 
 // Size returns size of nested into package file.
 // fs.FileInfo implementation.
 func (ts *Tagset_t) Size() int64 {
-	var size, _ = ts.Uint(TIDsize)
+	var size, _ = ts.TagUint(TIDsize)
 	return int64(size)
 }
 
@@ -465,7 +451,7 @@ func (ts *Tagset_t) Mode() fs.FileMode {
 // ModTime returns file modification timestamp of nested into package file.
 // fs.FileInfo & times.Timespec implementation.
 func (ts *Tagset_t) ModTime() time.Time {
-	var t, _ = ts.Time(TIDmtime)
+	var t, _ = ts.TagTime(TIDmtime)
 	return t
 }
 
@@ -497,21 +483,21 @@ func (ts *Tagset_t) Info() (fs.FileInfo, error) {
 // AccessTime returns file access timestamp of nested into package file.
 // times.Timespec implementation.
 func (ts *Tagset_t) AccessTime() time.Time {
-	var t, _ = ts.Uint64(TIDatime)
+	var t, _ = ts.TagUint64(TIDatime)
 	return time.Unix(int64(t), 0)
 }
 
 // ChangeTime returns file change timestamp of nested into package file.
 // times.Timespec implementation.
 func (ts *Tagset_t) ChangeTime() time.Time {
-	var t, _ = ts.Uint64(TIDctime)
+	var t, _ = ts.TagUint64(TIDctime)
 	return time.Unix(int64(t), 0)
 }
 
 // BirthTime returns file access timestamp of nested into package file.
 // times.Timespec implementation.
 func (ts *Tagset_t) BirthTime() time.Time {
-	var t, _ = ts.Uint64(TIDbtime)
+	var t, _ = ts.TagUint64(TIDbtime)
 	return time.Unix(int64(t), 0)
 }
 

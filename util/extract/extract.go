@@ -145,8 +145,8 @@ func readpackage() (err error) {
 					return
 				}
 				if OrgTime {
-					var atime, aok = ts.Time(wpk.TIDatime)
-					var mtime, mok = ts.Time(wpk.TIDmtime)
+					var atime, aok = ts.TagTime(wpk.TIDatime)
+					var mtime, mok = ts.TagTime(wpk.TIDmtime)
 					if aok && mok {
 						defer os.Chtimes(fullpath, atime, mtime)
 					}

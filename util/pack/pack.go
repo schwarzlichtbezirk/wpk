@@ -120,7 +120,7 @@ func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
 			ctype = http.DetectContentType(buf[:n])
 		}
 		if ctype != "" {
-			ts.Put(wpk.TIDmime, wpk.TagString(ctype))
+			ts.Put(wpk.TIDmime, wpk.StrTag(ctype))
 		}
 	}
 	return nil
