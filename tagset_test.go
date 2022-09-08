@@ -27,7 +27,7 @@ func TestTagset(t *testing.T) {
 	var tsi = ts.Iterator()
 
 	var (
-		tag wpk.Tag_t
+		tag wpk.TagRaw
 		ok  bool
 		fv  uint
 		ov  uint

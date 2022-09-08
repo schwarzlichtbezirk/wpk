@@ -14,7 +14,7 @@ type Void = struct{}
 // UnionDir is helper to get access to union directories,
 // that contains files from all packages with same dir if it present.
 type UnionDir struct {
-	*Tagset_t
+	*TagsetRaw
 	*Union
 }
 
@@ -60,7 +60,7 @@ func (u *Union) Close() (err error) {
 func (u *Union) AllKeys() (res []string) {
 	var found = map[string]Void{}
 	for _, pack := range u.List {
-		pack.Enum(func(fkey string, ts *Tagset_t) bool {
+		pack.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if _, ok := found[fkey]; !ok {
 				res = append(res, fkey)
 				found[fkey] = Void{}
@@ -80,7 +80,7 @@ func (u *Union) Glob(pattern string) (res []string, err error) {
 	}
 	var found = map[string]Void{}
 	for _, pack := range u.List {
-		pack.Enum(func(fkey string, ts *Tagset_t) bool {
+		pack.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if _, ok := found[fkey]; !ok {
 				if matched, _ := path.Match(pattern, fkey); matched {
 					res = append(res, fkey)
@@ -114,7 +114,7 @@ func (u *Union) Sub(dir string) (fs.FS, error) {
 // fs.StatFS implementation.
 func (u *Union) Stat(name string) (fs.FileInfo, error) {
 	var fullname = path.Join(u.workspace, name)
-	var ts *Tagset_t
+	var ts *TagsetRaw
 	var is bool
 	for _, pack := range u.List {
 		if ts, is = pack.Tagset(fullname); is {
@@ -129,7 +129,7 @@ func (u *Union) Stat(name string) (fs.FileInfo, error) {
 // fs.ReadFileFS implementation.
 func (u *Union) ReadFile(name string) ([]byte, error) {
 	var fullname = path.Join(u.workspace, name)
-	var ts *Tagset_t
+	var ts *TagsetRaw
 	var is bool
 	for _, pack := range u.List {
 		if ts, is = pack.Tagset(fullname); is {
@@ -157,7 +157,7 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 	}
 	var found = map[string]Void{}
 	for _, pack := range u.List {
-		pack.Enum(func(fkey string, ts *Tagset_t) bool {
+		pack.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
 				var suffix = fkey[len(prefix):]
 				var sp = strings.IndexByte(suffix, '/')
@@ -174,8 +174,8 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 						var dts = MakeTagset(nil, 2, 2).
 							Put(TIDpath, StrTag(fpath[:len(subdir)]))
 						var f = &UnionDir{
-							Tagset_t: dts,
-							Union:    u,
+							TagsetRaw: dts,
+							Union:     u,
 						}
 						list = append(list, f)
 						found[subdir] = Void{}
@@ -225,13 +225,13 @@ func (u *Union) Open(dir string) (fs.File, error) {
 	}
 	for _, pack := range u.List {
 		var f *UnionDir
-		pack.Enum(func(fkey string, ts *Tagset_t) bool {
+		pack.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
 				var dts = MakeTagset(nil, 2, 2).
 					Put(TIDpath, StrTag(dir))
 				f = &UnionDir{
-					Tagset_t: dts,
-					Union:    u,
+					TagsetRaw: dts,
+					Union:     u,
 				}
 				return false
 			}

@@ -44,7 +44,7 @@ func CheckPackage(t *testing.T, wptname, wpdname string) {
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 	var n = 0
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
+	pack.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		var ok bool
 		var offset, size = ts.Pos()
 		var fpath = ts.Path()
@@ -55,7 +55,7 @@ func CheckPackage(t *testing.T, wptname, wpdname string) {
 			return true // skip packed data
 		}
 
-		var link wpk.Tag_t
+		var link wpk.TagRaw
 		if link, ok = ts.Get(wpk.TIDlink); !ok {
 			t.Fatalf("found file without link #%d '%s'", n, fpath)
 		}

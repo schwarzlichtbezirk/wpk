@@ -28,7 +28,7 @@ func (pack *Package) Begin(wpt io.WriteSeeker) (err error) {
 	}
 
 	// reset header
-	copy(pack.signature[:], Prebuild)
+	copy(pack.signature[:], SignBuild)
 	pack.fttoffset = 0
 	pack.fttsize = 0
 	pack.datoffset = 0
@@ -50,7 +50,7 @@ func (pack *Package) Append(wpt, wpf io.WriteSeeker) (err error) {
 	defer pack.mux.Unlock()
 
 	// partially reset header
-	copy(pack.signature[:], Prebuild)
+	copy(pack.signature[:], SignBuild)
 	// go to file start
 	if _, err = wpt.Seek(0, io.SeekStart); err != nil {
 		return
@@ -97,7 +97,7 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 		if _, err = wpt.Seek(fftpos, io.SeekStart); err != nil {
 			return
 		}
-		if _, err = pack.FTT_t.WriteTo(wpt); err != nil {
+		if _, err = pack.FTT.WriteTo(wpt); err != nil {
 			return
 		}
 		// get writer end marker and setup the file tags table size
@@ -119,7 +119,7 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 		}
 
 		// write file tags table
-		if _, err = pack.FTT_t.WriteTo(wpt); err != nil {
+		if _, err = pack.FTT.WriteTo(wpt); err != nil {
 			return
 		}
 		// get writer end marker and setup the file tags table size
@@ -132,7 +132,7 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 	if _, err = wpt.Seek(0, io.SeekStart); err != nil {
 		return
 	}
-	copy(pack.signature[:], Signature)
+	copy(pack.signature[:], SignReady)
 	pack.fttoffset = uint64(fftpos)
 	pack.fttsize = uint64(fftend - fftpos)
 	pack.datoffset = uint64(datpos)
@@ -145,7 +145,7 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 // PackData puts data streamed by given reader into package as a file
 // and associate keyname "kpath" with it.
-func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *Tagset_t, err error) {
+func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *TagsetRaw, err error) {
 	if _, ok := pack.Tagset(fpath); ok {
 		err = &fs.PathError{Op: "packdata", Path: fpath, Err: fs.ErrExist}
 		return
@@ -174,7 +174,7 @@ func (pack *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *
 }
 
 // PackFile puts file with given file handle into package and associate keyname "kpath" with it.
-func (pack *Package) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ts *Tagset_t, err error) {
+func (pack *Package) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ts *TagsetRaw, err error) {
 	var fi os.FileInfo
 	if fi, err = file.Stat(); err != nil {
 		return
@@ -199,7 +199,7 @@ func (pack *Package) PackFile(w io.WriteSeeker, file *os.File, kpath string) (ts
 
 // PackDirLogger is function called during PackDir processing after each
 // file with OS file object and inserted tagset, that can be modified.
-type PackDirLogger func(r io.ReadSeeker, ts *Tagset_t) error
+type PackDirLogger func(r io.ReadSeeker, ts *TagsetRaw) error
 
 // PackDir puts all files of given folder and it's subfolders into package.
 // Logger function can be nil.
@@ -228,7 +228,7 @@ func (pack *Package) PackDir(w io.WriteSeeker, dirname, prefix string, logger Pa
 				}
 			} else if func() {
 				var file *os.File
-				var ts *Tagset_t
+				var ts *TagsetRaw
 				if file, err = os.Open(fpath); err != nil {
 					return
 				}

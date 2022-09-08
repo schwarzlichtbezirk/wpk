@@ -15,11 +15,11 @@ import (
 // wpk.NestedFile interface implementation.
 type SliceFile struct {
 	wpk.FileReader
-	tags *wpk.Tagset_t // has fs.FileInfo interface
+	tags *wpk.TagsetRaw // has fs.FileInfo interface
 }
 
 // NewSliceFile creates SliceFile file structure based on given tags slice.
-func NewSliceFile(pack *Package, ts *wpk.Tagset_t) (f *SliceFile, err error) {
+func NewSliceFile(pack *Package, ts *wpk.TagsetRaw) (f *SliceFile, err error) {
 	var offset, size = ts.Pos()
 	f = &SliceFile{
 		FileReader: bytes.NewReader(pack.bulk[offset : offset+size]),
@@ -48,19 +48,19 @@ type Package struct {
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
-func (pack *Package) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
+func (pack *Package) OpenTagset(ts *wpk.TagsetRaw) (wpk.NestedFile, error) {
 	return NewSliceFile(pack, ts)
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage(fname string) (pack *Package, err error) {
+func OpenPackage(fpath string) (pack *Package, err error) {
 	pack = &Package{
 		Package:   &wpk.Package{},
 		workspace: ".",
 	}
 
 	var r io.ReadSeekCloser
-	if r, err = os.Open(fname); err != nil {
+	if r, err = os.Open(fpath); err != nil {
 		return
 	}
 	defer r.Close()
@@ -69,22 +69,15 @@ func OpenPackage(fname string) (pack *Package, err error) {
 		return
 	}
 
-	var bulk []byte
+	var dpath string
 	if pack.IsSplitted() {
-		if bulk, err = os.ReadFile(wpk.MakeDataPath(fname)); err != nil {
-			return
-		}
+		dpath = wpk.MakeDataPath(fpath)
 	} else {
-		var offset, size = pack.DataPos()
-		bulk = make([]byte, offset+size)
-		if _, err = r.Seek(0, io.SeekStart); err != nil {
-			return
-		}
-		if _, err = r.Read(bulk); err != nil {
-			return
-		}
+		dpath = fpath
 	}
-	pack.bulk = bulk
+	if pack.bulk, err = os.ReadFile(dpath); err != nil {
+		return
+	}
 	return
 }
 
@@ -97,24 +90,24 @@ func (pack *Package) Close() error {
 
 // Sub clones object and gives access to pointed subdirectory.
 // fs.SubFS implementation.
-func (pack *Package) Sub(dir string) (df fs.FS, err error) {
-	var workspace = path.Join(pack.workspace, dir)
-	var prefixdir string
-	if workspace != "." {
-		prefixdir = workspace + "/" // make prefix slash-terminated
+func (pack *Package) Sub(dir string) (sub fs.FS, err error) {
+	var fulldir = path.Join(pack.workspace, dir)
+	var prefix string
+	if fulldir != "." {
+		prefix = fulldir + "/" // make prefix slash-terminated
 	}
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-		if strings.HasPrefix(fkey, prefixdir) {
-			df, err = &Package{
+	pack.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+		if strings.HasPrefix(fkey, prefix) {
+			sub = &Package{
 				pack.Package,
-				workspace,
+				fulldir,
 				pack.bulk,
-			}, nil
+			}
 			return false
 		}
 		return true
 	})
-	if df == nil { // on case if not found
+	if sub == nil { // on case if not found
 		err = &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrNotExist}
 	}
 	return
@@ -134,7 +127,7 @@ func (pack *Package) Stat(name string) (fs.FileInfo, error) {
 // fs.ReadFileFS implementation.
 func (pack *Package) ReadFile(name string) ([]byte, error) {
 	var fullname = path.Join(pack.workspace, name)
-	var ts *wpk.Tagset_t
+	var ts *wpk.TagsetRaw
 	var is bool
 	if ts, is = pack.Tagset(fullname); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
@@ -147,7 +140,7 @@ func (pack *Package) ReadFile(name string) ([]byte, error) {
 // and returns a list of directory entries sorted by filename.
 func (pack *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
 	var fullname = path.Join(pack.workspace, dir)
-	return pack.FTT_t.ReadDirN(fullname, -1)
+	return pack.FTT.ReadDirN(fullname, -1)
 }
 
 // Open implements access to nested into package file or directory by keyname.
@@ -162,7 +155,7 @@ func (pack *Package) Open(dir string) (fs.File, error) {
 	if ts, is := pack.Tagset(fullname); is {
 		return NewSliceFile(pack, ts)
 	}
-	return pack.FTT_t.OpenDir(fullname)
+	return pack.FTT.OpenDir(fullname)
 }
 
 // The End.

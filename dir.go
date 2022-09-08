@@ -27,8 +27,8 @@ func MakeDataPath(fpath string) string {
 // PackDirFile is a directory file whose entries can be read with the ReadDir method.
 // fs.ReadDirFile interface implementation.
 type PackDirFile struct {
-	*Tagset_t // has fs.FileInfo interface
-	FTT       *FTT_t
+	*TagsetRaw // has fs.FileInfo interface
+	pack       *FTT
 }
 
 // fs.ReadDirFile interface implementation.
@@ -48,7 +48,7 @@ func (f *PackDirFile) Close() error {
 
 // fs.ReadDirFile interface implementation.
 func (f *PackDirFile) ReadDir(n int) (matches []fs.DirEntry, err error) {
-	return f.FTT.ReadDirN(f.Path(), n)
+	return f.pack.ReadDirN(f.Path(), n)
 }
 
 var (
@@ -114,13 +114,13 @@ func Normalize(fpath string) string {
 
 // ReadDirN returns fs.DirEntry array with nested into given package directory presentation.
 // It's core function for ReadDirFile and ReadDirFS structures.
-func (ftt *FTT_t) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
+func (ftt *FTT) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 	var prefix string
 	if dir != "." {
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
 	var found = map[string]Void{}
-	ftt.Enum(func(fkey string, ts *Tagset_t) bool {
+	ftt.Enum(func(fkey string, ts *TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			var suffix = fkey[len(prefix):]
 			var sp = strings.IndexByte(suffix, '/')
@@ -135,8 +135,8 @@ func (ftt *FTT_t) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 					var dts = MakeTagset(nil, 2, 2).
 						Put(TIDpath, StrTag(fpath[:len(subdir)]))
 					var f = &PackDirFile{
-						Tagset_t: dts,
-						FTT:      ftt,
+						TagsetRaw: dts,
+						pack:      ftt,
 					}
 					list = append(list, f)
 					n--
@@ -153,19 +153,19 @@ func (ftt *FTT_t) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 
 // OpenDir returns PackDirFile structure associated with group of files in package
 // pooled with common directory prefix. Usable to implement fs.FileSystem interface.
-func (ftt *FTT_t) OpenDir(dir string) (fs.ReadDirFile, error) {
+func (ftt *FTT) OpenDir(dir string) (fs.ReadDirFile, error) {
 	var prefix string
 	if dir != "." {
 		prefix = Normalize(dir) + "/" // set terminated slash
 	}
 	var f *PackDirFile
-	ftt.Enum(func(fkey string, ts *Tagset_t) bool {
+	ftt.Enum(func(fkey string, ts *TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			var dts = MakeTagset(nil, 2, 2).
 				Put(TIDpath, StrTag(dir))
 			f = &PackDirFile{
-				Tagset_t: dts,
-				FTT:      ftt,
+				TagsetRaw: dts,
+				pack:      ftt,
 			}
 			return false
 		}

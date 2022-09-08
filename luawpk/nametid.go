@@ -90,10 +90,10 @@ func ValueToTID(k lua.LValue) (tid uint, err error) {
 	return
 }
 
-// ValueToTag converts LValue to Tag_t. Strings converts explicitly to byte sequence,
+// ValueToTag converts LValue to TagRaw. Strings converts explicitly to byte sequence,
 // boolen converts to 1 byte slice with 1 for 'true' and 0 for 'false'.
-// Otherwise if it is not 'tag' uservalue with Tag_t, returns error.
-func ValueToTag(v lua.LValue) (tag wpk.Tag_t, err error) {
+// Otherwise if it is not 'tag' uservalue with TagRaw, returns error.
+func ValueToTag(v lua.LValue) (tag wpk.TagRaw, err error) {
 	if val, ok := v.(lua.LNumber); ok {
 		var u = uint(val)
 		if val < 0 || val > lua.LNumber(uint(1<<64-1)) || val-lua.LNumber(u) != 0 {
@@ -107,7 +107,7 @@ func ValueToTag(v lua.LValue) (tag wpk.Tag_t, err error) {
 		tag = wpk.BoolTag(bool(val))
 	} else if ud, ok := v.(*lua.LUserData); ok {
 		if val, ok := ud.Value.(*LuaTag); ok {
-			tag = val.Tag_t
+			tag = val.TagRaw
 		} else {
 			err = ErrBadTagVal
 			return
@@ -119,15 +119,15 @@ func ValueToTag(v lua.LValue) (tag wpk.Tag_t, err error) {
 	return
 }
 
-// TableToTagset converts Lua-table to Tagset_t. Lua-table keys can be number identifiers
+// TableToTagset converts Lua-table to TagsetRaw. Lua-table keys can be number identifiers
 // or string names associated ID values. Lua-table values can be strings,
 // boolean or "tag" userdata values. Numbers can not be passed to table
 // to prevent ambiguous type representation.
-func TableToTagset(lt *lua.LTable, ts *wpk.Tagset_t) (err error) {
+func TableToTagset(lt *lua.LTable, ts *wpk.TagsetRaw) (err error) {
 	lt.ForEach(func(k lua.LValue, v lua.LValue) {
 		var (
 			tid uint
-			tag wpk.Tag_t
+			tag wpk.TagRaw
 		)
 
 		if tid, err = ValueToTID(k); err != nil {

@@ -13,7 +13,7 @@ const TagMT = "tag"
 
 // LuaTag is "tag" userdata structure.
 type LuaTag struct {
-	wpk.Tag_t
+	wpk.TagRaw
 }
 
 // RegTag registers "tag" userdata into Lua virtual machine.
@@ -162,13 +162,13 @@ func setterTag(ls *lua.LState) int {
 
 func stringTag(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
-	ls.Push(lua.LString(hex.EncodeToString(t.Tag_t)))
+	ls.Push(lua.LString(hex.EncodeToString(t.TagRaw)))
 	return 1
 }
 
 func lenTag(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
-	ls.Push(lua.LNumber(len(t.Tag_t)))
+	ls.Push(lua.LNumber(len(t.TagRaw)))
 	return 1
 }
 
@@ -195,7 +195,7 @@ var methodsTag = map[string]lua.LGFunction{
 
 func gethex(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
-	ls.Push(lua.LString(hex.EncodeToString(t.Tag_t)))
+	ls.Push(lua.LString(hex.EncodeToString(t.TagRaw)))
 	return 1
 }
 
@@ -203,13 +203,13 @@ func sethex(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = ls.CheckString(2)
 	var ds, _ = hex.DecodeString(val)
-	t.Tag_t = ds
+	t.TagRaw = ds
 	return 0
 }
 
 func getbase64(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
-	ls.Push(lua.LString(base64.StdEncoding.EncodeToString(t.Tag_t)))
+	ls.Push(lua.LString(base64.StdEncoding.EncodeToString(t.TagRaw)))
 	return 1
 }
 
@@ -217,7 +217,7 @@ func setbase64(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = ls.CheckString(2)
 	var ds, _ = base64.StdEncoding.DecodeString(val)
-	t.Tag_t = ds
+	t.TagRaw = ds
 	return 0
 }
 
@@ -233,7 +233,7 @@ func getstring(ls *lua.LState) int {
 func setstring(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = ls.CheckString(2)
-	t.Tag_t = wpk.StrTag(val)
+	t.TagRaw = wpk.StrTag(val)
 	return 0
 }
 
@@ -249,7 +249,7 @@ func getbool(ls *lua.LState) int {
 func setbool(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = ls.CheckBool(2)
-	t.Tag_t = wpk.BoolTag(val)
+	t.TagRaw = wpk.BoolTag(val)
 	return 0
 }
 
@@ -265,7 +265,7 @@ func getuint8(ls *lua.LState) int {
 func setuint8(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = uint8(ls.CheckInt(2))
-	t.Tag_t = wpk.ByteTag(val)
+	t.TagRaw = wpk.ByteTag(val)
 	return 0
 }
 
@@ -281,7 +281,7 @@ func getuint16(ls *lua.LState) int {
 func setuint16(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = uint16(ls.CheckInt(2))
-	t.Tag_t = wpk.Uint16Tag(val)
+	t.TagRaw = wpk.Uint16Tag(val)
 	return 0
 }
 
@@ -297,7 +297,7 @@ func getuint32(ls *lua.LState) int {
 func setuint32(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = uint32(ls.CheckInt(2))
-	t.Tag_t = wpk.Uint32Tag(val)
+	t.TagRaw = wpk.Uint32Tag(val)
 	return 0
 }
 
@@ -313,7 +313,7 @@ func getuint64(ls *lua.LState) int {
 func setuint64(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = uint64(ls.CheckInt(2))
-	t.Tag_t = wpk.Uint64Tag(val)
+	t.TagRaw = wpk.Uint64Tag(val)
 	return 0
 }
 
@@ -338,7 +338,7 @@ func getnumber(ls *lua.LState) int {
 func setnumber(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = float64(ls.CheckNumber(2))
-	t.Tag_t = wpk.NumberTag(val)
+	t.TagRaw = wpk.NumberTag(val)
 	return 0
 }
 

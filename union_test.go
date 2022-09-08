@@ -30,7 +30,7 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 		}
 		defer file.Close()
 
-		var ts *wpk.Tagset_t
+		var ts *wpk.TagsetRaw
 		if ts, err = pack.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}

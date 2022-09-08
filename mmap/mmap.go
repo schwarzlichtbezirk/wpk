@@ -21,13 +21,13 @@ const pagesize = 64 * 1024
 // wpk.NestedFile interface implementation.
 type MappedFile struct {
 	wpk.FileReader
-	tags   *wpk.Tagset_t // has fs.FileInfo interface
+	tags   *wpk.TagsetRaw // has fs.FileInfo interface
 	region []byte
 	mm.MMap
 }
 
 // NewMappedFile maps nested to package file based on given tags slice.
-func NewMappedFile(pack *Package, ts *wpk.Tagset_t) (f *MappedFile, err error) {
+func NewMappedFile(pack *Package, ts *wpk.TagsetRaw) (f *MappedFile, err error) {
 	// calculate paged size/offset
 	var offset, size = ts.Pos()
 	var pgoff = offset % pagesize
@@ -67,19 +67,19 @@ type Package struct {
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
-func (pack *Package) OpenTagset(ts *wpk.Tagset_t) (wpk.NestedFile, error) {
+func (pack *Package) OpenTagset(ts *wpk.TagsetRaw) (wpk.NestedFile, error) {
 	return NewMappedFile(pack, ts)
 }
 
 // OpenPackage opens WPK-file package by given file name.
-func OpenPackage(fname string) (pack *Package, err error) {
+func OpenPackage(fpath string) (pack *Package, err error) {
 	pack = &Package{
 		Package:   &wpk.Package{},
 		workspace: ".",
 	}
 
 	var r io.ReadSeekCloser
-	if r, err = os.Open(fname); err != nil {
+	if r, err = os.Open(fpath); err != nil {
 		return
 	}
 	defer r.Close()
@@ -88,14 +88,14 @@ func OpenPackage(fname string) (pack *Package, err error) {
 		return
 	}
 
+	var dpath string
 	if pack.IsSplitted() {
-		if pack.filewpk, err = os.Open(wpk.MakeDataPath(fname)); err != nil {
-			return
-		}
+		dpath = wpk.MakeDataPath(fpath)
 	} else {
-		if pack.filewpk, err = os.Open(fname); err != nil {
-			return
-		}
+		dpath = fpath
+	}
+	if pack.filewpk, err = os.Open(dpath); err != nil {
+		return
 	}
 	return
 }
@@ -111,18 +111,18 @@ func (pack *Package) Close() error {
 // Copies file handle, so it must be closed only once for root object.
 // fs.SubFS implementation.
 func (pack *Package) Sub(dir string) (sub fs.FS, err error) {
-	var workspace = path.Join(pack.workspace, dir)
-	var prefixdir string
-	if workspace != "." {
-		prefixdir = workspace + "/" // make prefix slash-terminated
+	var fulldir = path.Join(pack.workspace, dir)
+	var prefix string
+	if fulldir != "." {
+		prefix = fulldir + "/" // make prefix slash-terminated
 	}
-	pack.Enum(func(fkey string, ts *wpk.Tagset_t) bool {
-		if strings.HasPrefix(fkey, prefixdir) {
-			sub, err = &Package{
+	pack.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+		if strings.HasPrefix(fkey, prefix) {
+			sub = &Package{
 				pack.Package,
-				workspace,
+				fulldir,
 				pack.filewpk,
-			}, nil
+			}
 			return false
 		}
 		return true
@@ -148,7 +148,7 @@ func (pack *Package) Stat(name string) (fs.FileInfo, error) {
 // fs.ReadFileFS implementation.
 func (pack *Package) ReadFile(name string) ([]byte, error) {
 	var fullname = path.Join(pack.workspace, name)
-	var ts *wpk.Tagset_t
+	var ts *wpk.TagsetRaw
 	var is bool
 	if ts, is = pack.Tagset(fullname); !is {
 		return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
@@ -169,7 +169,7 @@ func (pack *Package) ReadFile(name string) ([]byte, error) {
 // and returns a list of directory entries sorted by filename.
 func (pack *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
 	var fullname = path.Join(pack.workspace, dir)
-	return pack.FTT_t.ReadDirN(fullname, -1)
+	return pack.FTT.ReadDirN(fullname, -1)
 }
 
 // Open implements access to nested into package file or directory by keyname.
@@ -183,7 +183,7 @@ func (pack *Package) Open(dir string) (fs.File, error) {
 	if ts, is := pack.Tagset(fullname); is {
 		return NewMappedFile(pack, ts)
 	}
-	return pack.FTT_t.OpenDir(fullname)
+	return pack.FTT.OpenDir(fullname)
 }
 
 // The End.

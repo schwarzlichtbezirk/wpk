@@ -93,7 +93,7 @@ func checkargs() int {
 
 var num, sum int64
 
-func packdirclosure(r io.ReadSeeker, ts *wpk.Tagset_t) (err error) {
+func packdirclosure(r io.ReadSeeker, ts *wpk.TagsetRaw) (err error) {
 	var size = ts.Size()
 	var fname = ts.Path()
 	num++
