@@ -3,6 +3,7 @@ package wpk_test
 import (
 	"io/fs"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/schwarzlichtbezirk/wpk"
@@ -92,8 +93,9 @@ func TestUnion(t *testing.T) {
 	defer u.Close()
 
 	var (
-		list  []string
-		check = func(testname string, m map[string]wpk.Void) {
+		folder fs.File
+		list   []string
+		check  = func(testname string, m map[string]wpk.Void) {
 			if len(list) != len(m) {
 				t.Fatalf("%s test: expected %d filenames in union, got %d", testname, len(m), len(list))
 			}
@@ -103,13 +105,26 @@ func TestUnion(t *testing.T) {
 				}
 			}
 		}
+		checkfs = func(ufs fs.FS, fname string, m map[string]wpk.Void) {
+			if folder, err = ufs.Open(fname); err != nil {
+				t.Fatal(err)
+			}
+			if df, ok := folder.(fs.ReadDirFile); ok {
+				var delist, _ = df.ReadDir(-1)
+				list = nil
+				for _, de := range delist {
+					list = append(list, path.Join(fname, de.Name()))
+				}
+			} else {
+				t.Fatalf("cannot cast '%s' directory property to fs.ReadDirFile", fname)
+			}
+			check(fname+" folder", m)
+		}
 	)
 
-	var img1 fs.File
-	if img1, err = u.Open("img1"); err != nil {
-		t.Fatal(err)
-	}
-	_, _ = img1, err
+	//
+	// AllKeys test
+	//
 
 	list = u.AllKeys()
 	check("all keys", map[string]wpk.Void{
@@ -119,6 +134,10 @@ func TestUnion(t *testing.T) {
 		"img1/qarataslar.jpg": {},
 		"img2/uzunji.jpg":     {},
 	})
+
+	//
+	// Glob test
+	//
 
 	if list, err = u.Glob("*"); err != nil {
 		t.Fatal(err)
@@ -135,13 +154,46 @@ func TestUnion(t *testing.T) {
 		"img2/uzunji.jpg": {},
 	})
 
-	if list, err = u.Glob("*/*a?.jpg"); err != nil {
+	if list, err = u.Glob("*/?ar*.jpg"); err != nil {
 		t.Fatal(err)
 	}
-	check("*/*a?.jpg", map[string]wpk.Void{
+	check("*/?ar*.jpg", map[string]wpk.Void{
+		"img1/qarataslar.jpg": {},
+		"img2/marble.jpg":     {},
+	})
+
+	//
+	// File system test
+	//
+
+	checkfs(&u, ".", map[string]wpk.Void{
+		"bounty.jpg": {},
+		"img1":       {},
+		"img2":       {},
+	})
+
+	checkfs(&u, "img1", map[string]wpk.Void{
 		"img1/claustral.jpg":  {},
 		"img1/qarataslar.jpg": {},
 	})
+
+	checkfs(&u, "img2", map[string]wpk.Void{
+		"img2/marble.jpg": {},
+		"img2/uzunji.jpg": {},
+	})
+
+	//
+	// Subdirectory test
+	//
+
+	/*var u1 fs.FS
+	if u1, err = u.Sub("img1"); err != nil {
+		t.Fatal(err)
+	}
+	checkfs(u1, ".", map[string]wpk.Void{
+		"claustral.jpg":  {},
+		"qarataslar.jpg": {},
+	})*/
 }
 
 // The End.

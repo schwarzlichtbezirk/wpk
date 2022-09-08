@@ -22,8 +22,8 @@ type SliceFile struct {
 func NewSliceFile(pack *Package, ts *wpk.Tagset_t) (f *SliceFile, err error) {
 	var offset, size = ts.Pos()
 	f = &SliceFile{
-		tags:       ts,
 		FileReader: bytes.NewReader(pack.bulk[offset : offset+size]),
+		tags:       ts,
 	}
 	return
 }
@@ -147,13 +147,13 @@ func (pack *Package) ReadFile(name string) ([]byte, error) {
 // and returns a list of directory entries sorted by filename.
 func (pack *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
 	var fullname = path.Join(pack.workspace, dir)
-	return pack.FTT_t.ReadDir(fullname, -1)
+	return pack.FTT_t.ReadDirN(fullname, -1)
 }
 
 // Open implements access to nested into package file or directory by keyname.
 // fs.FS implementation.
 func (pack *Package) Open(dir string) (fs.File, error) {
-	if dir == wpk.InfoName && pack.workspace == "." {
+	if dir == "wpk" && pack.workspace == "." {
 		var ts = pack.BaseTagset(0, uint(len(pack.bulk)), "wpk")
 		return NewSliceFile(pack, ts)
 	}
@@ -162,7 +162,7 @@ func (pack *Package) Open(dir string) (fs.File, error) {
 	if ts, is := pack.Tagset(fullname); is {
 		return NewSliceFile(pack, ts)
 	}
-	return pack.FTT_t.Open(fullname)
+	return pack.FTT_t.OpenDir(fullname)
 }
 
 // The End.

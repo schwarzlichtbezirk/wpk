@@ -458,7 +458,12 @@ func (ftt *FTT_t) WriteTo(w io.Writer) (n int64, err error) {
 	}
 
 	// write files tags table
-	ftt.Enum(func(fkey string, ts *Tagset_t) bool {
+	ftt.Range(func(key, value interface{}) bool {
+		var fkey, ts = key.(string), value.(*Tagset_t)
+		if fkey == InfoName {
+			return true
+		}
+
 		var tsl = uint(len(ts.Data()))
 		if tsl > uint(1<<(ftt.tssize*8)-1) {
 			err = ErrRangeTSSize
@@ -579,7 +584,7 @@ func (pack *Package) OpenFTT(r io.ReadSeeker) (err error) {
 
 // GetPackageInfo returns tagset with package information.
 // It's a quick function to get info from the file.
-func GetPackageInfo(r io.ReadSeeker, tidsz, tagsz byte) (ts *Tagset_t, err error) {
+func GetPackageInfo(r io.ReadSeeker) (ts *Tagset_t, err error) {
 	var hdr Header
 	// go to file start
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
@@ -616,7 +621,7 @@ func GetPackageInfo(r io.ReadSeeker, tidsz, tagsz byte) (ts *Tagset_t, err error
 		return
 	}
 
-	ts = &Tagset_t{data, tidsz, tagsz}
+	ts = &Tagset_t{data, hdr.typesize[PTStidsz], hdr.typesize[PTStagsz]}
 	var tsi = ts.Iterator()
 	for tsi.Next() {
 	}
@@ -633,7 +638,7 @@ func GetPackageInfo(r io.ReadSeeker, tidsz, tagsz byte) (ts *Tagset_t, err error
 		return
 	}
 	if fpath != InfoName {
-		ts = nil // info is not found
+		ts = nil // info is not found, returns (nil, nil)
 		return
 	}
 	return

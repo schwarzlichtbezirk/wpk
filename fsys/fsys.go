@@ -26,8 +26,8 @@ func NewChunkFile(fpath string, ts *wpk.Tagset_t) (f *ChunkFile, err error) {
 	}
 	var offset, size = ts.Pos()
 	f = &ChunkFile{
-		tags:       ts,
 		FileReader: io.NewSectionReader(wpkf, int64(offset), int64(size)),
+		tags:       ts,
 		wpkf:       wpkf,
 	}
 	return
@@ -160,13 +160,13 @@ func (pack *Package) ReadFile(name string) ([]byte, error) {
 // and returns a list of directory entries sorted by filename.
 func (pack *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
 	var fullname = path.Join(pack.workspace, dir)
-	return pack.FTT_t.ReadDir(fullname, -1)
+	return pack.FTT_t.ReadDirN(fullname, -1)
 }
 
 // Open implements access to nested into package file or directory by keyname.
 // fs.FS implementation.
 func (pack *Package) Open(dir string) (fs.File, error) {
-	if dir == wpk.InfoName && pack.workspace == "." {
+	if dir == "wpk" && pack.workspace == "." {
 		return os.Open(pack.fpath)
 	}
 
@@ -174,7 +174,7 @@ func (pack *Package) Open(dir string) (fs.File, error) {
 	if ts, is := pack.Tagset(fullname); is {
 		return NewChunkFile(pack.fpath, ts)
 	}
-	return pack.FTT_t.Open(fullname)
+	return pack.FTT_t.OpenDir(fullname)
 }
 
 // The End.

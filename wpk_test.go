@@ -145,7 +145,7 @@ func TestInfo(t *testing.T) {
 
 	// at the end checkup package info
 	var ts *wpk.Tagset_t
-	if ts, err = wpk.GetPackageInfo(fwpk, tidsz, tagsz); err != nil {
+	if ts, err = wpk.GetPackageInfo(fwpk); err != nil {
 		t.Fatal(err)
 	}
 	if ts == nil {
