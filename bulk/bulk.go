@@ -94,7 +94,7 @@ func (pack *Package) Sub(dir string) (sub fs.FS, err error) {
 	var fulldir = path.Join(pack.workspace, dir)
 	var prefix string
 	if fulldir != "." {
-		prefix = fulldir + "/" // make prefix slash-terminated
+		prefix = wpk.Normalize(fulldir) + "/" // make prefix slash-terminated
 	}
 	pack.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
@@ -146,12 +146,12 @@ func (pack *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
 // Open implements access to nested into package file or directory by keyname.
 // fs.FS implementation.
 func (pack *Package) Open(dir string) (fs.File, error) {
-	if dir == "wpk" && pack.workspace == "." {
+	var fullname = path.Join(pack.workspace, dir)
+	if fullname == wpk.PackName {
 		var ts = pack.BaseTagset(0, uint(len(pack.bulk)), "wpk")
 		return NewSliceFile(pack, ts)
 	}
 
-	var fullname = path.Join(pack.workspace, dir)
 	if ts, is := pack.Tagset(fullname); is {
 		return NewSliceFile(pack, ts)
 	}

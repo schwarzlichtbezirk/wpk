@@ -35,7 +35,20 @@ func (f *UnionDir) Close() error {
 
 // fs.ReadDirFile interface implementation.
 func (f *UnionDir) ReadDir(n int) ([]fs.DirEntry, error) {
-	return f.ReadDirN(f.Path(), n)
+	var dir = f.Path()
+	if f.workspace != "." && f.workspace != "" {
+		if !strings.HasPrefix(dir, f.workspace) {
+			return nil, ErrOtherSubdir
+		}
+		dir = strings.TrimPrefix(dir, f.workspace)
+		if len(dir) > 0 {
+			if dir[0] != '/' {
+				return nil, ErrOtherSubdir
+			}
+			dir = dir[1:]
+		}
+	}
+	return f.ReadDirN(dir, n)
 }
 
 type Union struct {
@@ -151,9 +164,10 @@ func (u *Union) ReadFile(name string) ([]byte, error) {
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
 func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
+	var fullname = path.Join(u.workspace, dir)
 	var prefix string
-	if dir != "." {
-		prefix = Normalize(dir) + "/" // set terminated slash
+	if fullname != "." {
+		prefix = Normalize(fullname) + "/" // set terminated slash
 	}
 	var found = map[string]Void{}
 	for _, pack := range u.List {
@@ -199,19 +213,19 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 // If union have more than one file with the same name, first will be returned.
 // fs.FS implementation.
 func (u *Union) Open(dir string) (fs.File, error) {
-	if strings.HasPrefix(dir, "wpk/") && u.workspace == "." {
-		var idx, err = strconv.ParseUint(dir[4:], 10, 32)
+	var fullname = path.Join(u.workspace, dir)
+	if strings.HasPrefix(fullname, PackName+"/") {
+		var idx, err = strconv.ParseUint(dir[len(PackName)+1:], 10, 32)
 		if err != nil {
 			return nil, &fs.PathError{Op: "open", Path: dir, Err: err}
 		}
 		if idx >= uint64(len(u.List)) {
 			return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrNotExist}
 		}
-		return u.List[idx].Open("wpk")
+		return u.List[idx].Open(PackName)
 	}
 
 	// try to get the file
-	var fullname = path.Join(u.workspace, dir)
 	for _, pack := range u.List {
 		if ts, is := pack.Tagset(fullname); is {
 			return pack.OpenTagset(ts)
@@ -220,15 +234,15 @@ func (u *Union) Open(dir string) (fs.File, error) {
 
 	// try to get the folder
 	var prefix string
-	if dir != "." {
-		prefix = Normalize(dir) + "/" // set terminated slash
+	if fullname != "." {
+		prefix = Normalize(fullname) + "/" // set terminated slash
 	}
 	for _, pack := range u.List {
 		var f *UnionDir
 		pack.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
 				var dts = MakeTagset(nil, 2, 2).
-					Put(TIDpath, StrTag(dir))
+					Put(TIDpath, StrTag(fullname))
 				f = &UnionDir{
 					TagsetRaw: dts,
 					Union:     u,

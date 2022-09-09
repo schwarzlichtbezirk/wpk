@@ -109,7 +109,7 @@ func ToSlash(fpath string) string {
 // Normalize brings file path to normalized form. It makes argument lowercase,
 // change back slashes to normal slashes. Normalized path is the key to FTT map.
 func Normalize(fpath string) string {
-	return strings.ToLower(path.Clean(ToSlash(fpath)))
+	return strings.ToLower(ToSlash(path.Clean(fpath)))
 }
 
 // ReadDirN returns fs.DirEntry array with nested into given package directory presentation.

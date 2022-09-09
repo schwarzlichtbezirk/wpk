@@ -94,6 +94,8 @@ var (
 	ErrOutOff   = errors.New("file offset is out of bounds")
 	ErrNoSize   = errors.New("file size is absent")
 	ErrOutSize  = errors.New("file size is out of bounds")
+
+	ErrOtherSubdir = errors.New("directory refers to other workspace")
 )
 
 // FileReader is interface for nested package files access.
@@ -258,7 +260,10 @@ func (hdr *Header) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-const InfoName = "."
+const (
+	InfoName = "@info" // package info tagset name
+	PackName = "@pack" // package content reference
+)
 
 // File tags table.
 // Keys - package filenames in lower case, values - tagset slices.

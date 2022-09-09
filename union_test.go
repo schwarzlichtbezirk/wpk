@@ -186,14 +186,23 @@ func TestUnion(t *testing.T) {
 	// Subdirectory test
 	//
 
-	/*var u1 fs.FS
+	var u1 fs.FS
 	if u1, err = u.Sub("img1"); err != nil {
 		t.Fatal(err)
 	}
 	checkfs(u1, ".", map[string]wpk.Void{
 		"claustral.jpg":  {},
 		"qarataslar.jpg": {},
-	})*/
+	})
+
+	var u2 fs.FS
+	if u2, err = u.Sub("img2"); err != nil {
+		t.Fatal(err)
+	}
+	checkfs(u2, ".", map[string]wpk.Void{
+		"marble.jpg": {},
+		"uzunji.jpg": {},
+	})
 }
 
 // The End.
