@@ -25,10 +25,7 @@ var (
 	PkgMode string
 )
 
-var (
-	packager wpk.Packager
-	tagger   wpk.Tagger
-)
+var pack *wpk.WPKFS
 
 func parseargs() {
 	flag.StringVar(&srcfile, "src", "", "package full file name, or list of files divided by ';'")
@@ -86,25 +83,22 @@ func checkargs() int {
 }
 
 func openpackage(pkgpath string) (err error) {
+	if pack, err = wpk.OpenPackage(pkgpath); err != nil {
+		return
+	}
 	switch PkgMode {
 	case "bulk":
-		var pack *bulk.Package
-		if pack, err = bulk.OpenPackage(pkgpath); err != nil {
+		if pack.Tagger, err = bulk.MakeTagger(pack.Package, pkgpath); err != nil {
 			return
 		}
-		packager, tagger = pack, pack
 	case "mmap":
-		var pack *mmap.Package
-		if pack, err = mmap.OpenPackage(pkgpath); err != nil {
+		if pack.Tagger, err = mmap.MakeTagger(pack.Package, pkgpath); err != nil {
 			return
 		}
-		packager, tagger = pack, pack
 	case "fsys":
-		var pack *fsys.Package
-		if pack, err = fsys.OpenPackage(pkgpath); err != nil {
+		if pack.Tagger, err = fsys.MakeTagger(pack.Package, pkgpath); err != nil {
 			return
 		}
-		packager, tagger = pack, pack
 	default:
 		panic("no way to here")
 	}
@@ -120,10 +114,10 @@ func readpackage() (err error) {
 			if err = openpackage(pkgpath); err != nil {
 				return
 			}
-			defer packager.Close()
+			defer pack.Close()
 
 			var num, sum int64
-			tagger.Enum(func(fkey string, ts *wpk.TagsetRaw) (next bool) {
+			pack.Enum(func(fkey string, ts *wpk.TagsetRaw) (next bool) {
 				defer func() {
 					next = err == nil
 				}()
@@ -135,7 +129,7 @@ func readpackage() (err error) {
 				}
 
 				var src wpk.NestedFile
-				if src, err = tagger.OpenTagset(ts); err != nil {
+				if src, err = pack.OpenTagset(ts); err != nil {
 					return
 				}
 				defer src.Close()

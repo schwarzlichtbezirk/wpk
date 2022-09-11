@@ -35,7 +35,7 @@ const PackMT = "wpk"
 
 // LuaPackage is "wpk" userdata structure.
 type LuaPackage struct {
-	wpk.Package
+	wpk.WPKFS
 	automime bool
 	nolink   bool
 	secret   []byte
@@ -96,7 +96,10 @@ func NewPack(ls *lua.LState) int {
 	}
 
 	var pack LuaPackage
-	pack.Init(pts)
+	var ftt = &wpk.Package{}
+	ftt.Init(pts)
+	pack.Package = ftt
+	pack.Workspace = "."
 	PushPack(ls, &pack)
 	return 1
 }

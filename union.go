@@ -36,31 +36,33 @@ func (f *UnionDir) Close() error {
 // fs.ReadDirFile interface implementation.
 func (f *UnionDir) ReadDir(n int) ([]fs.DirEntry, error) {
 	var dir = f.Path()
-	if f.workspace != "." && f.workspace != "" {
-		if !strings.HasPrefix(dir, f.workspace) {
+	var workspace = f.List[0].Workspace
+	if workspace != "." && workspace != "" {
+		if !strings.HasPrefix(dir, workspace) {
 			return nil, ErrOtherSubdir
 		}
-		dir = strings.TrimPrefix(dir, f.workspace)
+		dir = strings.TrimPrefix(dir, workspace)
 		if len(dir) > 0 {
 			if dir[0] != '/' {
 				return nil, ErrOtherSubdir
 			}
 			dir = dir[1:]
+		} else {
+			dir = "."
 		}
 	}
 	return f.ReadDirN(dir, n)
 }
 
 type Union struct {
-	List      []Packager
-	workspace string // workspace directory in package
+	List []*WPKFS
 }
 
 // Close call Close-function for all included into the union packages.
 // io.Closer implementation.
 func (u *Union) Close() (err error) {
 	for _, pack := range u.List {
-		if err1 := pack.Close(); err1 != nil {
+		if err1 := pack.Tagger.Close(); err1 != nil {
 			err = err1
 		}
 	}
@@ -84,10 +86,39 @@ func (u *Union) AllKeys() (res []string) {
 	return
 }
 
+// Sub clones object and gives access to pointed subdirectory.
+// fs.SubFS implementation.
+func (u *Union) Sub(dir string) (fs.FS, error) {
+	var u1 Union
+	for _, pack := range u.List {
+		if sub1, err1 := pack.Sub(dir); err1 == nil {
+			u1.List = append(u1.List, sub1.(*WPKFS))
+		}
+	}
+	if len(u1.List) == 0 {
+		return nil, &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrNotExist}
+	}
+	return &u1, nil
+}
+
+// Stat returns a fs.FileInfo describing the file.
+// If union have more than one file with the same name, info of the first will be returned.
+// fs.StatFS implementation.
+func (u *Union) Stat(fpath string) (fs.FileInfo, error) {
+	var ts *TagsetRaw
+	var is bool
+	for _, pack := range u.List {
+		if ts, is = pack.Tagset(fpath); is {
+			return ts, nil
+		}
+	}
+	return nil, &fs.PathError{Op: "stat", Path: fpath, Err: fs.ErrNotExist}
+}
+
 // Glob returns the names of all files in union matching pattern or nil
 // if there is no matching file.
 func (u *Union) Glob(pattern string) (res []string, err error) {
-	pattern = path.Join(u.workspace, Normalize(pattern))
+	pattern = Normalize(pattern)
 	if _, err = path.Match(pattern, ""); err != nil {
 		return
 	}
@@ -106,47 +137,13 @@ func (u *Union) Glob(pattern string) (res []string, err error) {
 	return
 }
 
-// Sub clones object and gives access to pointed subdirectory.
-// fs.SubFS implementation.
-func (u *Union) Sub(dir string) (fs.FS, error) {
-	var u1 Union
-	u1.workspace = path.Join(u.workspace, dir)
-	for _, pack := range u.List {
-		if sub1, err1 := pack.Sub(dir); err1 == nil {
-			u1.List = append(u1.List, sub1.(Packager))
-		}
-	}
-	if len(u1.List) == 0 {
-		return nil, &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrNotExist}
-	}
-	return &u1, nil
-}
-
-// Stat returns a fs.FileInfo describing the file.
-// If union have more than one file with the same name, info of the first will be returned.
-// fs.StatFS implementation.
-func (u *Union) Stat(name string) (fs.FileInfo, error) {
-	var fullname = path.Join(u.workspace, name)
-	var ts *TagsetRaw
-	var is bool
-	for _, pack := range u.List {
-		if ts, is = pack.Tagset(fullname); is {
-			return ts, nil
-		}
-	}
-	return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrNotExist}
-}
-
 // ReadFile returns slice with nested into union of packages file content.
 // If union have more than one file with the same name, first will be returned.
 // fs.ReadFileFS implementation.
-func (u *Union) ReadFile(name string) ([]byte, error) {
-	var fullname = path.Join(u.workspace, name)
-	var ts *TagsetRaw
-	var is bool
+func (u *Union) ReadFile(fpath string) ([]byte, error) {
 	for _, pack := range u.List {
-		if ts, is = pack.Tagset(fullname); is {
-			var f, err = pack.OpenTagset(ts)
+		if ts, is := pack.Tagset(fpath); is {
+			var f, err = pack.Tagger.OpenTagset(ts)
 			if err != nil {
 				return nil, err
 			}
@@ -158,16 +155,15 @@ func (u *Union) ReadFile(name string) ([]byte, error) {
 			return buf, err
 		}
 	}
-	return nil, &fs.PathError{Op: "readfile", Path: name, Err: fs.ErrNotExist}
+	return nil, &fs.PathError{Op: "readfile", Path: fpath, Err: fs.ErrNotExist}
 }
 
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
 func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
-	var fullname = path.Join(u.workspace, dir)
 	var prefix string
-	if fullname != "." {
-		prefix = Normalize(fullname) + "/" // set terminated slash
+	if dir != "." && dir != "" {
+		prefix = Normalize(path.Clean(dir)) + "/" // set terminated slash
 	}
 	var found = map[string]Void{}
 	for _, pack := range u.List {
@@ -209,12 +205,23 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 	return
 }
 
+// ReadDir reads the named directory
+// and returns a list of directory entries sorted by filename.
+// fs.ReadDirFS interface implementation.
+func (u *Union) ReadDir(dir string) ([]fs.DirEntry, error) {
+	return u.ReadDirN(dir, -1)
+}
+
 // Open implements access to nested into union of packages file or directory by keyname.
 // If union have more than one file with the same name, first will be returned.
 // fs.FS implementation.
 func (u *Union) Open(dir string) (fs.File, error) {
-	var fullname = path.Join(u.workspace, dir)
-	if strings.HasPrefix(fullname, PackName+"/") {
+	if len(u.List) == 0 {
+		return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrNotExist}
+	}
+
+	var fulldir = path.Join(u.List[0].Workspace, dir)
+	if strings.HasPrefix(fulldir, PackName+"/") {
 		var idx, err = strconv.ParseUint(dir[len(PackName)+1:], 10, 32)
 		if err != nil {
 			return nil, &fs.PathError{Op: "open", Path: dir, Err: err}
@@ -227,22 +234,22 @@ func (u *Union) Open(dir string) (fs.File, error) {
 
 	// try to get the file
 	for _, pack := range u.List {
-		if ts, is := pack.Tagset(fullname); is {
-			return pack.OpenTagset(ts)
+		if ts, is := pack.Tagset(dir); is {
+			return pack.Tagger.OpenTagset(ts)
 		}
 	}
 
 	// try to get the folder
 	var prefix string
-	if fullname != "." {
-		prefix = Normalize(fullname) + "/" // set terminated slash
+	if dir != "." && dir != "" {
+		prefix = Normalize(path.Clean(dir)) + "/" // set terminated slash
 	}
 	for _, pack := range u.List {
 		var f *UnionDir
 		pack.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
 				var dts = MakeTagset(nil, 2, 2).
-					Put(TIDpath, StrTag(fullname))
+					Put(TIDpath, StrTag(pack.FullPath(dir)))
 				f = &UnionDir{
 					TagsetRaw: dts,
 					Union:     u,

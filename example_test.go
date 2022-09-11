@@ -20,7 +20,10 @@ func ExamplePackage_OpenFTT() {
 	defer f.Close()
 
 	// Open package files tags table
-	var pack = &wpk.Package{}
+	var pack = wpk.WPKFS{
+		Package:   &wpk.Package{},
+		Workspace: ".",
+	}
 	if err = pack.OpenFTT(f); err != nil {
 		log.Fatal(err)
 	}
@@ -54,19 +57,12 @@ func ExamplePackage_OpenFTT() {
 	log.Println(strings.Join(items, ", "))
 }
 
-func ExamplePackage_Glob() {
+func ExampleWPKFS_Glob() {
 	var err error
 
-	// Open package file for reading
-	var f *os.File
-	if f, err = os.Open("example.wpk"); err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
 	// Open package files tags table
-	var pack = &wpk.Package{}
-	if err = pack.OpenFTT(f); err != nil {
+	var pack *wpk.WPKFS
+	if pack, err = wpk.OpenPackage("example.wpk"); err != nil {
 		log.Fatal(err)
 	}
 

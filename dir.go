@@ -28,7 +28,7 @@ func MakeDataPath(fpath string) string {
 // fs.ReadDirFile interface implementation.
 type PackDirFile struct {
 	*TagsetRaw // has fs.FileInfo interface
-	pack       *FTT
+	ftt        *FTT
 }
 
 // fs.ReadDirFile interface implementation.
@@ -48,7 +48,7 @@ func (f *PackDirFile) Close() error {
 
 // fs.ReadDirFile interface implementation.
 func (f *PackDirFile) ReadDir(n int) (matches []fs.DirEntry, err error) {
-	return f.pack.ReadDirN(f.Path(), n)
+	return f.ftt.ReadDirN(f.Path(), n)
 }
 
 var (
@@ -109,18 +109,19 @@ func ToSlash(fpath string) string {
 // Normalize brings file path to normalized form. It makes argument lowercase,
 // change back slashes to normal slashes. Normalized path is the key to FTT map.
 func Normalize(fpath string) string {
-	return strings.ToLower(ToSlash(path.Clean(fpath)))
+	return strings.ToLower(ToSlash(fpath))
 }
 
 // ReadDirN returns fs.DirEntry array with nested into given package directory presentation.
 // It's core function for ReadDirFile and ReadDirFS structures.
-func (ftt *FTT) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
+func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) {
 	var prefix string
-	if dir != "." {
-		prefix = Normalize(dir) + "/" // set terminated slash
+	if fulldir != "." && fulldir != "" {
+		prefix = Normalize(path.Clean(fulldir)) + "/" // set terminated slash
 	}
 	var found = map[string]Void{}
-	ftt.Enum(func(fkey string, ts *TagsetRaw) bool {
+	ftt.Range(func(key, value interface{}) bool {
+		var fkey, ts = key.(string), value.(*TagsetRaw)
 		if strings.HasPrefix(fkey, prefix) {
 			var suffix = fkey[len(prefix):]
 			var sp = strings.IndexByte(suffix, '/')
@@ -136,7 +137,7 @@ func (ftt *FTT) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 						Put(TIDpath, StrTag(fpath[:len(subdir)]))
 					var f = &PackDirFile{
 						TagsetRaw: dts,
-						pack:      ftt,
+						ftt:       ftt,
 					}
 					list = append(list, f)
 					n--
@@ -153,19 +154,19 @@ func (ftt *FTT) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 
 // OpenDir returns PackDirFile structure associated with group of files in package
 // pooled with common directory prefix. Usable to implement fs.FileSystem interface.
-func (ftt *FTT) OpenDir(dir string) (fs.ReadDirFile, error) {
+func (ftt *FTT) OpenDir(fulldir string) (fs.ReadDirFile, error) {
 	var prefix string
-	if dir != "." {
-		prefix = Normalize(dir) + "/" // set terminated slash
+	if fulldir != "." && fulldir != "" {
+		prefix = Normalize(path.Clean(fulldir)) + "/" // set terminated slash
 	}
 	var f *PackDirFile
-	ftt.Enum(func(fkey string, ts *TagsetRaw) bool {
-		if strings.HasPrefix(fkey, prefix) {
+	ftt.Range(func(key, value interface{}) bool {
+		if strings.HasPrefix(key.(string), prefix) {
 			var dts = MakeTagset(nil, 2, 2).
-				Put(TIDpath, StrTag(dir))
+				Put(TIDpath, StrTag(fulldir))
 			f = &PackDirFile{
 				TagsetRaw: dts,
-				pack:      ftt,
+				ftt:       ftt,
 			}
 			return false
 		}
@@ -175,7 +176,7 @@ func (ftt *FTT) OpenDir(dir string) (fs.ReadDirFile, error) {
 		return f, nil
 	}
 	// on case if not found
-	return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrNotExist}
+	return nil, &fs.PathError{Op: "open", Path: fulldir, Err: fs.ErrNotExist}
 }
 
 // The End.

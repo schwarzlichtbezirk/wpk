@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
 	"path"
+	"strings"
 	"sync"
 )
 
@@ -112,21 +114,19 @@ type NestedFile interface {
 	FileReader
 }
 
-// Tagger provides file tags access.
+// Tagger provides acces to nested files by given tagset of this package.
 type Tagger interface {
 	OpenTagset(*TagsetRaw) (NestedFile, error)
-	Tagset(string) (*TagsetRaw, bool)
-	Enum(func(string, *TagsetRaw) bool)
+	io.Closer
 }
 
 // CompleteFS includes all FS interfaces.
 type CompleteFS interface {
-	io.Closer
 	fs.SubFS
 	fs.StatFS
 	fs.GlobFS
-	fs.ReadFileFS
 	fs.ReadDirFS
+	fs.ReadFileFS
 }
 
 // Packager refers to package data access management implementation.
@@ -184,15 +184,10 @@ type Header struct {
 	datsize   uint64   // files data total size
 }
 
-// IsSplitted returns true if package is splitted on tags and data files.
-func (hdr *Header) IsSplitted() bool {
-	return hdr.datoffset == 0 && hdr.datsize > 0
-}
-
 // IsReady determines that package is ready for read the data.
 func (hdr *Header) IsReady() (err error) {
 	// can not read file tags table for opened on write single-file package.
-	if string(hdr.signature[:]) == SignBuild && !hdr.IsSplitted() {
+	if string(hdr.signature[:]) == SignBuild && !(hdr.datoffset == 0 && hdr.datsize > 0) {
 		return ErrSignPre
 	}
 	// can not read file tags table on any incorrect signature
@@ -274,51 +269,17 @@ type FTT struct {
 	tssize byte
 }
 
+// Init performs initialization for given Package structure.
+func (ftt *FTT) Init(pts TypeSize) {
+	ftt.tidsz = pts[PTStidsz]
+	ftt.tagsz = pts[PTStagsz]
+	ftt.tssize = pts[PTStssize]
+}
+
 // NewTagset creates new empty tagset based on predefined
 // TID type size and tag size type.
 func (ftt *FTT) NewTagset() *TagsetRaw {
 	return &TagsetRaw{nil, ftt.tidsz, ftt.tagsz}
-}
-
-// Tagset returns tagset with given filename key, if it found.
-func (ftt *FTT) Tagset(fkey string) (ts *TagsetRaw, ok bool) {
-	var val interface{}
-	if val, ok = ftt.Load(Normalize(fkey)); ok {
-		ts = val.(*TagsetRaw)
-	}
-	return
-}
-
-// Enum calls given closure for each tagset in package. Skips package info.
-func (ftt *FTT) Enum(f func(string, *TagsetRaw) bool) {
-	ftt.Range(func(key, value interface{}) bool {
-		return key.(string) == InfoName || f(key.(string), value.(*TagsetRaw))
-	})
-}
-
-// HasTagset check up that tagset with given filename key is present.
-func (ftt *FTT) HasTagset(fkey string) (ok bool) {
-	_, ok = ftt.Load(Normalize(fkey))
-	return
-}
-
-// SetTagset puts tagset with given filename key.
-func (ftt *FTT) SetTagset(fkey string, ts *TagsetRaw) {
-	ftt.Store(Normalize(fkey), ts)
-}
-
-// DelTagset deletes tagset with given filename key.
-func (ftt *FTT) DelTagset(fkey string) {
-	ftt.Delete(Normalize(fkey))
-}
-
-// GetDelTagset deletes the tagset for a key, returning the previous tagset if any.
-func (ftt *FTT) GetDelTagset(fkey string) (ts *TagsetRaw, ok bool) {
-	var val interface{}
-	if val, ok = ftt.LoadAndDelete(Normalize(fkey)); ok {
-		ts = val.(*TagsetRaw)
-	}
-	return
 }
 
 // Info returns package information tagset if it present.
@@ -356,7 +317,7 @@ func (ftt *FTT) checkTagset(ts *TagsetRaw, lim *filepos) (fpath string, err erro
 		err = &ErrTag{ErrNoPath, "", TIDpath}
 		return
 	}
-	if ftt.HasTagset(fpath) { // prevent same file from repeating
+	if _, ok := ftt.Load(fpath); ok { // prevent same file from repeating
 		err = &ErrTag{fs.ErrExist, fpath, TIDpath}
 		return
 	}
@@ -421,7 +382,7 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 			return
 		}
 
-		ftt.SetTagset(fpath, ts)
+		ftt.Store(fpath, ts)
 	}
 	return
 }
@@ -488,39 +449,195 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 
 // Package structure contains all data needed for package representation.
 type Package struct {
-	Header
 	FTT
-	mux sync.Mutex // writer mutex
+	datoffset uint64     // files data offset
+	datsize   uint64     // files data total size
+	mux       sync.Mutex // writer mutex
 }
 
-// NewPackage returns pointer to new initialized Package structure.
-func NewPackage(pts TypeSize) (pack *Package) {
-	pack = &Package{}
-	pack.Init(pts)
+// IsSplitted returns true if package is splitted on tags and data files.
+func (pack *Package) IsSplitted() bool {
+	return pack.datoffset == 0 && pack.datsize > 0
+}
+
+// Opens package for reading. At first it checkups file signature, then
+// reads records table, and reads file tagset table. Tags set for each
+// file must contain at least file offset, file size, file ID and file name.
+func (pack *Package) OpenFTT(r io.ReadSeeker) (err error) {
+	// go to file start
+	if _, err = r.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	// read header
+	var hdr Header
+	if _, err = hdr.ReadFrom(r); err != nil {
+		return
+	}
+	if err = hdr.IsReady(); err != nil {
+		return
+	}
+	if err = hdr.typesize.Checkup(); err != nil {
+		return
+	}
+	// setup empty tags table
+	pack.FTT = FTT{
+		tidsz:  hdr.typesize[PTStidsz],
+		tagsz:  hdr.typesize[PTStagsz],
+		tssize: hdr.typesize[PTStssize],
+	}
+	pack.datoffset, pack.datsize = hdr.datoffset, hdr.datsize
+	// go to file tags table start
+	if _, err = r.Seek(int64(hdr.fttoffset), io.SeekStart); err != nil {
+		return
+	}
+	// read file tags table
+	var fttsize int64
+	if fttsize, err = pack.FTT.ReadFrom(r); err != nil {
+		return
+	}
+	if fttsize != int64(hdr.fttsize) {
+		err = ErrSignFTT
+		return
+	}
 	return
 }
 
-// Init performs initialization for given Package structure.
-func (pack *Package) Init(pts TypeSize) {
-	pack.Header.typesize = pts
-	pack.FTT.tidsz = pts[PTStidsz]
-	pack.FTT.tagsz = pts[PTStagsz]
-	pack.FTT.tssize = pts[PTStssize]
+type WPKFS struct {
+	*Package
+	Tagger
+	Workspace string
+}
+
+// NewPackage returns pointer to new initialized Package filesystem structure.
+// Tagger should be set later if access to nested files is needed.
+func NewPackage(pts TypeSize) *WPKFS {
+	var ftt = &Package{}
+	ftt.Init(pts)
+	return &WPKFS{
+		Package:   ftt,
+		Workspace: ".",
+	}
+}
+
+// OpenPackage creates Package objects and reads package file tags table
+// from the file with given name.
+// Tagger should be set later if access to nested files is needed.
+func OpenPackage(fpath string) (pack *WPKFS, err error) {
+	var r io.ReadSeekCloser
+	if r, err = os.Open(fpath); err != nil {
+		return
+	}
+	defer r.Close()
+
+	pack = &WPKFS{
+		Package:   &Package{},
+		Workspace: ".",
+	}
+	if err = pack.OpenFTT(r); err != nil {
+		return
+	}
+
+	return
+}
+
+func (pack *WPKFS) FullPath(fpath string) string {
+	return path.Join(pack.Workspace, fpath)
 }
 
 // BaseTagset returns new tagset based on predefined TID type size and tag size type,
 // and puts file offset and file size into tagset with predefined sizes.
-func (pack *Package) BaseTagset(offset, size uint, fpath string) *TagsetRaw {
-	var ts = pack.NewTagset()
-	return ts.
+func (pack *WPKFS) BaseTagset(offset, size uint, fpath string) *TagsetRaw {
+	return pack.NewTagset().
 		Put(TIDoffset, UintTag(offset)).
 		Put(TIDsize, UintTag(size)).
-		Put(TIDpath, StrTag(ToSlash(fpath)))
+		Put(TIDpath, StrTag(ToSlash(pack.FullPath(fpath))))
+}
+
+// Tagset returns tagset with given filename key, if it found.
+func (pack *WPKFS) Tagset(fkey string) (ts *TagsetRaw, ok bool) {
+	var val interface{}
+	if val, ok = pack.Load(Normalize(pack.FullPath(fkey))); ok {
+		ts = val.(*TagsetRaw)
+	}
+	return
+}
+
+// Enum calls given closure for each tagset in package. Skips package info.
+func (pack *WPKFS) Enum(f func(string, *TagsetRaw) bool) {
+	var prefix string
+	if pack.Workspace != "." && pack.Workspace != "" {
+		prefix = Normalize(pack.Workspace) + "/" // make prefix slash-terminated
+	}
+	pack.Range(func(key, value interface{}) bool {
+		var fkey = key.(string)
+		return fkey == InfoName ||
+			!strings.HasPrefix(fkey, prefix) ||
+			f(fkey[len(prefix):], value.(*TagsetRaw))
+	})
+}
+
+// HasTagset check up that tagset with given filename key is present.
+func (pack *WPKFS) HasTagset(fkey string) (ok bool) {
+	_, ok = pack.Load(Normalize(pack.FullPath(fkey)))
+	return
+}
+
+// SetTagset puts tagset with given filename key.
+func (pack *WPKFS) SetTagset(fkey string, ts *TagsetRaw) {
+	pack.Store(Normalize(pack.FullPath(fkey)), ts)
+}
+
+// DelTagset deletes tagset with given filename key.
+func (pack *WPKFS) DelTagset(fkey string) {
+	pack.Delete(Normalize(pack.FullPath(fkey)))
+}
+
+// GetDelTagset deletes the tagset for a key, returning the previous tagset if any.
+func (pack *WPKFS) GetDelTagset(fkey string) (ts *TagsetRaw, ok bool) {
+	var val interface{}
+	if val, ok = pack.LoadAndDelete(Normalize(pack.FullPath(fkey))); ok {
+		ts = val.(*TagsetRaw)
+	}
+	return
+}
+
+// Sub clones object and gives access to pointed subdirectory.
+// fs.SubFS implementation.
+func (pack *WPKFS) Sub(dir string) (sub fs.FS, err error) {
+	var prefix string
+	if dir != "." && dir != "" {
+		prefix = Normalize(dir) + "/" // make prefix slash-terminated
+	}
+	pack.Enum(func(fkey string, ts *TagsetRaw) bool {
+		if strings.HasPrefix(fkey, prefix) {
+			sub = &WPKFS{
+				Package:   pack.Package,
+				Tagger:    pack.Tagger,
+				Workspace: pack.FullPath(dir),
+			}
+			return false
+		}
+		return true
+	})
+	if sub == nil { // on case if not found
+		err = &fs.PathError{Op: "sub", Path: dir, Err: fs.ErrNotExist}
+	}
+	return
+}
+
+// Stat returns a fs.FileInfo describing the file.
+// fs.StatFS interface implementation.
+func (pack *WPKFS) Stat(fpath string) (fs.FileInfo, error) {
+	if ts, is := pack.Tagset(fpath); is {
+		return ts, nil
+	}
+	return nil, &fs.PathError{Op: "stat", Path: fpath, Err: fs.ErrNotExist}
 }
 
 // Glob returns the names of all files in package matching pattern or nil
 // if there is no matching file.
-func (pack *Package) Glob(pattern string) (res []string, err error) {
+// fs.GlobFS interface implementation.
+func (pack *WPKFS) Glob(pattern string) (res []string, err error) {
 	pattern = Normalize(pattern)
 	if _, err = path.Match(pattern, ""); err != nil {
 		return
@@ -534,44 +651,46 @@ func (pack *Package) Glob(pattern string) (res []string, err error) {
 	return
 }
 
-// Opens package for reading. At first it checkups file signature, then
-// reads records table, and reads file tagset table. Tags set for each
-// file must contain at least file offset, file size, file ID and file name.
-func (pack *Package) OpenFTT(r io.ReadSeeker) (err error) {
-	// go to file start
-	if _, err = r.Seek(0, io.SeekStart); err != nil {
-		return
+// ReadDir reads the named directory
+// and returns a list of directory entries sorted by filename.
+// fs.ReadDirFS interface implementation.
+func (pack *WPKFS) ReadDir(dir string) ([]fs.DirEntry, error) {
+	var fulldir = pack.FullPath(dir)
+	return pack.FTT.ReadDirN(fulldir, -1)
+}
+
+// ReadFile returns slice with nested into package file content.
+// Makes content copy to prevent ambiguous access to closed mapped memory block.
+// fs.ReadFileFS implementation.
+func (pack *WPKFS) ReadFile(fpath string) ([]byte, error) {
+	if ts, is := pack.Tagset(fpath); is {
+		var f, err = pack.Tagger.OpenTagset(ts)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+
+		var size = ts.Size()
+		var buf = make([]byte, size)
+		_, err = f.Read(buf)
+		return buf, err
 	}
-	// read header
-	if _, err = pack.Header.ReadFrom(r); err != nil {
-		return
+	return nil, &fs.PathError{Op: "readfile", Path: fpath, Err: fs.ErrNotExist}
+}
+
+// Open implements access to nested into package file or directory by filename.
+// fs.FS implementation.
+func (pack *WPKFS) Open(dir string) (fs.File, error) {
+	var fullname = pack.FullPath(dir)
+	if fullname == PackName {
+		var ts = pack.BaseTagset(0, uint(pack.datoffset+pack.datsize), "wpk")
+		return pack.Tagger.OpenTagset(ts)
 	}
-	if err = pack.Header.IsReady(); err != nil {
-		return
+
+	if ts, is := pack.Tagset(dir); is {
+		return pack.Tagger.OpenTagset(ts)
 	}
-	if err = pack.typesize.Checkup(); err != nil {
-		return
-	}
-	// setup empty tags table
-	pack.FTT = FTT{
-		tidsz:  pack.Header.typesize[PTStidsz],
-		tagsz:  pack.Header.typesize[PTStagsz],
-		tssize: pack.Header.typesize[PTStssize],
-	}
-	// go to file tags table start
-	if _, err = r.Seek(int64(pack.fttoffset), io.SeekStart); err != nil {
-		return
-	}
-	// read file tags table
-	var fttsize int64
-	if fttsize, err = pack.FTT.ReadFrom(r); err != nil {
-		return
-	}
-	if fttsize != int64(pack.fttsize) {
-		err = ErrSignFTT
-		return
-	}
-	return
+	return pack.OpenDir(fullname)
 }
 
 // GetPackageInfo returns tagset with package information.

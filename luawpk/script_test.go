@@ -16,27 +16,24 @@ var mediadir = scrdir + "media/"
 func CheckPackage(t *testing.T, wptname, wpdname string) {
 	var err error
 
-	// open temporary file for read/write
-	var fwpk, fwpd *os.File
-	if fwpk, err = os.Open(wptname); err != nil {
+	// Open package files tags table
+	var pack *wpk.WPKFS
+	if pack, err = wpk.OpenPackage(wptname); err != nil {
 		t.Fatal(err)
 	}
-	defer fwpk.Close()
 
+	// open temporary file for read/write
+	var fwpd *os.File
 	if wpdname != "" && wptname != wpdname {
 		if fwpd, err = os.Open(wpdname); err != nil {
 			t.Fatal(err)
 		}
-		defer fwpd.Close()
 	} else {
-		fwpd = fwpk
+		if fwpd, err = os.Open(wptname); err != nil {
+			t.Fatal(err)
+		}
 	}
-
-	// Open package files tags table
-	var pack = &wpk.Package{}
-	if err = pack.OpenFTT(fwpk); err != nil {
-		t.Fatal(err)
-	}
+	defer fwpd.Close()
 
 	if ts, ok := pack.Info(); ok {
 		var offset, size = ts.Pos()
