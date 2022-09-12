@@ -44,7 +44,7 @@ func CheckPackage(t *testing.T, fwpt, fwpd *os.File, tagsnum int) {
 		FTT:       &wpk.FTT{},
 		Workspace: ".",
 	}
-	if err = pkg.OpenFTT(fwpt); err != nil {
+	if err = pkg.ReadFTT(fwpt); err != nil {
 		t.Fatal(err)
 	}
 
@@ -509,7 +509,7 @@ func TestAppendDiscrete(t *testing.T) {
 		// pkg value already contains data from previous step
 		// and this call can be skipped,
 		// but we want to test here read functionality
-		if err = pkg.OpenFTT(fwpk); err != nil {
+		if err = pkg.ReadFTT(fwpk); err != nil {
 			t.Fatal(err)
 		}
 

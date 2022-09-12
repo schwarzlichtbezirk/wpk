@@ -24,7 +24,7 @@ type MappedFile struct {
 }
 
 // NewMappedFile maps nested to package file based on given tags slice.
-func NewMappedFile(tgr *Tagger, ts *wpk.TagsetRaw) (f *MappedFile, err error) {
+func NewMappedFile(fwpk *os.File, ts *wpk.TagsetRaw) (f *MappedFile, err error) {
 	// calculate paged size/offset
 	var offset, size = ts.Pos()
 	var pgoff = offset % pagesize
@@ -32,7 +32,7 @@ func NewMappedFile(tgr *Tagger, ts *wpk.TagsetRaw) (f *MappedFile, err error) {
 	var sizex = size + pgoff
 	// create mapped memory block
 	var mmap mm.MMap
-	if mmap, err = mm.MapRegion(tgr.fwpk, int(sizex), mm.RDONLY, 0, int64(offsetx)); err != nil {
+	if mmap, err = mm.MapRegion(fwpk, int(sizex), mm.RDONLY, 0, int64(offsetx)); err != nil {
 		return
 	}
 	f = &MappedFile{
@@ -61,17 +61,10 @@ type Tagger struct {
 }
 
 // MakeTagger creates Tagger object to get access to package nested files.
-func MakeTagger(ftt *wpk.FTT, fpath string) (wpk.Tagger, error) {
-	var dpath string
-	if ftt.IsSplitted() {
-		dpath = wpk.MakeDataPath(fpath)
-	} else {
-		dpath = fpath
-	}
-
+func MakeTagger(fpath string) (wpk.Tagger, error) {
 	var err error
 	var tgr Tagger
-	if tgr.fwpk, err = os.Open(dpath); err != nil {
+	if tgr.fwpk, err = os.Open(fpath); err != nil {
 		return nil, err
 	}
 	return &tgr, nil
@@ -79,7 +72,7 @@ func MakeTagger(ftt *wpk.FTT, fpath string) (wpk.Tagger, error) {
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
 func (tgr *Tagger) OpenTagset(ts *wpk.TagsetRaw) (wpk.NestedFile, error) {
-	return NewMappedFile(tgr, ts)
+	return NewMappedFile(tgr.fwpk, ts)
 }
 
 // Close file handle. This function must be called only for root object,

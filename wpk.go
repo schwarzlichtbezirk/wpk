@@ -385,7 +385,7 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 			return
 		}
 
-		ftt.Store(fpath, ts)
+		ftt.Store(Normalize(fpath), ts)
 	}
 	return
 }
@@ -450,10 +450,10 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-// Opens package for reading. At first it checkups file signature, then
-// reads records table, and reads file tagset table. Tags set for each
+// ReadFTT opens package for reading. At first it checkups file signature,
+// then reads records table, and reads file tagset table. Tags set for each
 // file must contain at least file offset, file size, file ID and file name.
-func (ftt *FTT) OpenFTT(r io.ReadSeeker) (err error) {
+func (ftt *FTT) ReadFTT(r io.ReadSeeker) (err error) {
 	// go to file start
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
 		return
@@ -524,13 +524,11 @@ func OpenPackage(fpath string) (pkg *Package, err error) {
 		FTT:       &FTT{},
 		Workspace: ".",
 	}
-	if err = pkg.OpenFTT(r); err != nil {
-		return
-	}
-
+	err = pkg.ReadFTT(r)
 	return
 }
 
+// FullPath returns concatenation of workspace and relative path.
 func (pkg *Package) FullPath(fpath string) string {
 	return path.Join(pkg.Workspace, fpath)
 }

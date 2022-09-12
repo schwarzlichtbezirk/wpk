@@ -16,10 +16,10 @@ type SliceFile struct {
 }
 
 // NewSliceFile creates SliceFile file structure based on given tags slice.
-func NewSliceFile(tgr *Tagger, ts *wpk.TagsetRaw) (f *SliceFile, err error) {
+func NewSliceFile(bulk []byte, ts *wpk.TagsetRaw) (f *SliceFile, err error) {
 	var offset, size = ts.Pos()
 	f = &SliceFile{
-		FileReader: bytes.NewReader(tgr.bulk[offset : offset+size]),
+		FileReader: bytes.NewReader(bulk[offset : offset+size]),
 		tags:       ts,
 	}
 	return
@@ -42,16 +42,10 @@ type Tagger struct {
 }
 
 // MakeTagger creates Tagger object to get access to package nested files.
-func MakeTagger(ftt *wpk.FTT, fpath string) (wpk.Tagger, error) {
+func MakeTagger(fpath string) (wpk.Tagger, error) {
 	var err error
 	var tgr Tagger
-	var dpath string
-	if ftt.IsSplitted() {
-		dpath = wpk.MakeDataPath(fpath)
-	} else {
-		dpath = fpath
-	}
-	if tgr.bulk, err = os.ReadFile(dpath); err != nil {
+	if tgr.bulk, err = os.ReadFile(fpath); err != nil {
 		return nil, err
 	}
 	return &tgr, nil
@@ -59,7 +53,7 @@ func MakeTagger(ftt *wpk.FTT, fpath string) (wpk.Tagger, error) {
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
 func (tgr *Tagger) OpenTagset(ts *wpk.TagsetRaw) (wpk.NestedFile, error) {
-	return NewSliceFile(tgr, ts)
+	return NewSliceFile(tgr.bulk, ts)
 }
 
 // Close does nothing, there is no any opened handles.

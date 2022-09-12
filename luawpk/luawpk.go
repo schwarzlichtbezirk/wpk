@@ -526,7 +526,7 @@ func wpkload(ls *lua.LState) int {
 
 	pkg.pkgpath, pkg.datpath = pkgpath, datpath
 
-	if err = pkg.OpenFTT(src); err != nil {
+	if err = pkg.ReadFTT(src); err != nil {
 		return 0
 	}
 

@@ -1,6 +1,7 @@
 package wpk_test
 
 import (
+	"bytes"
 	"io/fs"
 	"os"
 	"path"
@@ -84,13 +85,13 @@ func TestUnion(t *testing.T) {
 	if pack1, err = wpk.OpenPackage(testpack1); err != nil {
 		t.Fatal(err)
 	}
-	if pack1.Tagger, err = mmap.MakeTagger(pack1.FTT, testpack1); err != nil {
+	if pack1.Tagger, err = mmap.MakeTagger(testpack1); err != nil {
 		t.Fatal(err)
 	}
 	if pack2, err = wpk.OpenPackage(testpack2); err != nil {
 		t.Fatal(err)
 	}
-	if pack2.Tagger, err = bulk.MakeTagger(pack2.FTT, testpack2); err != nil {
+	if pack2.Tagger, err = bulk.MakeTagger(testpack2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -209,6 +210,42 @@ func TestUnion(t *testing.T) {
 		"marble.jpg": {},
 		"uzunji.jpg": {},
 	})
+
+	//
+	// ReadFile test
+	//
+
+	var imgfname = path.Join(mediadir, "img1/qarataslar.jpg")
+	var imgb, pkgb []byte
+	if imgb, err = os.ReadFile(imgfname); err != nil {
+		t.Fatal(err)
+	}
+	if pkgb, err = u.ReadFile("img1/qarataslar.jpg"); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(imgb, pkgb) {
+		t.Fatal("content of 'img1/qarataslar.jpg' is not equal to original")
+	}
+
+	//
+	// File open test
+	//
+
+	var imgf fs.File
+	if imgf, err = u1.Open("qarataslar.jpg"); err != nil {
+		t.Fatal(err)
+	}
+	var imgfi fs.FileInfo
+	if imgfi, err = imgf.Stat(); err != nil {
+		t.Fatal(err)
+	}
+	pkgb = make([]byte, imgfi.Size())
+	if _, err = imgf.Read(pkgb); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(imgb, pkgb) {
+		t.Fatal("content of 'qarataslar.jpg' is not equal to original")
+	}
 }
 
 // The End.

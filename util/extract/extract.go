@@ -86,17 +86,23 @@ func openpackage(pkgpath string) (err error) {
 	if pkg, err = wpk.OpenPackage(pkgpath); err != nil {
 		return
 	}
+	var fpath string
+	if pkg.IsSplitted() {
+		fpath = wpk.MakeDataPath(pkgpath)
+	} else {
+		fpath = pkgpath
+	}
 	switch PkgMode {
 	case "bulk":
-		if pkg.Tagger, err = bulk.MakeTagger(pkg.FTT, pkgpath); err != nil {
+		if pkg.Tagger, err = bulk.MakeTagger(fpath); err != nil {
 			return
 		}
 	case "mmap":
-		if pkg.Tagger, err = mmap.MakeTagger(pkg.FTT, pkgpath); err != nil {
+		if pkg.Tagger, err = mmap.MakeTagger(fpath); err != nil {
 			return
 		}
 	case "fsys":
-		if pkg.Tagger, err = fsys.MakeTagger(pkg.FTT, pkgpath); err != nil {
+		if pkg.Tagger, err = fsys.MakeTagger(fpath); err != nil {
 			return
 		}
 	default:
