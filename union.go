@@ -55,14 +55,14 @@ func (f *UnionDir) ReadDir(n int) ([]fs.DirEntry, error) {
 }
 
 type Union struct {
-	List []*WPKFS
+	List []*Package
 }
 
 // Close call Close-function for all included into the union packages.
 // io.Closer implementation.
 func (u *Union) Close() (err error) {
-	for _, pack := range u.List {
-		if err1 := pack.Tagger.Close(); err1 != nil {
+	for _, pkg := range u.List {
+		if err1 := pkg.Tagger.Close(); err1 != nil {
 			err = err1
 		}
 	}
@@ -74,8 +74,8 @@ func (u *Union) Close() (err error) {
 // entry will be included to result.
 func (u *Union) AllKeys() (res []string) {
 	var found = map[string]Void{}
-	for _, pack := range u.List {
-		pack.Enum(func(fkey string, ts *TagsetRaw) bool {
+	for _, pkg := range u.List {
+		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if _, ok := found[fkey]; !ok {
 				res = append(res, fkey)
 				found[fkey] = Void{}
@@ -90,9 +90,9 @@ func (u *Union) AllKeys() (res []string) {
 // fs.SubFS implementation.
 func (u *Union) Sub(dir string) (fs.FS, error) {
 	var u1 Union
-	for _, pack := range u.List {
-		if sub1, err1 := pack.Sub(dir); err1 == nil {
-			u1.List = append(u1.List, sub1.(*WPKFS))
+	for _, pkg := range u.List {
+		if sub1, err1 := pkg.Sub(dir); err1 == nil {
+			u1.List = append(u1.List, sub1.(*Package))
 		}
 	}
 	if len(u1.List) == 0 {
@@ -107,8 +107,8 @@ func (u *Union) Sub(dir string) (fs.FS, error) {
 func (u *Union) Stat(fpath string) (fs.FileInfo, error) {
 	var ts *TagsetRaw
 	var is bool
-	for _, pack := range u.List {
-		if ts, is = pack.Tagset(fpath); is {
+	for _, pkg := range u.List {
+		if ts, is = pkg.Tagset(fpath); is {
 			return ts, nil
 		}
 	}
@@ -123,8 +123,8 @@ func (u *Union) Glob(pattern string) (res []string, err error) {
 		return
 	}
 	var found = map[string]Void{}
-	for _, pack := range u.List {
-		pack.Enum(func(fkey string, ts *TagsetRaw) bool {
+	for _, pkg := range u.List {
+		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if _, ok := found[fkey]; !ok {
 				if matched, _ := path.Match(pattern, fkey); matched {
 					res = append(res, fkey)
@@ -141,9 +141,9 @@ func (u *Union) Glob(pattern string) (res []string, err error) {
 // If union have more than one file with the same name, first will be returned.
 // fs.ReadFileFS implementation.
 func (u *Union) ReadFile(fpath string) ([]byte, error) {
-	for _, pack := range u.List {
-		if ts, is := pack.Tagset(fpath); is {
-			var f, err = pack.Tagger.OpenTagset(ts)
+	for _, pkg := range u.List {
+		if ts, is := pkg.Tagset(fpath); is {
+			var f, err = pkg.Tagger.OpenTagset(ts)
 			if err != nil {
 				return nil, err
 			}
@@ -166,8 +166,8 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 		prefix = Normalize(path.Clean(dir)) + "/" // set terminated slash
 	}
 	var found = map[string]Void{}
-	for _, pack := range u.List {
-		pack.Enum(func(fkey string, ts *TagsetRaw) bool {
+	for _, pkg := range u.List {
+		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
 				var suffix = fkey[len(prefix):]
 				var sp = strings.IndexByte(suffix, '/')
@@ -233,9 +233,9 @@ func (u *Union) Open(dir string) (fs.File, error) {
 	}
 
 	// try to get the file
-	for _, pack := range u.List {
-		if ts, is := pack.Tagset(dir); is {
-			return pack.Tagger.OpenTagset(ts)
+	for _, pkg := range u.List {
+		if ts, is := pkg.Tagset(dir); is {
+			return pkg.Tagger.OpenTagset(ts)
 		}
 	}
 
@@ -244,12 +244,12 @@ func (u *Union) Open(dir string) (fs.File, error) {
 	if dir != "." && dir != "" {
 		prefix = Normalize(path.Clean(dir)) + "/" // set terminated slash
 	}
-	for _, pack := range u.List {
+	for _, pkg := range u.List {
 		var f *UnionDir
-		pack.Enum(func(fkey string, ts *TagsetRaw) bool {
+		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
 				var dts = MakeTagset(nil, 2, 2).
-					Put(TIDpath, StrTag(pack.FullPath(dir)))
+					Put(TIDpath, StrTag(pkg.FullPath(dir)))
 				f = &UnionDir{
 					TagsetRaw: dts,
 					Union:     u,

@@ -35,7 +35,7 @@ const PackMT = "wpk"
 
 // LuaPackage is "wpk" userdata structure.
 type LuaPackage struct {
-	wpk.WPKFS
+	wpk.Package
 	automime bool
 	nolink   bool
 	secret   []byte
@@ -95,12 +95,12 @@ func NewPack(ls *lua.LState) int {
 		ls.RaiseError(err.Error())
 	}
 
-	var pack LuaPackage
-	var ftt = &wpk.Package{}
+	var pkg LuaPackage
+	var ftt = &wpk.FTT{}
 	ftt.Init(pts)
-	pack.Package = ftt
-	pack.Workspace = "."
-	PushPack(ls, &pack)
+	pkg.FTT = ftt
+	pkg.Workspace = "."
+	PushPack(ls, &pkg)
 	return 1
 }
 
@@ -157,11 +157,11 @@ func setterPack(ls *lua.LState) int {
 }
 
 func tostringPack(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 
 	var m = map[uint]wpk.Void{}
 	var n = 0
-	pack.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
 			m[offset] = wpk.Void{}
 		}
@@ -171,7 +171,7 @@ func tostringPack(ls *lua.LState) int {
 	var items []string
 	items = append(items, fmt.Sprintf("records: %d", len(m)))
 	items = append(items, fmt.Sprintf("aliases: %d", n))
-	if ts, ok := pack.Info(); ok {
+	if ts, ok := pkg.Info(); ok {
 		if size, ok := ts.TagUint(wpk.TIDsize); ok {
 			items = append(items, fmt.Sprintf("datasize: %d", size))
 		}
@@ -252,9 +252,9 @@ var methodsPack = map[string]lua.LGFunction{
 // properties section
 
 func getlabel(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 
-	if ts, ok := pack.Info(); ok {
+	if ts, ok := pkg.Info(); ok {
 		if str, ok := ts.TagStr(wpk.TIDlabel); ok {
 			ls.Push(lua.LString(str))
 			return 1
@@ -265,37 +265,37 @@ func getlabel(ls *lua.LState) int {
 }
 
 func setlabel(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var label = ls.CheckString(2)
 
-	pack.SetInfo().Set(wpk.TIDlabel, wpk.StrTag(label))
+	pkg.SetInfo().Set(wpk.TIDlabel, wpk.StrTag(label))
 	return 0
 }
 
 func getpkgpath(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	if pack.wpt == nil {
+	var pkg = CheckPack(ls, 1)
+	if pkg.wpt == nil {
 		ls.Push(lua.LNil)
 		return 1
 	}
-	ls.Push(lua.LString(pack.pkgpath))
+	ls.Push(lua.LString(pkg.pkgpath))
 	return 1
 }
 
 func getdatpath(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	if pack.wpd == nil {
+	var pkg = CheckPack(ls, 1)
+	if pkg.wpd == nil {
 		ls.Push(lua.LNil)
 		return 1
 	}
-	ls.Push(lua.LString(pack.datpath))
+	ls.Push(lua.LString(pkg.datpath))
 	return 1
 }
 
 func getrecnum(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var m = map[uint]wpk.Void{}
-	pack.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
 			m[offset] = wpk.Void{}
 		}
@@ -306,9 +306,9 @@ func getrecnum(ls *lua.LState) int {
 }
 
 func gettagnum(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var n int
-	pack.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		n++
 		return true
 	})
@@ -317,9 +317,9 @@ func gettagnum(ls *lua.LState) int {
 }
 
 func getfftsize(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var size int
-	pack.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		size += len(ts.Data())
 		return true
 	})
@@ -328,15 +328,15 @@ func getfftsize(ls *lua.LState) int {
 }
 
 func getdatasize(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 
-	if pack.wpd != nil { // splitted package files
-		if pos, err := pack.wpd.Seek(0, io.SeekCurrent); err == nil {
+	if pkg.wpd != nil { // splitted package files
+		if pos, err := pkg.wpd.Seek(0, io.SeekCurrent); err == nil {
 			ls.Push(lua.LNumber(pos))
 			return 1
 		}
 	} else { // single package file
-		if pos, err := pack.wpt.Seek(0, io.SeekCurrent); err == nil {
+		if pos, err := pkg.wpt.Seek(0, io.SeekCurrent); err == nil {
 			ls.Push(lua.LNumber(pos - wpk.HeaderSize))
 			return 1
 		}
@@ -346,156 +346,156 @@ func getdatasize(ls *lua.LState) int {
 }
 
 func getautomime(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LBool(pack.automime))
+	var pkg = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pkg.automime))
 	return 1
 }
 
 func setautomime(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var val = ls.CheckBool(2)
 
-	pack.automime = val
+	pkg.automime = val
 	return 0
 }
 
 func getnolink(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LBool(pack.nolink))
+	var pkg = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pkg.nolink))
 	return 1
 }
 
 func setnolink(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var val = ls.CheckBool(2)
 
-	pack.nolink = val
+	pkg.nolink = val
 	return 0
 }
 
 func getsecret(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LString(pack.secret))
+	var pkg = CheckPack(ls, 1)
+	ls.Push(lua.LString(pkg.secret))
 	return 1
 }
 
 func setsecret(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var val = ls.CheckString(2)
 
-	pack.secret = []byte(val)
+	pkg.secret = []byte(val)
 	return 0
 }
 
 func getcrc32(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LBool(pack.crc32))
+	var pkg = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pkg.crc32))
 	return 1
 }
 
 func setcrc32(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var val = ls.CheckBool(2)
 
-	pack.crc32 = val
+	pkg.crc32 = val
 	return 0
 }
 
 func getcrc64(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LBool(pack.crc64))
+	var pkg = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pkg.crc64))
 	return 1
 }
 
 func setcrc64(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var val = ls.CheckBool(2)
 
-	pack.crc64 = val
+	pkg.crc64 = val
 	return 0
 }
 
 func getmd5(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LBool(pack.md5))
+	var pkg = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pkg.md5))
 	return 1
 }
 
 func setmd5(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var val = ls.CheckBool(2)
 
-	pack.md5 = val
+	pkg.md5 = val
 	return 0
 }
 
 func getsha1(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LBool(pack.sha1))
+	var pkg = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pkg.sha1))
 	return 1
 }
 
 func setsha1(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var val = ls.CheckBool(2)
 
-	pack.sha1 = val
+	pkg.sha1 = val
 	return 0
 }
 
 func getsha224(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LBool(pack.sha224))
+	var pkg = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pkg.sha224))
 	return 1
 }
 
 func setsha224(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var val = ls.CheckBool(2)
 
-	pack.sha224 = val
+	pkg.sha224 = val
 	return 0
 }
 
 func getsha256(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LBool(pack.sha256))
+	var pkg = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pkg.sha256))
 	return 1
 }
 
 func setsha256(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var val = ls.CheckBool(2)
 
-	pack.sha256 = val
+	pkg.sha256 = val
 	return 0
 }
 
 func getsha384(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LBool(pack.sha384))
+	var pkg = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pkg.sha384))
 	return 1
 }
 
 func setsha384(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var val = ls.CheckBool(2)
 
-	pack.sha384 = val
+	pkg.sha384 = val
 	return 0
 }
 
 func getsha512(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
-	ls.Push(lua.LBool(pack.sha512))
+	var pkg = CheckPack(ls, 1)
+	ls.Push(lua.LBool(pkg.sha512))
 	return 1
 }
 
 func setsha512(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var val = ls.CheckBool(2)
 
-	pack.sha512 = val
+	pkg.sha512 = val
 	return 0
 }
 
@@ -508,11 +508,11 @@ func wpkload(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var pkgpath = ls.CheckString(2)
 	var datpath = ls.OptString(3, "")
 
-	if pack.wpt != nil {
+	if pkg.wpt != nil {
 		err = ErrPackOpened
 		return 0
 	}
@@ -524,9 +524,9 @@ func wpkload(ls *lua.LState) int {
 	}
 	defer src.Close()
 
-	pack.pkgpath, pack.datpath = pkgpath, datpath
+	pkg.pkgpath, pkg.datpath = pkgpath, datpath
 
-	if err = pack.OpenFTT(src); err != nil {
+	if err = pkg.OpenFTT(src); err != nil {
 		return 0
 	}
 
@@ -540,30 +540,30 @@ func wpkbegin(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var pkgpath = ls.CheckString(2)
 	var datpath = ls.OptString(3, "")
 
-	if pack.wpt != nil {
+	if pkg.wpt != nil {
 		err = ErrPackOpened
 		return 0
 	}
 
 	// create package file
-	if pack.wpt, err = os.OpenFile(pkgpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+	if pkg.wpt, err = os.OpenFile(pkgpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
 		return 0
 	}
 	if datpath != "" {
-		if pack.wpd, err = os.OpenFile(datpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
-			pack.wpt.Close()
-			pack.wpt = nil
+		if pkg.wpd, err = os.OpenFile(datpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+			pkg.wpt.Close()
+			pkg.wpt = nil
 			return 0
 		}
 	}
 	// setup file representation
-	pack.pkgpath, pack.datpath = pkgpath, datpath
+	pkg.pkgpath, pkg.datpath = pkgpath, datpath
 	// starts new package
-	if err = pack.Begin(pack.wpt); err != nil {
+	if err = pkg.Begin(pkg.wpt); err != nil {
 		return 0
 	}
 
@@ -577,26 +577,26 @@ func wpkappend(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 
-	if pack.wpt != nil {
+	if pkg.wpt != nil {
 		err = ErrPackOpened
 		return 0
 	}
 
 	// open package file
-	if pack.wpt, err = os.OpenFile(pack.pkgpath, os.O_WRONLY, 0755); err != nil {
+	if pkg.wpt, err = os.OpenFile(pkg.pkgpath, os.O_WRONLY, 0755); err != nil {
 		return 0
 	}
-	if pack.datpath != "" {
-		if pack.wpd, err = os.OpenFile(pack.datpath, os.O_WRONLY, 0755); err != nil {
-			pack.wpt.Close()
-			pack.wpt = nil
+	if pkg.datpath != "" {
+		if pkg.wpd, err = os.OpenFile(pkg.datpath, os.O_WRONLY, 0755); err != nil {
+			pkg.wpt.Close()
+			pkg.wpt = nil
 			return 0
 		}
 	}
 	// starts to append files
-	if err = pack.Append(pack.wpt, pack.wpd); err != nil {
+	if err = pkg.Append(pkg.wpt, pkg.wpd); err != nil {
 		return 0
 	}
 
@@ -610,27 +610,27 @@ func wpkfinalize(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 
-	if pack.wpt == nil {
+	if pkg.wpt == nil {
 		err = ErrPackClosed
 		return 0
 	}
 
 	// sync
-	if err = pack.Sync(pack.wpt, pack.wpd); err != nil {
+	if err = pkg.Sync(pkg.wpt, pkg.wpd); err != nil {
 		return 0
 	}
 	// close package file
-	if err = pack.wpt.Close(); err != nil {
+	if err = pkg.wpt.Close(); err != nil {
 		return 0
 	}
-	pack.wpt = nil
-	if pack.wpd != nil {
-		if err = pack.wpd.Close(); err != nil {
+	pkg.wpt = nil
+	if pkg.wpd != nil {
+		if err = pkg.wpd.Close(); err != nil {
 			return 0
 		}
-		pack.wpd = nil
+		pkg.wpd = nil
 	}
 
 	return 0
@@ -643,19 +643,19 @@ func wpkflush(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 
-	if pack.wpt == nil {
+	if pkg.wpt == nil {
 		err = ErrPackClosed
 		return 0
 	}
-	if pack.wpd == nil { // can work only for splitted package
+	if pkg.wpd == nil { // can work only for splitted package
 		err = ErrDataClosed
 		return 0
 	}
 
 	// sync
-	if err = pack.Sync(pack.wpt, pack.wpd); err != nil {
+	if err = pkg.Sync(pkg.wpt, pkg.wpd); err != nil {
 		return 0
 	}
 
@@ -663,10 +663,10 @@ func wpkflush(ls *lua.LState) int {
 }
 
 func wpksumsize(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 
 	var sum int64
-	pack.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		var size = ts.Size()
 		sum += size
 		return true
@@ -683,7 +683,7 @@ func wpkglob(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var pattern = ls.CheckString(2)
 
 	var n int
@@ -691,7 +691,7 @@ func wpkglob(ls *lua.LState) int {
 	if _, err = path.Match(pattern, ""); err != nil {
 		return 0
 	}
-	pack.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		if matched, _ = path.Match(pattern, fkey); matched {
 			ls.Push(lua.LString(fkey))
 			n++
@@ -702,10 +702,10 @@ func wpkglob(ls *lua.LState) int {
 }
 
 func wpkhasfile(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 
-	var ok = pack.HasTagset(fkey)
+	var ok = pkg.HasTagset(fkey)
 
 	ls.Push(lua.LBool(ok))
 	return 1
@@ -718,12 +718,12 @@ func wpkfilesize(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 
 	var ts *wpk.TagsetRaw
 	var ok bool
-	if ts, ok = pack.Tagset(fkey); !ok {
+	if ts, ok = pkg.Tagset(fkey); !ok {
 		err = &fs.PathError{Op: "filesize", Path: fkey, Err: fs.ErrNotExist}
 		return 0
 	}
@@ -740,27 +740,27 @@ func wpkputdata(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
 	var data = ls.CheckString(3)
 
-	if pack.wpt == nil {
+	if pkg.wpt == nil {
 		err = ErrPackClosed
 		return 0
 	}
 
 	var r = strings.NewReader(data)
 
-	var w = pack.wpt
-	if pack.wpd != nil {
-		w = pack.wpd
+	var w = pkg.wpt
+	if pkg.wpd != nil {
+		w = pkg.wpd
 	}
 	var ts *wpk.TagsetRaw
-	if ts, err = pack.PackData(w, r, kpath); err != nil {
+	if ts, err = pkg.PackData(w, r, kpath); err != nil {
 		return 0
 	}
 
-	if err = pack.adjusttagset(r, ts); err != nil {
+	if err = pkg.adjusttagset(r, ts); err != nil {
 		return 0
 	}
 
@@ -774,11 +774,11 @@ func wpkputfile(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
 	var fpath = ls.CheckString(3)
 
-	if pack.wpt == nil {
+	if pkg.wpt == nil {
 		err = ErrPackClosed
 		return 0
 	}
@@ -789,16 +789,16 @@ func wpkputfile(ls *lua.LState) int {
 	}
 	defer file.Close()
 
-	var w = pack.wpt
-	if pack.wpd != nil {
-		w = pack.wpd
+	var w = pkg.wpt
+	if pkg.wpd != nil {
+		w = pkg.wpd
 	}
 	var ts *wpk.TagsetRaw
-	if ts, err = pack.PackFile(w, file, kpath); err != nil {
+	if ts, err = pkg.PackFile(w, file, kpath); err != nil {
 		return 0
 	}
 
-	if err = pack.adjusttagset(file, ts); err != nil {
+	if err = pkg.adjusttagset(file, ts); err != nil {
 		return 0
 	}
 
@@ -816,11 +816,11 @@ func wpkrename(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var kpath1 = ls.CheckString(2)
 	var kpath2 = ls.CheckString(3)
 
-	if err = pack.Rename(kpath1, kpath2); err != nil {
+	if err = pkg.Rename(kpath1, kpath2); err != nil {
 		return 0
 	}
 	return 0
@@ -837,11 +837,11 @@ func wpkputalias(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var kpath1 = ls.CheckString(2)
 	var kpath2 = ls.CheckString(3)
 
-	if err = pack.PutAlias(kpath1, kpath2); err != nil {
+	if err = pkg.PutAlias(kpath1, kpath2); err != nil {
 		return 0
 	}
 	return 0
@@ -849,10 +849,10 @@ func wpkputalias(ls *lua.LState) int {
 
 // Deletes tagset with given file name. Data block will still persist.
 func wpkdelalias(ls *lua.LState) int {
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
 
-	var _, ok = pack.GetDelTagset(kpath)
+	var _, ok = pkg.GetDelTagset(kpath)
 	ls.Push(lua.LBool(ok))
 	return 1
 }
@@ -866,7 +866,7 @@ func wpkhastag(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
@@ -877,7 +877,7 @@ func wpkhastag(ls *lua.LState) int {
 
 	var ts *wpk.TagsetRaw
 	var ok bool
-	if ts, ok = pack.Tagset(fkey); !ok {
+	if ts, ok = pkg.Tagset(fkey); !ok {
 		err = &fs.PathError{Op: "hastag", Path: fkey, Err: fs.ErrNotExist}
 		return 0
 	}
@@ -895,7 +895,7 @@ func wpkgettag(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
@@ -906,7 +906,7 @@ func wpkgettag(ls *lua.LState) int {
 
 	var ts *wpk.TagsetRaw
 	var ok bool
-	if ts, ok = pack.Tagset(fkey); !ok {
+	if ts, ok = pkg.Tagset(fkey); !ok {
 		err = &fs.PathError{Op: "gettag", Path: fkey, Err: fs.ErrNotExist}
 		return 0
 	}
@@ -928,7 +928,7 @@ func wpksettag(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 	var v = ls.Get(4)
@@ -947,7 +947,7 @@ func wpksettag(ls *lua.LState) int {
 		return 0
 	}
 
-	var ts, ok = pack.Tagset(fkey)
+	var ts, ok = pkg.Tagset(fkey)
 	if !ok {
 		err = &fs.PathError{Op: "settag", Path: fkey, Err: fs.ErrNotExist}
 		return 0
@@ -966,7 +966,7 @@ func wpkdeltag(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
@@ -979,7 +979,7 @@ func wpkdeltag(ls *lua.LState) int {
 		return 0
 	}
 
-	var ts, ok = pack.Tagset(fkey)
+	var ts, ok = pkg.Tagset(fkey)
 	if !ok {
 		err = &fs.PathError{Op: "deltag", Path: fkey, Err: fs.ErrNotExist}
 		return 0
@@ -997,10 +997,10 @@ func wpkgettags(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 
-	var ts, ok = pack.Tagset(fkey)
+	var ts, ok = pkg.Tagset(fkey)
 	if !ok {
 		err = &fs.PathError{Op: "gettags", Path: fkey, Err: fs.ErrNotExist}
 		return 0
@@ -1031,11 +1031,11 @@ func wpksettags(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
-	var opts = pack.NewTagset()
+	var opts = pkg.NewTagset()
 	if err = TableToTagset(lt, opts); err != nil {
 		return 0
 	}
@@ -1049,7 +1049,7 @@ func wpksettags(ls *lua.LState) int {
 		}
 	}
 
-	var ts, ok = pack.Tagset(fkey)
+	var ts, ok = pkg.Tagset(fkey)
 	if !ok {
 		err = &fs.PathError{Op: "settags", Path: fkey, Err: fs.ErrNotExist}
 		return 0
@@ -1072,16 +1072,16 @@ func wpkaddtags(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
-	var opts = pack.NewTagset()
+	var opts = pkg.NewTagset()
 	if err = TableToTagset(lt, opts); err != nil {
 		return 0
 	}
 
-	var ts, ok = pack.Tagset(fkey)
+	var ts, ok = pkg.Tagset(fkey)
 	if !ok {
 		err = &fs.PathError{Op: "addtags", Path: fkey, Err: fs.ErrNotExist}
 		return 0
@@ -1110,11 +1110,11 @@ func wpkdeltags(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
-	var opts = pack.NewTagset()
+	var opts = pkg.NewTagset()
 	if err = TableToTagset(lt, opts); err != nil {
 		return 0
 	}
@@ -1128,7 +1128,7 @@ func wpkdeltags(ls *lua.LState) int {
 		}
 	}
 
-	var ts, ok = pack.Tagset(fkey)
+	var ts, ok = pkg.Tagset(fkey)
 	if !ok {
 		err = &fs.PathError{Op: "deltags", Path: fkey, Err: fs.ErrNotExist}
 		return 0
@@ -1155,9 +1155,9 @@ func wpkgetinfo(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 
-	if ts, ok := pack.Info(); ok {
+	if ts, ok := pkg.Info(); ok {
 		var tb = ls.CreateTable(0, 0)
 		var tsi = ts.Iterator()
 		for tsi.Next() {
@@ -1187,15 +1187,15 @@ func wpksetinfo(ls *lua.LState) int {
 			ls.RaiseError(err.Error())
 		}
 	}()
-	var pack = CheckPack(ls, 1)
+	var pkg = CheckPack(ls, 1)
 	var lt = ls.CheckTable(2)
 
-	var opts = pack.NewTagset()
+	var opts = pkg.NewTagset()
 	if err = TableToTagset(lt, opts); err != nil {
 		return 0
 	}
 	var optsi = opts.Iterator()
-	var ts = pack.SetInfo()
+	var ts = pkg.SetInfo()
 	for optsi.Next() {
 		var tid, tag = optsi.TID(), optsi.Tag()
 		if tid == wpk.TIDfid || tid == wpk.TIDpath {

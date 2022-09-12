@@ -17,13 +17,13 @@ type WriteSeekCloser interface {
 }
 
 // Begin writes prebuild header for new empty package.
-func (pack *Package) Begin(wpt io.WriteSeeker) (err error) {
-	pack.mux.Lock()
-	defer pack.mux.Unlock()
+func (ftt *FTT) Begin(wpt io.WriteSeeker) (err error) {
+	ftt.mux.Lock()
+	defer ftt.mux.Unlock()
 
 	// write prebuild header
 	var hdr = Header{
-		typesize:  TypeSize{pack.tidsz, pack.tagsz, pack.tssize},
+		typesize:  TypeSize{ftt.tidsz, ftt.tagsz, ftt.tssize},
 		fttoffset: 0,
 		fttsize:   0,
 		datoffset: 0,
@@ -37,14 +37,14 @@ func (pack *Package) Begin(wpt io.WriteSeeker) (err error) {
 		return
 	}
 	// update data offset/pos
-	pack.datoffset, pack.datsize = 0, 0
+	ftt.datoffset, ftt.datsize = 0, 0
 	return
 }
 
 // Append writes prebuild header for previously opened package to append new files.
-func (pack *Package) Append(wpt, wpf io.WriteSeeker) (err error) {
-	pack.mux.Lock()
-	defer pack.mux.Unlock()
+func (ftt *FTT) Append(wpt, wpf io.WriteSeeker) (err error) {
+	ftt.mux.Lock()
+	defer ftt.mux.Unlock()
 
 	// go to file start
 	if _, err = wpt.Seek(0, io.SeekStart); err != nil {
@@ -56,11 +56,11 @@ func (pack *Package) Append(wpt, wpf io.WriteSeeker) (err error) {
 	}
 	// go to tags table start to replace it by new data
 	if wpf != nil { // splitted package files
-		if _, err = wpf.Seek(int64(pack.datoffset+pack.datsize), io.SeekStart); err != nil {
+		if _, err = wpf.Seek(int64(ftt.datoffset+ftt.datsize), io.SeekStart); err != nil {
 			return
 		}
 	} else { // single package file
-		if _, err = wpt.Seek(int64(pack.datoffset+pack.datsize), io.SeekStart); err != nil {
+		if _, err = wpt.Seek(int64(ftt.datoffset+ftt.datsize), io.SeekStart); err != nil {
 			return
 		}
 	}
@@ -68,9 +68,9 @@ func (pack *Package) Append(wpt, wpf io.WriteSeeker) (err error) {
 }
 
 // Sync writes actual file tags table and true signature with settings.
-func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
-	pack.mux.Lock()
-	defer pack.mux.Unlock()
+func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
+	ftt.mux.Lock()
+	defer ftt.mux.Unlock()
 
 	var fftpos, fftend, datpos, datend int64
 
@@ -83,7 +83,7 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 		fftpos = HeaderSize
 
 		// update package info if it has
-		if ts, ok := pack.Info(); ok {
+		if ts, ok := ftt.Info(); ok {
 			ts.Set(TIDoffset, UintTag(uint(datpos)))
 			ts.Set(TIDsize, UintTag(uint(datend-datpos)))
 		}
@@ -92,7 +92,7 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 		if _, err = wpt.Seek(fftpos, io.SeekStart); err != nil {
 			return
 		}
-		if _, err = pack.FTT.WriteTo(wpt); err != nil {
+		if _, err = ftt.WriteTo(wpt); err != nil {
 			return
 		}
 		// get writer end marker and setup the file tags table size
@@ -108,13 +108,13 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 		fftpos = datend
 
 		// update package info if it has
-		if ts, ok := pack.Info(); ok {
+		if ts, ok := ftt.Info(); ok {
 			ts.Set(TIDoffset, UintTag(uint(datpos)))
 			ts.Set(TIDsize, UintTag(uint(datend-datpos)))
 		}
 
 		// write file tags table
-		if _, err = pack.FTT.WriteTo(wpt); err != nil {
+		if _, err = ftt.WriteTo(wpt); err != nil {
 			return
 		}
 		// get writer end marker and setup the file tags table size
@@ -125,7 +125,7 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 	// rewrite true header
 	var hdr = Header{
-		typesize:  TypeSize{pack.tidsz, pack.tagsz, pack.tssize},
+		typesize:  TypeSize{ftt.tidsz, ftt.tagsz, ftt.tssize},
 		fttoffset: uint64(fftpos),
 		fttsize:   uint64(fftend - fftpos),
 		datoffset: uint64(datpos),
@@ -139,22 +139,22 @@ func (pack *Package) Sync(wpt, wpf io.WriteSeeker) (err error) {
 		return
 	}
 	// update data offset/pos
-	pack.datoffset, pack.datsize = uint64(datpos), uint64(datend-datpos)
+	ftt.datoffset, ftt.datsize = uint64(datpos), uint64(datend-datpos)
 	return
 }
 
 // PackData puts data streamed by given reader into package as a file
 // and associate keyname "kpath" with it.
-func (pack *WPKFS) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *TagsetRaw, err error) {
-	if _, ok := pack.Tagset(fpath); ok {
+func (pkg *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *TagsetRaw, err error) {
+	if _, ok := pkg.Tagset(fpath); ok {
 		err = &fs.PathError{Op: "packdata", Path: fpath, Err: fs.ErrExist}
 		return
 	}
 
 	var offset, size int64
 	if func() {
-		pack.mux.Lock()
-		defer pack.mux.Unlock()
+		pkg.mux.Lock()
+		defer pkg.mux.Unlock()
 
 		// get offset and put provided data
 		if offset, err = w.Seek(0, io.SeekCurrent); err != nil {
@@ -168,18 +168,18 @@ func (pack *WPKFS) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *Ta
 	}
 
 	// insert new entry to tags table
-	ts = pack.BaseTagset(uint(offset), uint(size), fpath)
-	pack.SetTagset(fpath, ts)
+	ts = pkg.BaseTagset(uint(offset), uint(size), fpath)
+	pkg.SetTagset(fpath, ts)
 	return
 }
 
 // PackFile puts file with given file handle into package and associate keyname "fpath" with it.
-func (pack *WPKFS) PackFile(w io.WriteSeeker, file *os.File, fpath string) (ts *TagsetRaw, err error) {
+func (pkg *Package) PackFile(w io.WriteSeeker, file *os.File, fpath string) (ts *TagsetRaw, err error) {
 	var fi os.FileInfo
 	if fi, err = file.Stat(); err != nil {
 		return
 	}
-	if ts, err = pack.PackData(w, file, fpath); err != nil {
+	if ts, err = pkg.PackData(w, file, fpath); err != nil {
 		return
 	}
 
@@ -203,7 +203,7 @@ type PackDirLogger func(r io.ReadSeeker, ts *TagsetRaw) error
 
 // PackDir puts all files of given folder and it's subfolders into package.
 // Logger function can be nil.
-func (pack *WPKFS) PackDir(w io.WriteSeeker, dirname, prefix string, logger PackDirLogger) (err error) {
+func (pkg *Package) PackDir(w io.WriteSeeker, dirname, prefix string, logger PackDirLogger) (err error) {
 	var fis []os.FileInfo
 	if func() {
 		var dir *os.File
@@ -223,7 +223,7 @@ func (pack *WPKFS) PackDir(w io.WriteSeeker, dirname, prefix string, logger Pack
 			var kpath = prefix + fi.Name()
 			var fpath = dirname + fi.Name()
 			if fi.IsDir() {
-				if err = pack.PackDir(w, fpath+"/", kpath+"/", logger); err != nil {
+				if err = pkg.PackDir(w, fpath+"/", kpath+"/", logger); err != nil {
 					return
 				}
 			} else if func() {
@@ -234,7 +234,7 @@ func (pack *WPKFS) PackDir(w io.WriteSeeker, dirname, prefix string, logger Pack
 				}
 				defer file.Close()
 
-				if ts, err = pack.PackFile(w, file, kpath); err != nil {
+				if ts, err = pkg.PackFile(w, file, kpath); err != nil {
 					return
 				}
 				if err = logger(file, ts); err != nil {
@@ -250,42 +250,42 @@ func (pack *WPKFS) PackDir(w io.WriteSeeker, dirname, prefix string, logger Pack
 
 // Rename tagset with file name 'oldname' to 'newname'.
 // Keeps link to original file name.
-func (pack *WPKFS) Rename(oldname, newname string) error {
-	var ts, ok = pack.Tagset(oldname)
+func (pkg *Package) Rename(oldname, newname string) error {
+	var ts, ok = pkg.Tagset(oldname)
 	if !ok {
 		return &fs.PathError{Op: "rename", Path: oldname, Err: fs.ErrNotExist}
 	}
-	if _, ok = pack.Tagset(newname); ok {
+	if _, ok = pkg.Tagset(newname); ok {
 		return &fs.PathError{Op: "rename", Path: newname, Err: fs.ErrExist}
 	}
 
-	ts.Set(TIDpath, StrTag(ToSlash(pack.FullPath(newname))))
-	pack.DelTagset(oldname)
-	pack.SetTagset(newname, ts)
+	ts.Set(TIDpath, StrTag(ToSlash(pkg.FullPath(newname))))
+	pkg.DelTagset(oldname)
+	pkg.SetTagset(newname, ts)
 	return nil
 }
 
 // PutAlias makes clone tagset with file name 'oldname' and replace name tag
 // in it to 'newname'. Keeps link to original file name.
-func (pack *WPKFS) PutAlias(oldname, newname string) error {
-	var ts1, ok = pack.Tagset(oldname)
+func (pkg *Package) PutAlias(oldname, newname string) error {
+	var ts1, ok = pkg.Tagset(oldname)
 	if !ok {
 		return &fs.PathError{Op: "putalias", Path: oldname, Err: fs.ErrNotExist}
 	}
-	if _, ok = pack.Tagset(newname); ok {
+	if _, ok = pkg.Tagset(newname); ok {
 		return &fs.PathError{Op: "putalias", Path: newname, Err: fs.ErrExist}
 	}
 
 	var tsi = ts1.Iterator()
-	var ts2 = pack.NewTagset()
+	var ts2 = pkg.NewTagset()
 	for tsi.Next() {
 		if tsi.tid != TIDpath {
 			ts2.Put(tsi.tid, tsi.Tag())
 		} else {
-			ts2.Put(TIDpath, StrTag(ToSlash(pack.FullPath(newname))))
+			ts2.Put(TIDpath, StrTag(ToSlash(pkg.FullPath(newname))))
 		}
 	}
-	pack.SetTagset(newname, ts2)
+	pkg.SetTagset(newname, ts2)
 	return nil
 }
 

@@ -40,22 +40,22 @@ func CheckPackage(t *testing.T, fwpt, fwpd *os.File, tagsnum int) {
 	var err error
 
 	// Open package files tags table
-	var pack = wpk.WPKFS{
-		Package:   &wpk.Package{},
+	var pkg = wpk.Package{
+		FTT:       &wpk.FTT{},
 		Workspace: ".",
 	}
-	if err = pack.OpenFTT(fwpt); err != nil {
+	if err = pkg.OpenFTT(fwpt); err != nil {
 		t.Fatal(err)
 	}
 
-	if ts, ok := pack.Info(); ok {
+	if ts, ok := pkg.Info(); ok {
 		var offset, size = ts.Pos()
 		var label, _ = ts.TagStr(wpk.TIDlabel)
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 
 	var realtagsnum int
-	pack.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		var offset, size = ts.Pos()
 		var fid, _ = ts.TagUint(wpk.TIDfid)
 		var fpath = ts.Path()
@@ -116,7 +116,7 @@ func CheckPackage(t *testing.T, fwpt, fwpd *os.File, tagsnum int) {
 func TestInfo(t *testing.T) {
 	var err error
 	var fwpk *os.File
-	var pack = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage(pts)
 
 	const (
 		label  = "empty-package"
@@ -133,16 +133,16 @@ func TestInfo(t *testing.T) {
 	defer fwpk.Close()
 
 	// starts new package
-	if err = pack.Begin(fwpk); err != nil {
+	if err = pkg.Begin(fwpk); err != nil {
 		t.Fatal(err)
 	}
 	// put package info somewhere before finalize
-	pack.SetInfo().
+	pkg.SetInfo().
 		Put(wpk.TIDlabel, wpk.StrTag(label)).
 		Put(wpk.TIDlink, wpk.StrTag(link)).
 		Put(wpk.TIDauthor, wpk.StrTag(author))
 	// finalize
-	if err = pack.Sync(fwpk, nil); err != nil {
+	if err = pkg.Sync(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -182,7 +182,7 @@ func TestPackDir(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage(pts)
 
 	defer os.Remove(testpack)
 
@@ -193,14 +193,14 @@ func TestPackDir(t *testing.T) {
 	defer fwpk.Close()
 
 	// starts new package
-	if err = pack.Begin(fwpk); err != nil {
+	if err = pkg.Begin(fwpk); err != nil {
 		t.Fatal(err)
 	}
 	// put package info somewhere before finalize
-	pack.SetInfo().
+	pkg.SetInfo().
 		Put(wpk.TIDlabel, wpk.StrTag("packed-dir"))
 	// put media directory to file
-	if err = pack.PackDir(fwpk, mediadir, "", func(r io.ReadSeeker, ts *wpk.TagsetRaw) error {
+	if err = pkg.PackDir(fwpk, mediadir, "", func(r io.ReadSeeker, ts *wpk.TagsetRaw) error {
 		tagsnum++
 		fidcount++
 		ts.Put(wpk.TIDfid, wpk.UintTag(fidcount))
@@ -210,7 +210,7 @@ func TestPackDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	// finalize
-	if err = pack.Sync(fwpk, nil); err != nil {
+	if err = pkg.Sync(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -224,7 +224,7 @@ func TestPackDirSplit(t *testing.T) {
 	var fwpt, fwpd *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage(pts)
 
 	defer os.Remove(testpkgt)
 	defer os.Remove(testpkgd)
@@ -242,14 +242,14 @@ func TestPackDirSplit(t *testing.T) {
 	defer fwpd.Close()
 
 	// starts new package
-	if err = pack.Begin(fwpt); err != nil {
+	if err = pkg.Begin(fwpt); err != nil {
 		t.Fatal(err)
 	}
 	// put package info somewhere before finalize
-	pack.SetInfo().
-		Put(wpk.TIDlabel, wpk.StrTag("splitted-pack"))
+	pkg.SetInfo().
+		Put(wpk.TIDlabel, wpk.StrTag("splitted-pkg"))
 	// put media directory to file
-	if err = pack.PackDir(fwpd, mediadir, "", func(r io.ReadSeeker, ts *wpk.TagsetRaw) error {
+	if err = pkg.PackDir(fwpd, mediadir, "", func(r io.ReadSeeker, ts *wpk.TagsetRaw) error {
 		tagsnum++
 		fidcount++
 		ts.Put(wpk.TIDfid, wpk.UintTag(fidcount))
@@ -259,7 +259,7 @@ func TestPackDirSplit(t *testing.T) {
 		t.Fatal(err)
 	}
 	// finalize
-	if err = pack.Sync(fwpt, fwpd); err != nil {
+	if err = pkg.Sync(fwpt, fwpd); err != nil {
 		t.Fatal(err)
 	}
 
@@ -273,7 +273,7 @@ func TestPutFiles(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage(pts)
 
 	defer os.Remove(testpack)
 
@@ -286,7 +286,7 @@ func TestPutFiles(t *testing.T) {
 		defer file.Close()
 
 		var ts *wpk.TagsetRaw
-		if ts, err = pack.PackFile(fwpk, file, name); err != nil {
+		if ts, err = pkg.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
 
@@ -300,7 +300,7 @@ func TestPutFiles(t *testing.T) {
 		var r = bytes.NewReader(data)
 
 		var ts *wpk.TagsetRaw
-		if ts, err = pack.PackData(fwpk, r, name); err != nil {
+		if ts, err = pkg.PackData(fwpk, r, name); err != nil {
 			t.Fatal(err)
 		}
 
@@ -311,14 +311,14 @@ func TestPutFiles(t *testing.T) {
 		t.Logf("put data #%d '%s', %d bytes", fidcount, name, size)
 	}
 	var putalias = func(oldname, newname string) {
-		if err = pack.PutAlias(oldname, newname); err != nil {
+		if err = pkg.PutAlias(oldname, newname); err != nil {
 			t.Fatal(err)
 		}
 		tagsnum++
 		t.Logf("put alias '%s' to '%s'", newname, oldname)
 	}
 	var delalias = func(name string) {
-		if _, ok := pack.GetDelTagset(name); !ok {
+		if _, ok := pkg.GetDelTagset(name); !ok {
 			t.Fatalf("alias '%s' not deleted", name)
 		}
 		tagsnum--
@@ -332,7 +332,7 @@ func TestPutFiles(t *testing.T) {
 	defer fwpk.Close()
 
 	// starts new package
-	if err = pack.Begin(fwpk); err != nil {
+	if err = pkg.Begin(fwpk); err != nil {
 		t.Fatal(err)
 	}
 	// put content
@@ -348,7 +348,7 @@ func TestPutFiles(t *testing.T) {
 	putalias("img1/claustral.jpg", "jasper.jpg")
 	delalias("basaltbay.jpg")
 	// finalize
-	if err = pack.Sync(fwpk, nil); err != nil {
+	if err = pkg.Sync(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -356,10 +356,10 @@ func TestPutFiles(t *testing.T) {
 	CheckPackage(t, fwpk, fwpk, tagsnum)
 
 	// check alias existence
-	if _, ok := pack.Tagset("jasper.jpg"); !ok {
+	if _, ok := pkg.Tagset("jasper.jpg"); !ok {
 		t.Fatal("'jasper.jpg' alias not found")
 	}
-	if _, ok := pack.Tagset("basaltbay.jpg"); ok {
+	if _, ok := pkg.Tagset("basaltbay.jpg"); ok {
 		t.Fatal("'basaltbay.jpg' alias not deleted")
 	}
 }
@@ -372,7 +372,7 @@ func TestAppendContinues(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage(pts)
 
 	defer os.Remove(testpack)
 
@@ -385,7 +385,7 @@ func TestAppendContinues(t *testing.T) {
 		defer file.Close()
 
 		var ts *wpk.TagsetRaw
-		if ts, err = pack.PackFile(fwpk, file, name); err != nil {
+		if ts, err = pkg.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
 
@@ -403,7 +403,7 @@ func TestAppendContinues(t *testing.T) {
 	defer fwpk.Close()
 
 	// starts new package
-	if err = pack.Begin(fwpk); err != nil {
+	if err = pkg.Begin(fwpk); err != nil {
 		t.Fatal(err)
 	}
 	// put content
@@ -411,7 +411,7 @@ func TestAppendContinues(t *testing.T) {
 	putfile("img1/claustral.jpg")
 	putfile("img1/qarataslar.jpg")
 	// finalize
-	if err = pack.Sync(fwpk, nil); err != nil {
+	if err = pkg.Sync(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -423,14 +423,14 @@ func TestAppendContinues(t *testing.T) {
 	//
 
 	// starts append to existing package
-	if err = pack.Append(fwpk, nil); err != nil {
+	if err = pkg.Append(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
 	// put content
 	putfile("img2/marble.jpg")
 	putfile("img2/uzunji.jpg")
 	// finalize
-	if err = pack.Sync(fwpk, nil); err != nil {
+	if err = pkg.Sync(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -446,7 +446,7 @@ func TestAppendDiscrete(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage(pts)
 
 	defer os.Remove(testpack)
 
@@ -459,7 +459,7 @@ func TestAppendDiscrete(t *testing.T) {
 		defer file.Close()
 
 		var ts *wpk.TagsetRaw
-		if ts, err = pack.PackFile(fwpk, file, name); err != nil {
+		if ts, err = pkg.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
 
@@ -478,7 +478,7 @@ func TestAppendDiscrete(t *testing.T) {
 		defer fwpk.Close()
 
 		// starts new package
-		if err = pack.Begin(fwpk); err != nil {
+		if err = pkg.Begin(fwpk); err != nil {
 			t.Fatal(err)
 		}
 		// put content
@@ -486,7 +486,7 @@ func TestAppendDiscrete(t *testing.T) {
 		putfile("img1/claustral.jpg")
 		putfile("img1/qarataslar.jpg")
 		// finalize
-		if err = pack.Sync(fwpk, nil); err != nil {
+		if err = pkg.Sync(fwpk, nil); err != nil {
 			t.Fatal(err)
 		}
 
@@ -506,22 +506,22 @@ func TestAppendDiscrete(t *testing.T) {
 		defer fwpk.Close()
 
 		// read package content again.
-		// pack value already contains data from previous step
+		// pkg value already contains data from previous step
 		// and this call can be skipped,
 		// but we want to test here read functionality
-		if err = pack.OpenFTT(fwpk); err != nil {
+		if err = pkg.OpenFTT(fwpk); err != nil {
 			t.Fatal(err)
 		}
 
 		// starts append to existing package
-		if err = pack.Append(fwpk, nil); err != nil {
+		if err = pkg.Append(fwpk, nil); err != nil {
 			t.Fatal(err)
 		}
 		// put content
 		putfile("img2/marble.jpg")
 		putfile("img2/uzunji.jpg")
 		// finalize
-		if err = pack.Sync(fwpk, nil); err != nil {
+		if err = pkg.Sync(fwpk, nil); err != nil {
 			t.Fatal(err)
 		}
 

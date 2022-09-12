@@ -42,11 +42,11 @@ type Tagger struct {
 }
 
 // MakeTagger creates Tagger object to get access to package nested files.
-func MakeTagger(pack *wpk.Package, fpath string) (wpk.Tagger, error) {
+func MakeTagger(ftt *wpk.FTT, fpath string) (wpk.Tagger, error) {
 	var err error
 	var tgr Tagger
 	var dpath string
-	if pack.IsSplitted() {
+	if ftt.IsSplitted() {
 		dpath = wpk.MakeDataPath(fpath)
 	} else {
 		dpath = fpath

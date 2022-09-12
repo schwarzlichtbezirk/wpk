@@ -129,7 +129,7 @@ func packdirclosure(r io.ReadSeeker, ts *wpk.TagsetRaw) (err error) {
 func writepackage() (err error) {
 	var fwpk, fwpd wpk.WriteSeekCloser
 	var pkgfile, datfile = DstFile, DstFile
-	var pack = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage(pts)
 	if Split {
 		pkgfile, datfile = wpk.MakeTagsPath(pkgfile), wpk.MakeDataPath(datfile)
 	}
@@ -153,7 +153,7 @@ func writepackage() (err error) {
 	}
 
 	// starts new package
-	if err = pack.Begin(fwpk); err != nil {
+	if err = pkg.Begin(fwpk); err != nil {
 		return
 	}
 
@@ -167,7 +167,7 @@ func writepackage() (err error) {
 	for i, fpath := range SrcList {
 		log.Printf("source folder #%d: %s", i+1, fpath)
 		num, sum = 0, 0
-		if err = pack.PackDir(w, fpath, "", packdirclosure); err != nil {
+		if err = pkg.PackDir(w, fpath, "", packdirclosure); err != nil {
 			return
 		}
 		log.Printf("packed: %d files on %d bytes", num, sum)
@@ -175,7 +175,7 @@ func writepackage() (err error) {
 
 	// finalize
 	log.Printf("write tags table")
-	if err = pack.Sync(fwpk, fwpd); err != nil {
+	if err = pkg.Sync(fwpk, fwpd); err != nil {
 		return
 	}
 

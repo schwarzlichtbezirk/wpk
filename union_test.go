@@ -20,7 +20,7 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount uint
-	var pack = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage(pts)
 
 	// helper functions
 	var putfile = func(name string) {
@@ -31,7 +31,7 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 		defer file.Close()
 
 		var ts *wpk.TagsetRaw
-		if ts, err = pack.PackFile(fwpk, file, name); err != nil {
+		if ts, err = pkg.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
 
@@ -49,7 +49,7 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 	defer fwpk.Close()
 
 	// starts new package
-	if err = pack.Begin(fwpk); err != nil {
+	if err = pkg.Begin(fwpk); err != nil {
 		t.Fatal(err)
 	}
 	// put content
@@ -57,7 +57,7 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 		putfile(fname)
 	}
 	// finalize
-	if err = pack.Sync(fwpk, nil); err != nil {
+	if err = pkg.Sync(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -80,22 +80,22 @@ func TestUnion(t *testing.T) {
 	defer os.Remove(testpack2)
 
 	var err error
-	var pack1, pack2 *wpk.WPKFS
+	var pack1, pack2 *wpk.Package
 	if pack1, err = wpk.OpenPackage(testpack1); err != nil {
 		t.Fatal(err)
 	}
-	if pack1.Tagger, err = mmap.MakeTagger(pack1.Package, testpack1); err != nil {
+	if pack1.Tagger, err = mmap.MakeTagger(pack1.FTT, testpack1); err != nil {
 		t.Fatal(err)
 	}
 	if pack2, err = wpk.OpenPackage(testpack2); err != nil {
 		t.Fatal(err)
 	}
-	if pack2.Tagger, err = bulk.MakeTagger(pack2.Package, testpack2); err != nil {
+	if pack2.Tagger, err = bulk.MakeTagger(pack2.FTT, testpack2); err != nil {
 		t.Fatal(err)
 	}
 
 	var u wpk.Union
-	u.List = []*wpk.WPKFS{pack1, pack2}
+	u.List = []*wpk.Package{pack1, pack2}
 	defer u.Close()
 
 	var (

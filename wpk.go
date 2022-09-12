@@ -129,12 +129,6 @@ type CompleteFS interface {
 	fs.ReadFileFS
 }
 
-// Packager refers to package data access management implementation.
-type Packager interface {
-	CompleteFS
-	Tagger
-}
-
 // TypeSize is set of package types sizes.
 type TypeSize [8]byte
 
@@ -261,12 +255,16 @@ const (
 )
 
 // File tags table.
-// Keys - package filenames in lower case, values - tagset slices.
 type FTT struct {
-	sync.Map
-	tidsz  byte
-	tagsz  byte
-	tssize byte
+	sync.Map      // keys - package filenames in lower case, values - tagset slices.
+	tidsz    byte // tag ID size
+	tagsz    byte // length of tag size
+	tssize   byte // length of tagset size
+
+	datoffset uint64 // files data offset
+	datsize   uint64 // files data total size
+
+	mux sync.Mutex // writer mutex
 }
 
 // Init performs initialization for given Package structure.
@@ -301,6 +299,11 @@ func (ftt *FTT) SetInfo() *TagsetRaw {
 		panic("can not obtain package info")
 	}
 	return val.(*TagsetRaw)
+}
+
+// IsSplitted returns true if package is splitted on tags and data files.
+func (ftt *FTT) IsSplitted() bool {
+	return ftt.datoffset == 0 && ftt.datsize > 0
 }
 
 type filepos struct {
@@ -447,23 +450,10 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-// Package structure contains all data needed for package representation.
-type Package struct {
-	FTT
-	datoffset uint64     // files data offset
-	datsize   uint64     // files data total size
-	mux       sync.Mutex // writer mutex
-}
-
-// IsSplitted returns true if package is splitted on tags and data files.
-func (pack *Package) IsSplitted() bool {
-	return pack.datoffset == 0 && pack.datsize > 0
-}
-
 // Opens package for reading. At first it checkups file signature, then
 // reads records table, and reads file tagset table. Tags set for each
 // file must contain at least file offset, file size, file ID and file name.
-func (pack *Package) OpenFTT(r io.ReadSeeker) (err error) {
+func (ftt *FTT) OpenFTT(r io.ReadSeeker) (err error) {
 	// go to file start
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
 		return
@@ -480,19 +470,18 @@ func (pack *Package) OpenFTT(r io.ReadSeeker) (err error) {
 		return
 	}
 	// setup empty tags table
-	pack.FTT = FTT{
-		tidsz:  hdr.typesize[PTStidsz],
-		tagsz:  hdr.typesize[PTStagsz],
-		tssize: hdr.typesize[PTStssize],
-	}
-	pack.datoffset, pack.datsize = hdr.datoffset, hdr.datsize
+	ftt.Map = sync.Map{}
+	ftt.tidsz = hdr.typesize[PTStidsz]
+	ftt.tagsz = hdr.typesize[PTStagsz]
+	ftt.tssize = hdr.typesize[PTStssize]
+	ftt.datoffset, ftt.datsize = hdr.datoffset, hdr.datsize
 	// go to file tags table start
 	if _, err = r.Seek(int64(hdr.fttoffset), io.SeekStart); err != nil {
 		return
 	}
 	// read file tags table
 	var fttsize int64
-	if fttsize, err = pack.FTT.ReadFrom(r); err != nil {
+	if fttsize, err = ftt.ReadFrom(r); err != nil {
 		return
 	}
 	if fttsize != int64(hdr.fttsize) {
@@ -502,19 +491,21 @@ func (pack *Package) OpenFTT(r io.ReadSeeker) (err error) {
 	return
 }
 
-type WPKFS struct {
-	*Package
+// Package structure contains file tags table, tagger object
+// to get access to nested files, and subdirectory workspace.
+type Package struct {
+	*FTT
 	Tagger
 	Workspace string
 }
 
 // NewPackage returns pointer to new initialized Package filesystem structure.
 // Tagger should be set later if access to nested files is needed.
-func NewPackage(pts TypeSize) *WPKFS {
-	var ftt = &Package{}
+func NewPackage(pts TypeSize) *Package {
+	var ftt = &FTT{}
 	ftt.Init(pts)
-	return &WPKFS{
-		Package:   ftt,
+	return &Package{
+		FTT:       ftt,
 		Workspace: ".",
 	}
 }
@@ -522,53 +513,53 @@ func NewPackage(pts TypeSize) *WPKFS {
 // OpenPackage creates Package objects and reads package file tags table
 // from the file with given name.
 // Tagger should be set later if access to nested files is needed.
-func OpenPackage(fpath string) (pack *WPKFS, err error) {
+func OpenPackage(fpath string) (pkg *Package, err error) {
 	var r io.ReadSeekCloser
 	if r, err = os.Open(fpath); err != nil {
 		return
 	}
 	defer r.Close()
 
-	pack = &WPKFS{
-		Package:   &Package{},
+	pkg = &Package{
+		FTT:       &FTT{},
 		Workspace: ".",
 	}
-	if err = pack.OpenFTT(r); err != nil {
+	if err = pkg.OpenFTT(r); err != nil {
 		return
 	}
 
 	return
 }
 
-func (pack *WPKFS) FullPath(fpath string) string {
-	return path.Join(pack.Workspace, fpath)
+func (pkg *Package) FullPath(fpath string) string {
+	return path.Join(pkg.Workspace, fpath)
 }
 
 // BaseTagset returns new tagset based on predefined TID type size and tag size type,
 // and puts file offset and file size into tagset with predefined sizes.
-func (pack *WPKFS) BaseTagset(offset, size uint, fpath string) *TagsetRaw {
-	return pack.NewTagset().
+func (pkg *Package) BaseTagset(offset, size uint, fpath string) *TagsetRaw {
+	return pkg.NewTagset().
 		Put(TIDoffset, UintTag(offset)).
 		Put(TIDsize, UintTag(size)).
-		Put(TIDpath, StrTag(ToSlash(pack.FullPath(fpath))))
+		Put(TIDpath, StrTag(ToSlash(pkg.FullPath(fpath))))
 }
 
 // Tagset returns tagset with given filename key, if it found.
-func (pack *WPKFS) Tagset(fkey string) (ts *TagsetRaw, ok bool) {
+func (pkg *Package) Tagset(fkey string) (ts *TagsetRaw, ok bool) {
 	var val interface{}
-	if val, ok = pack.Load(Normalize(pack.FullPath(fkey))); ok {
+	if val, ok = pkg.Load(Normalize(pkg.FullPath(fkey))); ok {
 		ts = val.(*TagsetRaw)
 	}
 	return
 }
 
 // Enum calls given closure for each tagset in package. Skips package info.
-func (pack *WPKFS) Enum(f func(string, *TagsetRaw) bool) {
+func (pkg *Package) Enum(f func(string, *TagsetRaw) bool) {
 	var prefix string
-	if pack.Workspace != "." && pack.Workspace != "" {
-		prefix = Normalize(pack.Workspace) + "/" // make prefix slash-terminated
+	if pkg.Workspace != "." && pkg.Workspace != "" {
+		prefix = Normalize(pkg.Workspace) + "/" // make prefix slash-terminated
 	}
-	pack.Range(func(key, value interface{}) bool {
+	pkg.Range(func(key, value interface{}) bool {
 		var fkey = key.(string)
 		return fkey == InfoName ||
 			!strings.HasPrefix(fkey, prefix) ||
@@ -577,25 +568,25 @@ func (pack *WPKFS) Enum(f func(string, *TagsetRaw) bool) {
 }
 
 // HasTagset check up that tagset with given filename key is present.
-func (pack *WPKFS) HasTagset(fkey string) (ok bool) {
-	_, ok = pack.Load(Normalize(pack.FullPath(fkey)))
+func (pkg *Package) HasTagset(fkey string) (ok bool) {
+	_, ok = pkg.Load(Normalize(pkg.FullPath(fkey)))
 	return
 }
 
 // SetTagset puts tagset with given filename key.
-func (pack *WPKFS) SetTagset(fkey string, ts *TagsetRaw) {
-	pack.Store(Normalize(pack.FullPath(fkey)), ts)
+func (pkg *Package) SetTagset(fkey string, ts *TagsetRaw) {
+	pkg.Store(Normalize(pkg.FullPath(fkey)), ts)
 }
 
 // DelTagset deletes tagset with given filename key.
-func (pack *WPKFS) DelTagset(fkey string) {
-	pack.Delete(Normalize(pack.FullPath(fkey)))
+func (pkg *Package) DelTagset(fkey string) {
+	pkg.Delete(Normalize(pkg.FullPath(fkey)))
 }
 
 // GetDelTagset deletes the tagset for a key, returning the previous tagset if any.
-func (pack *WPKFS) GetDelTagset(fkey string) (ts *TagsetRaw, ok bool) {
+func (pkg *Package) GetDelTagset(fkey string) (ts *TagsetRaw, ok bool) {
 	var val interface{}
-	if val, ok = pack.LoadAndDelete(Normalize(pack.FullPath(fkey))); ok {
+	if val, ok = pkg.LoadAndDelete(Normalize(pkg.FullPath(fkey))); ok {
 		ts = val.(*TagsetRaw)
 	}
 	return
@@ -603,17 +594,17 @@ func (pack *WPKFS) GetDelTagset(fkey string) (ts *TagsetRaw, ok bool) {
 
 // Sub clones object and gives access to pointed subdirectory.
 // fs.SubFS implementation.
-func (pack *WPKFS) Sub(dir string) (sub fs.FS, err error) {
+func (pkg *Package) Sub(dir string) (sub fs.FS, err error) {
 	var prefix string
 	if dir != "." && dir != "" {
 		prefix = Normalize(dir) + "/" // make prefix slash-terminated
 	}
-	pack.Enum(func(fkey string, ts *TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
-			sub = &WPKFS{
-				Package:   pack.Package,
-				Tagger:    pack.Tagger,
-				Workspace: pack.FullPath(dir),
+			sub = &Package{
+				FTT:       pkg.FTT,
+				Tagger:    pkg.Tagger,
+				Workspace: pkg.FullPath(dir),
 			}
 			return false
 		}
@@ -627,8 +618,8 @@ func (pack *WPKFS) Sub(dir string) (sub fs.FS, err error) {
 
 // Stat returns a fs.FileInfo describing the file.
 // fs.StatFS interface implementation.
-func (pack *WPKFS) Stat(fpath string) (fs.FileInfo, error) {
-	if ts, is := pack.Tagset(fpath); is {
+func (pkg *Package) Stat(fpath string) (fs.FileInfo, error) {
+	if ts, is := pkg.Tagset(fpath); is {
 		return ts, nil
 	}
 	return nil, &fs.PathError{Op: "stat", Path: fpath, Err: fs.ErrNotExist}
@@ -637,12 +628,12 @@ func (pack *WPKFS) Stat(fpath string) (fs.FileInfo, error) {
 // Glob returns the names of all files in package matching pattern or nil
 // if there is no matching file.
 // fs.GlobFS interface implementation.
-func (pack *WPKFS) Glob(pattern string) (res []string, err error) {
+func (pkg *Package) Glob(pattern string) (res []string, err error) {
 	pattern = Normalize(pattern)
 	if _, err = path.Match(pattern, ""); err != nil {
 		return
 	}
-	pack.Enum(func(fkey string, ts *TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
 		if matched, _ := path.Match(pattern, fkey); matched {
 			res = append(res, fkey)
 		}
@@ -654,17 +645,17 @@ func (pack *WPKFS) Glob(pattern string) (res []string, err error) {
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
 // fs.ReadDirFS interface implementation.
-func (pack *WPKFS) ReadDir(dir string) ([]fs.DirEntry, error) {
-	var fulldir = pack.FullPath(dir)
-	return pack.FTT.ReadDirN(fulldir, -1)
+func (pkg *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
+	var fulldir = pkg.FullPath(dir)
+	return pkg.FTT.ReadDirN(fulldir, -1)
 }
 
 // ReadFile returns slice with nested into package file content.
 // Makes content copy to prevent ambiguous access to closed mapped memory block.
 // fs.ReadFileFS implementation.
-func (pack *WPKFS) ReadFile(fpath string) ([]byte, error) {
-	if ts, is := pack.Tagset(fpath); is {
-		var f, err = pack.Tagger.OpenTagset(ts)
+func (pkg *Package) ReadFile(fpath string) ([]byte, error) {
+	if ts, is := pkg.Tagset(fpath); is {
+		var f, err = pkg.Tagger.OpenTagset(ts)
 		if err != nil {
 			return nil, err
 		}
@@ -680,17 +671,17 @@ func (pack *WPKFS) ReadFile(fpath string) ([]byte, error) {
 
 // Open implements access to nested into package file or directory by filename.
 // fs.FS implementation.
-func (pack *WPKFS) Open(dir string) (fs.File, error) {
-	var fullname = pack.FullPath(dir)
+func (pkg *Package) Open(dir string) (fs.File, error) {
+	var fullname = pkg.FullPath(dir)
 	if fullname == PackName {
-		var ts = pack.BaseTagset(0, uint(pack.datoffset+pack.datsize), "wpk")
-		return pack.Tagger.OpenTagset(ts)
+		var ts = pkg.BaseTagset(0, uint(pkg.datoffset+pkg.datsize), "wpk")
+		return pkg.Tagger.OpenTagset(ts)
 	}
 
-	if ts, is := pack.Tagset(dir); is {
-		return pack.Tagger.OpenTagset(ts)
+	if ts, is := pkg.Tagset(dir); is {
+		return pkg.Tagger.OpenTagset(ts)
 	}
-	return pack.OpenDir(fullname)
+	return pkg.OpenDir(fullname)
 }
 
 // GetPackageInfo returns tagset with package information.

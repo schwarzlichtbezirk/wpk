@@ -17,8 +17,8 @@ func CheckPackage(t *testing.T, wptname, wpdname string) {
 	var err error
 
 	// Open package files tags table
-	var pack *wpk.WPKFS
-	if pack, err = wpk.OpenPackage(wptname); err != nil {
+	var pkg *wpk.Package
+	if pkg, err = wpk.OpenPackage(wptname); err != nil {
 		t.Fatal(err)
 	}
 
@@ -35,13 +35,13 @@ func CheckPackage(t *testing.T, wptname, wpdname string) {
 	}
 	defer fwpd.Close()
 
-	if ts, ok := pack.Info(); ok {
+	if ts, ok := pkg.Info(); ok {
 		var offset, size = ts.Pos()
 		var label, _ = ts.TagStr(wpk.TIDlabel)
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 	var n = 0
-	pack.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		var ok bool
 		var offset, size = ts.Pos()
 		var fpath = ts.Path()
