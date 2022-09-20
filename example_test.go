@@ -18,7 +18,7 @@ func ExampleFTT_Info() {
 	}
 
 	// How many records in package
-	var m = map[uint]wpk.Void{}
+	var m = map[wpk.Uint]wpk.Void{}
 	var n = 0
 	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {

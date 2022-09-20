@@ -24,10 +24,10 @@ const (
 const (
 	TIDnone = 0
 
-	TIDoffset = 1  // required, defenid at TypeSize
-	TIDsize   = 2  // required, defenid at TypeSize
+	TIDoffset = 1  // required, uint
+	TIDsize   = 2  // required, uint
 	TIDpath   = 3  // required, unique, string
-	TIDfid    = 4  // unique, defenid at TypeSize
+	TIDfid    = 4  // unique, uint
 	TIDmtime  = 5  // required for files, 8/12 bytes (mod-time)
 	TIDatime  = 6  // 8/12 bytes (access-time)
 	TIDctime  = 7  // 8/12 bytes (change-time)
@@ -62,7 +62,7 @@ const (
 type ErrTag struct {
 	What error  // error message
 	Key  string // normalized file name
-	TID  uint   // tag ID
+	TID  Uint   // tag ID
 }
 
 func (e *ErrTag) Error() string {
@@ -307,8 +307,8 @@ func (ftt *FTT) IsSplitted() bool {
 }
 
 type filepos struct {
-	offset uint
-	size   uint
+	offset Uint
+	size   Uint
 }
 
 func (ftt *FTT) checkTagset(ts *TagsetRaw, lim *filepos) (fpath string, err error) {
@@ -355,7 +355,7 @@ func (ftt *FTT) checkTagset(ts *TagsetRaw, lim *filepos) (fpath string, err erro
 func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 	var limits filepos
 	for {
-		var tsl uint
+		var tsl Uint
 		if tsl, err = ReadUint(r, ftt.tssize); err != nil {
 			return
 		}
@@ -394,8 +394,8 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 	// write tagset with package info at first
 	if ts, ok := ftt.Info(); ok {
-		var tsl = uint(len(ts.Data()))
-		if tsl > uint(1<<(ftt.tssize*8)-1) {
+		var tsl = Uint(len(ts.Data()))
+		if tsl > Uint(1<<(ftt.tssize*8)-1) {
 			err = ErrRangeTSSize
 			return
 		}
@@ -420,8 +420,8 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 			return true
 		}
 
-		var tsl = uint(len(ts.Data()))
-		if tsl > uint(1<<(ftt.tssize*8)-1) {
+		var tsl = Uint(len(ts.Data()))
+		if tsl > Uint(1<<(ftt.tssize*8)-1) {
 			err = ErrRangeTSSize
 			return false
 		}
@@ -535,7 +535,7 @@ func (pkg *Package) FullPath(fpath string) string {
 
 // BaseTagset returns new tagset based on predefined TID type size and tag size type,
 // and puts file offset and file size into tagset with predefined sizes.
-func (pkg *Package) BaseTagset(offset, size uint, fpath string) *TagsetRaw {
+func (pkg *Package) BaseTagset(offset, size Uint, fpath string) *TagsetRaw {
 	return pkg.NewTagset().
 		Put(TIDoffset, UintTag(offset)).
 		Put(TIDsize, UintTag(size)).
@@ -672,7 +672,7 @@ func (pkg *Package) ReadFile(fpath string) ([]byte, error) {
 func (pkg *Package) Open(dir string) (fs.File, error) {
 	var fullname = pkg.FullPath(dir)
 	if fullname == PackName {
-		var ts = pkg.BaseTagset(0, uint(pkg.datoffset+pkg.datsize), "wpk")
+		var ts = pkg.BaseTagset(0, Uint(pkg.datoffset+pkg.datsize), "wpk")
 		return pkg.Tagger.OpenTagset(ts)
 	}
 
@@ -708,7 +708,7 @@ func GetPackageInfo(r io.ReadSeeker) (ts *TagsetRaw, err error) {
 
 	// read first tagset that can be package info,
 	// or some file tagset if info is absent
-	var tsl uint
+	var tsl Uint
 	if tsl, err = ReadUint(r, hdr.typesize[PTStssize]); err != nil {
 		return
 	}

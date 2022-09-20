@@ -29,9 +29,9 @@ func TestTagset(t *testing.T) {
 	var (
 		tag wpk.TagRaw
 		ok  bool
-		fv  uint
-		ov  uint
-		sv  uint
+		fv  wpk.Uint
+		ov  wpk.Uint
+		sv  wpk.Uint
 		str string
 	)
 

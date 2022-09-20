@@ -98,30 +98,30 @@ func Uint64Tag(val uint64) TagRaw {
 }
 
 // TagUint is unspecified size unsigned int tag converter.
-func (t TagRaw) TagUint() (ret uint, ok bool) {
+func (t TagRaw) TagUint() (ret Uint, ok bool) {
 	switch len(t) {
 	case 8:
-		ret |= uint(t[7]) << 56
-		ret |= uint(t[6]) << 48
-		ret |= uint(t[5]) << 40
-		ret |= uint(t[4]) << 32
+		ret |= Uint(t[7]) << 56
+		ret |= Uint(t[6]) << 48
+		ret |= Uint(t[5]) << 40
+		ret |= Uint(t[4]) << 32
 		fallthrough
 	case 4:
-		ret |= uint(t[3]) << 24
-		ret |= uint(t[2]) << 16
+		ret |= Uint(t[3]) << 24
+		ret |= Uint(t[2]) << 16
 		fallthrough
 	case 2:
-		ret |= uint(t[1]) << 8
+		ret |= Uint(t[1]) << 8
 		fallthrough
 	case 1:
-		ret |= uint(t[0])
+		ret |= Uint(t[0])
 		ok = true
 	}
 	return
 }
 
 // UintTag is unspecified size unsigned int tag constructor.
-func UintTag(val uint) TagRaw {
+func UintTag(val Uint) TagRaw {
 	var l int
 	var buf [8]byte
 	switch {
@@ -157,7 +157,7 @@ func UintTag(val uint) TagRaw {
 }
 
 // UintLenTag is unsigned int tag constructor with specified length in bytes.
-func UintLenTag(val uint, l byte) TagRaw {
+func UintLenTag(val Uint, l byte) TagRaw {
 	var buf [8]byte
 	switch l {
 	case 8:
@@ -255,7 +255,7 @@ func (ts *TagsetRaw) Num() (n int) {
 }
 
 // Has checks existence of tag with given ID.
-func (ts *TagsetRaw) Has(tid uint) bool {
+func (ts *TagsetRaw) Has(tid Uint) bool {
 	var tsi = ts.Iterator()
 	for tsi.Next() && tsi.tid != tid {
 	}
@@ -265,7 +265,7 @@ func (ts *TagsetRaw) Has(tid uint) bool {
 // GetTag returns TagRaw with given identifier.
 // If tag is not found, slice content is broken,
 // returns false.
-func (ts *TagsetRaw) Get(tid uint) (TagRaw, bool) {
+func (ts *TagsetRaw) Get(tid Uint) (TagRaw, bool) {
 	var tsi = ts.Iterator()
 	for tsi.Next() && tsi.tid != tid {
 	}
@@ -280,14 +280,14 @@ func (ts *TagsetRaw) Get(tid uint) (TagRaw, bool) {
 
 // Put appends new tag to tagset.
 // Can be used in chain calls at initialization.
-func (ts *TagsetRaw) Put(tid uint, tag TagRaw) *TagsetRaw {
+func (ts *TagsetRaw) Put(tid Uint, tag TagRaw) *TagsetRaw {
 	if tid == TIDnone { // special case
 		return ts
 	}
 
 	var buf = make([]byte, ts.tidsz+ts.tagsz)
 	WriteUintBuf(buf[:ts.tidsz], tid)
-	WriteUintBuf(buf[ts.tidsz:], uint(len(tag)))
+	WriteUintBuf(buf[ts.tidsz:], Uint(len(tag)))
 	ts.data = append(ts.data, buf...)
 	ts.data = append(ts.data, tag...)
 	return ts
@@ -295,7 +295,7 @@ func (ts *TagsetRaw) Put(tid uint, tag TagRaw) *TagsetRaw {
 
 // Set replaces tag with given ID and equal size, or
 // appends it to tagset. Returns true if new one added.
-func (ts *TagsetRaw) Set(tid uint, tag TagRaw) bool {
+func (ts *TagsetRaw) Set(tid Uint, tag TagRaw) bool {
 	if tid == TIDnone { // special case
 		return false
 	}
@@ -308,8 +308,8 @@ func (ts *TagsetRaw) Set(tid uint, tag TagRaw) bool {
 		return true
 	}
 
-	var tl = uint(len(tag))
-	if tl == uint(tsi.pos-tsi.tag) {
+	var tl = Uint(len(tag))
+	if tl == Uint(tsi.pos-tsi.tag) {
 		copy(ts.data[tsi.tag:tsi.pos], tag)
 	} else {
 		WriteUintBuf(ts.data[tsi.tag-int(ts.tagsz):tsi.tag], tl) // set tag length
@@ -321,7 +321,7 @@ func (ts *TagsetRaw) Set(tid uint, tag TagRaw) bool {
 }
 
 // Del deletes tag with given ID.
-func (ts *TagsetRaw) Del(tid uint) bool {
+func (ts *TagsetRaw) Del(tid Uint) bool {
 	if tid == TIDnone { // special case
 		return false
 	}
@@ -337,7 +337,7 @@ func (ts *TagsetRaw) Del(tid uint) bool {
 }
 
 // TagStr tag getter.
-func (ts *TagsetRaw) TagStr(tid uint) (string, bool) {
+func (ts *TagsetRaw) TagStr(tid Uint) (string, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagStr()
 	}
@@ -345,7 +345,7 @@ func (ts *TagsetRaw) TagStr(tid uint) (string, bool) {
 }
 
 // TagBool is boolean tag getter.
-func (ts *TagsetRaw) TagBool(tid uint) (bool, bool) {
+func (ts *TagsetRaw) TagBool(tid Uint) (bool, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagBool()
 	}
@@ -353,7 +353,7 @@ func (ts *TagsetRaw) TagBool(tid uint) (bool, bool) {
 }
 
 // TagByte tag getter.
-func (ts *TagsetRaw) TagByte(tid uint) (byte, bool) {
+func (ts *TagsetRaw) TagByte(tid Uint) (byte, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagByte()
 	}
@@ -362,7 +362,7 @@ func (ts *TagsetRaw) TagByte(tid uint) (byte, bool) {
 
 // TagUint16 is 16-bit unsigned int tag getter.
 // Conversion can be used to get signed 16-bit integers.
-func (ts *TagsetRaw) TagUint16(tid uint) (uint16, bool) {
+func (ts *TagsetRaw) TagUint16(tid Uint) (uint16, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagUint16()
 	}
@@ -371,7 +371,7 @@ func (ts *TagsetRaw) TagUint16(tid uint) (uint16, bool) {
 
 // TagUint32 is 32-bit unsigned int tag getter.
 // Conversion can be used to get signed 32-bit integers.
-func (ts *TagsetRaw) TagUint32(tid uint) (uint32, bool) {
+func (ts *TagsetRaw) TagUint32(tid Uint) (uint32, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagUint32()
 	}
@@ -380,7 +380,7 @@ func (ts *TagsetRaw) TagUint32(tid uint) (uint32, bool) {
 
 // TagUint64 is 64-bit unsigned int tag getter.
 // Conversion can be used to get signed 64-bit integers.
-func (ts *TagsetRaw) TagUint64(tid uint) (uint64, bool) {
+func (ts *TagsetRaw) TagUint64(tid Uint) (uint64, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagUint64()
 	}
@@ -388,7 +388,7 @@ func (ts *TagsetRaw) TagUint64(tid uint) (uint64, bool) {
 }
 
 // TagUint is unspecified size unsigned int tag getter.
-func (ts *TagsetRaw) TagUint(tid uint) (uint, bool) {
+func (ts *TagsetRaw) TagUint(tid Uint) (Uint, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagUint()
 	}
@@ -396,7 +396,7 @@ func (ts *TagsetRaw) TagUint(tid uint) (uint, bool) {
 }
 
 // TagNumber is 64-bit float tag getter.
-func (ts *TagsetRaw) TagNumber(tid uint) (float64, bool) {
+func (ts *TagsetRaw) TagNumber(tid Uint) (float64, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagNumber()
 	}
@@ -404,7 +404,7 @@ func (ts *TagsetRaw) TagNumber(tid uint) (float64, bool) {
 }
 
 // TagTime is time tag getter.
-func (ts *TagsetRaw) TagTime(tid uint) (time.Time, bool) {
+func (ts *TagsetRaw) TagTime(tid Uint) (time.Time, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagTime()
 	}
@@ -413,7 +413,7 @@ func (ts *TagsetRaw) TagTime(tid uint) (time.Time, bool) {
 
 // Pos returns file offset and file size in package.
 // Those values required to be present in any tagset.
-func (ts *TagsetRaw) Pos() (offset, size uint) {
+func (ts *TagsetRaw) Pos() (offset, size Uint) {
 	offset, _ = ts.TagUint(TIDoffset)
 	size, _ = ts.TagUint(TIDsize)
 	return
@@ -523,7 +523,7 @@ func (ts *TagsetRaw) Iterator() *TagsetIterator {
 // TagsetIterator helps to iterate through all tags.
 type TagsetIterator struct {
 	TagsetRaw
-	tid uint // tag ID of last readed tag
+	tid Uint // tag ID of last readed tag
 	pos int  // current position in the slice
 	tag int  // start position of last readed tag content
 }
@@ -536,7 +536,7 @@ func (tsi *TagsetIterator) Reset() {
 }
 
 // TID returns the tag ID of the last readed tag.
-func (tsi *TagsetIterator) TID() uint {
+func (tsi *TagsetIterator) TID() Uint {
 	return tsi.tid
 }
 
@@ -603,17 +603,17 @@ func (tsi *TagsetIterator) Next() (ok bool) {
 const tsiconst = "content changes are disabled for iterator"
 
 // Put is the stub to disable any changes to data content of iterator.
-func (tsi *TagsetIterator) Put(tid uint, tag TagRaw) *TagsetRaw {
+func (tsi *TagsetIterator) Put(tid Uint, tag TagRaw) *TagsetRaw {
 	panic(tsiconst)
 }
 
 // Set is the stub to disable any changes to data content of iterator.
-func (tsi *TagsetIterator) Set(tid uint, tag TagRaw) bool {
+func (tsi *TagsetIterator) Set(tid Uint, tag TagRaw) bool {
 	panic(tsiconst)
 }
 
 // Del is the stub to disable any changes to data content of iterator.
-func (tsi *TagsetIterator) Del(tid uint) bool {
+func (tsi *TagsetIterator) Del(tid Uint) bool {
 	panic(tsiconst)
 }
 

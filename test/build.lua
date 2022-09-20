@@ -27,10 +27,10 @@ end
 -- put images with keywords and author addition tags
 local mediadir = path.join(scrdir, "media").."/"
 packfile("bounty.jpg", mediadir.."bounty.jpg", "beach")
-packfile("qarataslar.jpg", mediadir.."img1/qarataslar.jpg", "beach;rock")
+packfile("Qarataşlar.jpg", mediadir.."img1/Qarataşlar.jpg", "beach;rock")
 packfile("claustral.jpg", mediadir.."img1/claustral.jpg", "beach;rock")
 packfile("marble.jpg", mediadir.."img2/marble.jpg", "beach")
-packfile("uzunji.jpg", mediadir.."img2/uzunji.jpg", "rock")
+packfile("Uzuncı.jpg", mediadir.."img2/Uzuncı.jpg", "rock")
 
 -- put file created from given string
 pkg:putdata("sample.txt", "The quick brown fox jumps over the lazy dog")
@@ -39,7 +39,7 @@ pkg:settags("sample.txt", {mime="text/plain;charset=utf-8", keywords="fox;dog"})
 -- make 2 file name aliases to 1 file
 pkg:putalias("claustral.jpg", "jasper.jpg")
 
-log(string.format("qarataşlar file size: %d bytes", pkg:filesize("qarataslar.jpg")))
+log(string.format("'Qarataşlar' file size: %d bytes", pkg:filesize("Qarataşlar.jpg")))
 log(string.format("total files size sum: %d bytes", pkg:sumsize()))
 log(string.format("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum))
 

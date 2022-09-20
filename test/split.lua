@@ -40,13 +40,13 @@ local mediadir = path.join(scrdir, "media").."/"
 
 -- workflow part 1
 packfile("bounty.jpg", "beach")
-packfile("img1/qarataslar.jpg", "beach;rock")
+packfile("img1/Qarataşlar.jpg", "beach;rock")
 packfile("img1/claustral.jpg", "beach;rock")
 pkg:flush() -- after this point process can be broken, and files above will remains.
 
 -- workflow part 2
 packfile("img2/marble.jpg", "beach")
-packfile("img2/uzunji.jpg", "rock")
+packfile("img2/Uzuncı.jpg", "rock")
 pkg:flush() -- after this point process can be broken, and files above will remains.
 
 -- workflow part 3
@@ -54,7 +54,7 @@ pkg:putdata("sample.txt", "The quick brown fox jumps over the lazy dog")
 pkg:settags("sample.txt", {mime="text/plain;charset=utf-8", keywords="fox;dog"})
 pkg:putalias("img1/claustral.jpg", "jasper.jpg") -- make 2 file name aliases to 1 file
 
-log(string.format("qarataşlar file size: %d bytes", pkg:filesize("img1/qarataslar.jpg")))
+log(string.format("'Qarataşlar' file size: %d bytes", pkg:filesize("img1/Qarataşlar.jpg")))
 log(string.format("total files size sum: %d bytes", pkg:sumsize()))
 log(string.format("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum))
 

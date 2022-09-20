@@ -35,7 +35,7 @@ log("create: "..pkgpath)
 
 -- put images with keywords and author addition tags
 packfile("bounty.jpg", "beach")
-packfile("img1/qarataslar.jpg", "beach;rock")
+packfile("img1/Qarataşlar.jpg", "beach;rock")
 packfile("img1/claustral.jpg", "beach;rock")
 
 log(string.format("packed %d files, fft %d bytes, data %s bytes", pkg.recnum, pkg.fftsize, pkg.datasize))

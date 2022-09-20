@@ -16,7 +16,7 @@ import (
 // ErrProtected is "protected tag" error.
 type ErrProtected struct {
 	key string
-	tid uint
+	tid wpk.Uint
 }
 
 func (e *ErrProtected) Error() string {
@@ -159,7 +159,7 @@ func setterPack(ls *lua.LState) int {
 func tostringPack(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 
-	var m = map[uint]wpk.Void{}
+	var m = map[wpk.Uint]wpk.Void{}
 	var n = 0
 	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
@@ -294,7 +294,7 @@ func getdatpath(ls *lua.LState) int {
 
 func getrecnum(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
-	var m = map[uint]wpk.Void{}
+	var m = map[wpk.Uint]wpk.Void{}
 	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
 			m[offset] = wpk.Void{}
@@ -870,7 +870,7 @@ func wpkhastag(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
-	var tid uint
+	var tid wpk.Uint
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
@@ -899,7 +899,7 @@ func wpkgettag(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
-	var tid uint
+	var tid wpk.Uint
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
@@ -933,7 +933,7 @@ func wpksettag(ls *lua.LState) int {
 	var k = ls.Get(3)
 	var v = ls.Get(4)
 
-	var tid uint
+	var tid wpk.Uint
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
@@ -970,7 +970,7 @@ func wpkdeltag(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
-	var tid uint
+	var tid wpk.Uint
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}

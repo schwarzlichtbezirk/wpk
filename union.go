@@ -54,6 +54,7 @@ func (f *UnionDir) ReadDir(n int) ([]fs.DirEntry, error) {
 	return f.ReadDirN(dir, n)
 }
 
+// Union glues list of packages into single filesystem.
 type Union struct {
 	List []*Package
 }
@@ -127,7 +128,7 @@ func (u *Union) Glob(pattern string) (res []string, err error) {
 		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if _, ok := found[fkey]; !ok {
 				if matched, _ := path.Match(pattern, fkey); matched {
-					res = append(res, fkey)
+					res = append(res, ts.Path())
 				}
 				found[fkey] = Void{}
 			}

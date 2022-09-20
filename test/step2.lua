@@ -66,7 +66,7 @@ log("append: "..pkgpath)
 
 -- put images with keywords and author addition tags
 packfile("img2/marble.jpg", "beach")
-packfile("img2/uzunji.jpg", "rock")
+packfile("img2/Uzuncı.jpg", "rock")
 
 -- make alias to file written at step 1
 safealias("img1/claustral.jpg", "jasper.jpg")

@@ -8,8 +8,8 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-// NameTid helps convert Lua-table string keys to associated uint values.
-var NameTid = map[string]uint{
+// NameTid helps convert Lua-table string keys to associated Uint values.
+var NameTid = map[string]wpk.Uint{
 	"offset": wpk.TIDoffset,
 	"size":   wpk.TIDsize,
 	"fid":    wpk.TIDfid,
@@ -46,9 +46,9 @@ var NameTid = map[string]uint{
 	"comment":  wpk.TIDcomment,
 }
 
-// TidName helps format Lua-tables with string keys associated to uint values.
-var TidName = func() map[uint]string {
-	var tn = map[uint]string{}
+// TidName helps format Lua-tables with string keys associated to Uint values.
+var TidName = func() map[wpk.Uint]string {
+	var tn = map[wpk.Uint]string{}
 	for name, tid := range NameTid {
 		tn[tid] = name
 	}
@@ -73,9 +73,9 @@ var (
 // ValueToTID converts LValue to uint16 tag identifier.
 // Numbers converts explicitly, strings converts to uint16
 // values which they presents. Error returns on any other case.
-func ValueToTID(k lua.LValue) (tid uint, err error) {
+func ValueToTID(k lua.LValue) (tid wpk.Uint, err error) {
 	if n, ok := k.(lua.LNumber); ok {
-		tid = uint(n)
+		tid = wpk.Uint(n)
 	} else if name, ok := k.(lua.LString); ok {
 		if n, ok := NameTid[string(name)]; ok {
 			tid = n
@@ -95,8 +95,8 @@ func ValueToTID(k lua.LValue) (tid uint, err error) {
 // Otherwise if it is not 'tag' uservalue with TagRaw, returns error.
 func ValueToTag(v lua.LValue) (tag wpk.TagRaw, err error) {
 	if val, ok := v.(lua.LNumber); ok {
-		var u = uint(val)
-		if val < 0 || val > lua.LNumber(uint(1<<64-1)) || val-lua.LNumber(u) != 0 {
+		var u = wpk.Uint(val)
+		if val < 0 || val > lua.LNumber(wpk.Uint(1<<64-1)) || val-lua.LNumber(u) != 0 {
 			tag = wpk.NumberTag(float64(val))
 		} else {
 			tag = wpk.UintTag(u)
@@ -126,7 +126,7 @@ func ValueToTag(v lua.LValue) (tag wpk.TagRaw, err error) {
 func TableToTagset(lt *lua.LTable, ts *wpk.TagsetRaw) (err error) {
 	lt.ForEach(func(k lua.LValue, v lua.LValue) {
 		var (
-			tid uint
+			tid wpk.Uint
 			tag wpk.TagRaw
 		)
 

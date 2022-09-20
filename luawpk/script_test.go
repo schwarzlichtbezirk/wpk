@@ -62,7 +62,7 @@ func CheckPackage(t *testing.T, wptname, wpdname string) {
 			t.Fatal(err)
 		}
 
-		if size != uint(len(orig)) {
+		if size != wpk.Uint(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
 				fpath, size, len(orig))
 		}

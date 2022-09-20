@@ -74,6 +74,7 @@ var MimeExt = map[string]string{
 	".tif":  "image/tiff",
 	".tiff": "image/tiff",
 	".webp": "image/webp",
+	".avif": "image/avif",
 	".svg":  "image/svg+xml",
 	".ico":  "image/x-icon",
 	".cur":  "image/x-icon",

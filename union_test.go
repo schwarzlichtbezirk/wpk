@@ -20,7 +20,7 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount uint
+	var fidcount wpk.Uint
 	var pkg = wpk.NewPackage(pts)
 
 	// helper functions
@@ -73,8 +73,8 @@ func TestUnion(t *testing.T) {
 	})
 	PackFiles(t, testpack2, []string{
 		"bounty.jpg",
-		"img1/qarataslar.jpg",
-		"img2/uzunji.jpg",
+		"img1/Qarataşlar.jpg",
+		"img2/Uzuncı.jpg",
 	})
 
 	defer os.Remove(testpack1)
@@ -138,8 +138,8 @@ func TestUnion(t *testing.T) {
 		"bounty.jpg":          {},
 		"img1/claustral.jpg":  {},
 		"img2/marble.jpg":     {},
-		"img1/qarataslar.jpg": {},
-		"img2/uzunji.jpg":     {},
+		"img1/qarataşlar.jpg": {},
+		"img2/uzuncı.jpg":     {},
 	})
 
 	//
@@ -158,14 +158,14 @@ func TestUnion(t *testing.T) {
 	}
 	check("img2/*", map[string]wpk.Void{
 		"img2/marble.jpg": {},
-		"img2/uzunji.jpg": {},
+		"img2/Uzuncı.jpg": {},
 	})
 
 	if list, err = u.Glob("*/?ar*.jpg"); err != nil {
 		t.Fatal(err)
 	}
 	check("*/?ar*.jpg", map[string]wpk.Void{
-		"img1/qarataslar.jpg": {},
+		"img1/Qarataşlar.jpg": {},
 		"img2/marble.jpg":     {},
 	})
 
@@ -181,12 +181,12 @@ func TestUnion(t *testing.T) {
 
 	checkfs(&u, "img1", map[string]wpk.Void{
 		"img1/claustral.jpg":  {},
-		"img1/qarataslar.jpg": {},
+		"img1/Qarataşlar.jpg": {},
 	})
 
 	checkfs(&u, "img2", map[string]wpk.Void{
 		"img2/marble.jpg": {},
-		"img2/uzunji.jpg": {},
+		"img2/Uzuncı.jpg": {},
 	})
 
 	//
@@ -199,7 +199,7 @@ func TestUnion(t *testing.T) {
 	}
 	checkfs(u1, ".", map[string]wpk.Void{
 		"claustral.jpg":  {},
-		"qarataslar.jpg": {},
+		"Qarataşlar.jpg": {},
 	})
 
 	var u2 fs.FS
@@ -208,23 +208,23 @@ func TestUnion(t *testing.T) {
 	}
 	checkfs(u2, ".", map[string]wpk.Void{
 		"marble.jpg": {},
-		"uzunji.jpg": {},
+		"Uzuncı.jpg": {},
 	})
 
 	//
 	// ReadFile test
 	//
 
-	var imgfname = path.Join(mediadir, "img1/qarataslar.jpg")
+	var imgfname = path.Join(mediadir, "img1/qarataşlar.jpg")
 	var imgb, pkgb []byte
 	if imgb, err = os.ReadFile(imgfname); err != nil {
 		t.Fatal(err)
 	}
-	if pkgb, err = u.ReadFile("img1/qarataslar.jpg"); err != nil {
+	if pkgb, err = u.ReadFile("img1/Qarataşlar.jpg"); err != nil {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(imgb, pkgb) {
-		t.Fatal("content of 'img1/qarataslar.jpg' is not equal to original")
+		t.Fatal("content of 'img1/Qarataşlar.jpg' is not equal to original")
 	}
 
 	//
@@ -232,7 +232,7 @@ func TestUnion(t *testing.T) {
 	//
 
 	var imgf fs.File
-	if imgf, err = u1.Open("qarataslar.jpg"); err != nil {
+	if imgf, err = u1.Open("QARATAŞLAR.jpg"); err != nil {
 		t.Fatal(err)
 	}
 	var imgfi fs.FileInfo
@@ -244,7 +244,7 @@ func TestUnion(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(imgb, pkgb) {
-		t.Fatal("content of 'qarataslar.jpg' is not equal to original")
+		t.Fatal("content of 'Qarataşlar.jpg' is not equal to original")
 	}
 }
 

@@ -84,8 +84,8 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 		// update package info if it has
 		if ts, ok := ftt.Info(); ok {
-			ts.Set(TIDoffset, UintTag(uint(datpos)))
-			ts.Set(TIDsize, UintTag(uint(datend-datpos)))
+			ts.Set(TIDoffset, UintTag(Uint(datpos)))
+			ts.Set(TIDsize, UintTag(Uint(datend-datpos)))
 		}
 
 		// write file tags table
@@ -109,8 +109,8 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 		// update package info if it has
 		if ts, ok := ftt.Info(); ok {
-			ts.Set(TIDoffset, UintTag(uint(datpos)))
-			ts.Set(TIDsize, UintTag(uint(datend-datpos)))
+			ts.Set(TIDoffset, UintTag(Uint(datpos)))
+			ts.Set(TIDsize, UintTag(Uint(datend-datpos)))
 		}
 
 		// write file tags table
@@ -168,7 +168,7 @@ func (pkg *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *T
 	}
 
 	// insert new entry to tags table
-	ts = pkg.BaseTagset(uint(offset), uint(size), fpath)
+	ts = pkg.BaseTagset(Uint(offset), Uint(size), fpath)
 	pkg.SetTagset(fpath, ts)
 	return
 }

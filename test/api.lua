@@ -232,10 +232,10 @@ pkg.sha224 = true -- generate SHA224 hash for each file
 -- put images with keywords and author addition tags
 for name, tags in pairs{
 	["bounty.jpg"] = {fid=1, keywords="beach", category="image"},
-	["img1/qarataslar.jpg"] = {fid=2, keywords="beach;rock", category="photo"},
+	["img1/Qarataşlar.jpg"] = {fid=2, keywords="beach;rock", category="photo"},
 	["img1/claustral.jpg"] = {fid=3, keywords="beach;rock", category="photo"},
 	["img2/marble.jpg"] = {fid=4, keywords="beach", category="photo"},
-	["img2/uzunji.jpg"] = {fid=5, keywords="rock", category="photo"},
+	["img2/Uzuncı.jpg"] = {fid=5, keywords="rock", category="photo"},
 } do
 	tags.author="schwarzlichtbezirk"
 	pkg:putfile(name, path.join(scrdir, "media", name))

@@ -79,7 +79,7 @@ func CheckPackage(t *testing.T, fwpt, fwpd *os.File, tagsnum int) {
 			}
 		}
 
-		if size != uint(len(orig)) {
+		if size != wpk.Uint(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
 				fpath, size, len(orig))
 		}
@@ -181,7 +181,7 @@ func TestPackDir(t *testing.T) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount uint
+	var fidcount wpk.Uint
 	var pkg = wpk.NewPackage(pts)
 
 	defer os.Remove(testpack)
@@ -223,7 +223,7 @@ func TestPackDirSplit(t *testing.T) {
 	var err error
 	var fwpt, fwpd *os.File
 	var tagsnum = 0
-	var fidcount uint
+	var fidcount wpk.Uint
 	var pkg = wpk.NewPackage(pts)
 
 	defer os.Remove(testpkgt)
@@ -272,7 +272,7 @@ func TestPutFiles(t *testing.T) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount uint
+	var fidcount wpk.Uint
 	var pkg = wpk.NewPackage(pts)
 
 	defer os.Remove(testpack)
@@ -338,9 +338,9 @@ func TestPutFiles(t *testing.T) {
 	// put content
 	putfile("bounty.jpg")
 	putfile("img1/claustral.jpg")
-	putfile("img1/qarataslar.jpg")
+	putfile("img1/Qarataşlar.jpg")
 	putfile("img2/marble.jpg")
-	putfile("img2/uzunji.jpg")
+	putfile("img2/Uzuncı.jpg")
 	putalias("img1/claustral.jpg", "basaltbay.jpg")
 	for name, data := range memdata {
 		putdata(name, data)
@@ -371,7 +371,7 @@ func TestAppendContinues(t *testing.T) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount uint
+	var fidcount wpk.Uint
 	var pkg = wpk.NewPackage(pts)
 
 	defer os.Remove(testpack)
@@ -409,7 +409,7 @@ func TestAppendContinues(t *testing.T) {
 	// put content
 	putfile("bounty.jpg")
 	putfile("img1/claustral.jpg")
-	putfile("img1/qarataslar.jpg")
+	putfile("img1/Qarataşlar.jpg")
 	// finalize
 	if err = pkg.Sync(fwpk, nil); err != nil {
 		t.Fatal(err)
@@ -428,7 +428,7 @@ func TestAppendContinues(t *testing.T) {
 	}
 	// put content
 	putfile("img2/marble.jpg")
-	putfile("img2/uzunji.jpg")
+	putfile("img2/Uzuncı.jpg")
 	// finalize
 	if err = pkg.Sync(fwpk, nil); err != nil {
 		t.Fatal(err)
@@ -445,7 +445,7 @@ func TestAppendDiscrete(t *testing.T) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount uint
+	var fidcount wpk.Uint
 	var pkg = wpk.NewPackage(pts)
 
 	defer os.Remove(testpack)
@@ -484,7 +484,7 @@ func TestAppendDiscrete(t *testing.T) {
 		// put content
 		putfile("bounty.jpg")
 		putfile("img1/claustral.jpg")
-		putfile("img1/qarataslar.jpg")
+		putfile("img1/Qarataşlar.jpg")
 		// finalize
 		if err = pkg.Sync(fwpk, nil); err != nil {
 			t.Fatal(err)
@@ -519,7 +519,7 @@ func TestAppendDiscrete(t *testing.T) {
 		}
 		// put content
 		putfile("img2/marble.jpg")
-		putfile("img2/uzunji.jpg")
+		putfile("img2/Uzuncı.jpg")
 		// finalize
 		if err = pkg.Sync(fwpk, nil); err != nil {
 			t.Fatal(err)
