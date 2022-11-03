@@ -51,7 +51,7 @@ type LuaPackage struct {
 	pkgpath string
 	datpath string
 	wpt     wpk.WriteSeekCloser // package tags part
-	wpd     wpk.WriteSeekCloser // package data part
+	wpf     wpk.WriteSeekCloser // package data part
 }
 
 // RegPack registers "wpk" userdata into Lua virtual machine.
@@ -282,7 +282,7 @@ func getpkgpath(ls *lua.LState) int {
 
 func getdatpath(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
-	if pkg.wpd == nil {
+	if pkg.wpf == nil {
 		ls.Push(lua.LNil)
 		return 1
 	}
@@ -541,7 +541,7 @@ func wpkbegin(ls *lua.LState) int {
 		return 0
 	}
 	if datpath != "" {
-		if pkg.wpd, err = os.OpenFile(datpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+		if pkg.wpf, err = os.OpenFile(datpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
 			pkg.wpt.Close()
 			pkg.wpt = nil
 			return 0
@@ -550,7 +550,7 @@ func wpkbegin(ls *lua.LState) int {
 	// setup file representation
 	pkg.pkgpath, pkg.datpath = pkgpath, datpath
 	// starts new package
-	if err = pkg.Begin(pkg.wpt); err != nil {
+	if err = pkg.Begin(pkg.wpt, pkg.wpf); err != nil {
 		return 0
 	}
 
@@ -576,14 +576,14 @@ func wpkappend(ls *lua.LState) int {
 		return 0
 	}
 	if pkg.datpath != "" {
-		if pkg.wpd, err = os.OpenFile(pkg.datpath, os.O_WRONLY, 0755); err != nil {
+		if pkg.wpf, err = os.OpenFile(pkg.datpath, os.O_WRONLY, 0755); err != nil {
 			pkg.wpt.Close()
 			pkg.wpt = nil
 			return 0
 		}
 	}
 	// starts to append files
-	if err = pkg.Append(pkg.wpt, pkg.wpd); err != nil {
+	if err = pkg.Append(pkg.wpt, pkg.wpf); err != nil {
 		return 0
 	}
 
@@ -605,7 +605,7 @@ func wpkfinalize(ls *lua.LState) int {
 	}
 
 	// sync
-	if err = pkg.Sync(pkg.wpt, pkg.wpd); err != nil {
+	if err = pkg.Sync(pkg.wpt, pkg.wpf); err != nil {
 		return 0
 	}
 	// close package file
@@ -613,11 +613,11 @@ func wpkfinalize(ls *lua.LState) int {
 		return 0
 	}
 	pkg.wpt = nil
-	if pkg.wpd != nil {
-		if err = pkg.wpd.Close(); err != nil {
+	if pkg.wpf != nil {
+		if err = pkg.wpf.Close(); err != nil {
 			return 0
 		}
-		pkg.wpd = nil
+		pkg.wpf = nil
 	}
 
 	return 0
@@ -636,13 +636,13 @@ func wpkflush(ls *lua.LState) int {
 		err = ErrPackClosed
 		return 0
 	}
-	if pkg.wpd == nil { // can work only for splitted package
+	if pkg.wpf == nil { // can work only for splitted package
 		err = ErrDataClosed
 		return 0
 	}
 
 	// sync
-	if err = pkg.Sync(pkg.wpt, pkg.wpd); err != nil {
+	if err = pkg.Sync(pkg.wpt, pkg.wpf); err != nil {
 		return 0
 	}
 
@@ -739,8 +739,8 @@ func wpkputdata(ls *lua.LState) int {
 	var r = strings.NewReader(data)
 
 	var w = pkg.wpt
-	if pkg.wpd != nil {
-		w = pkg.wpd
+	if pkg.wpf != nil {
+		w = pkg.wpf
 	}
 	var ts *wpk.TagsetRaw
 	if ts, err = pkg.PackData(w, r, kpath); err != nil {
@@ -777,8 +777,8 @@ func wpkputfile(ls *lua.LState) int {
 	defer file.Close()
 
 	var w = pkg.wpt
-	if pkg.wpd != nil {
-		w = pkg.wpd
+	if pkg.wpf != nil {
+		w = pkg.wpf
 	}
 	var ts *wpk.TagsetRaw
 	if ts, err = pkg.PackFile(w, file, kpath); err != nil {

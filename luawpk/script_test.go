@@ -13,7 +13,7 @@ var scrdir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/")
 var mediadir = scrdir + "media/"
 
 // Test package content on nested and external files equivalent.
-func CheckPackage(t *testing.T, wptname, wpdname string) {
+func CheckPackage(t *testing.T, wptname, wpfname string) {
 	var err error
 
 	// Open package files tags table
@@ -23,17 +23,17 @@ func CheckPackage(t *testing.T, wptname, wpdname string) {
 	}
 
 	// open temporary file for read/write
-	var fwpd *os.File
-	if wpdname != "" && wptname != wpdname {
-		if fwpd, err = os.Open(wpdname); err != nil {
+	var fwpf *os.File
+	if wpfname != "" && wptname != wpfname {
+		if fwpf, err = os.Open(wpfname); err != nil {
 			t.Fatal(err)
 		}
 	} else {
-		if fwpd, err = os.Open(wptname); err != nil {
+		if fwpf, err = os.Open(wptname); err != nil {
 			t.Fatal(err)
 		}
 	}
-	defer fwpd.Close()
+	defer fwpf.Close()
 
 	if ts, ok := pkg.Info(); ok {
 		var offset, size = ts.Pos()
@@ -69,7 +69,7 @@ func CheckPackage(t *testing.T, wptname, wpdname string) {
 
 		var extr = make([]byte, size)
 		var readed int
-		if readed, err = fwpd.ReadAt(extr, int64(offset)); err != nil {
+		if readed, err = fwpf.ReadAt(extr, int64(offset)); err != nil {
 			t.Fatal(err)
 		}
 		if readed != len(extr) {
@@ -124,16 +124,16 @@ func TestSteps(t *testing.T) {
 // Test splitted package forming.
 func TestSplitted(t *testing.T) {
 	var wptname = wpk.TempPath("build.wpt")
-	var wpdname = wpk.TempPath("build.wpd")
+	var wpfname = wpk.TempPath("build.wpf")
 	defer os.Remove(wptname)
-	defer os.Remove(wpdname)
+	defer os.Remove(wpfname)
 
 	if err := lw.RunLuaVM(scrdir + "split.lua"); err != nil {
 		t.Fatal(err)
 	}
 
 	// make package file check up
-	CheckPackage(t, wptname, wpdname)
+	CheckPackage(t, wptname, wpfname)
 }
 
 // The End.

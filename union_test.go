@@ -50,7 +50,7 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 	defer fwpk.Close()
 
 	// starts new package
-	if err = pkg.Begin(fwpk); err != nil {
+	if err = pkg.Begin(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
 	// put content

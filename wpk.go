@@ -481,6 +481,9 @@ func (ftt *FTT) ReadFTT(r io.ReadSeeker) (err error) {
 		return
 	}
 	// read file tags table
+	if hdr.fttsize == 0 {
+		return
+	}
 	var fttsize int64
 	if fttsize, err = ftt.ReadFrom(r); err != nil {
 		return

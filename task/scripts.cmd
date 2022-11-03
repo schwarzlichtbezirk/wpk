@@ -19,7 +19,7 @@ echo.
 echo *** split.lua
 %GOPATH%/bin/wpkbuild.exe %~dp0../test/split.lua
 del %TEMP%\build.wpt
-del %TEMP%\build.wpd
+del %TEMP%\build.wpf
 
 echo.
 echo *** step1.lua and step2.lua

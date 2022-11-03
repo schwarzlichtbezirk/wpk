@@ -17,16 +17,20 @@ type WriteSeekCloser interface {
 }
 
 // Begin writes prebuild header for new empty package.
-func (ftt *FTT) Begin(wpt io.WriteSeeker) (err error) {
+func (ftt *FTT) Begin(wpt, wpf io.WriteSeeker) (err error) {
 	ftt.mux.Lock()
 	defer ftt.mux.Unlock()
 
 	// write prebuild header
+	var offset uint64
+	if wpf == nil || wpf == wpt {
+		offset = HeaderSize
+	}
 	var hdr = Header{
 		typesize:  TypeSize{ftt.tidsz, ftt.tagsz, ftt.tssize},
-		fttoffset: 0,
+		fttoffset: offset,
 		fttsize:   0,
-		datoffset: 0,
+		datoffset: offset,
 		datsize:   0,
 	}
 	copy(hdr.signature[:], SignBuild)
@@ -37,7 +41,7 @@ func (ftt *FTT) Begin(wpt io.WriteSeeker) (err error) {
 		return
 	}
 	// update data offset/pos
-	ftt.datoffset, ftt.datsize = 0, 0
+	ftt.datoffset, ftt.datsize = offset, 0
 	return
 }
 
@@ -55,7 +59,7 @@ func (ftt *FTT) Append(wpt, wpf io.WriteSeeker) (err error) {
 		return
 	}
 	// go to tags table start to replace it by new data
-	if wpf != nil { // splitted package files
+	if wpf != nil && wpf != wpt { // splitted package files
 		if _, err = wpf.Seek(int64(ftt.datoffset+ftt.datsize), io.SeekStart); err != nil {
 			return
 		}
@@ -74,7 +78,7 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 	var fftpos, fftend, datpos, datend int64
 
-	if wpf != nil { // splitted package files
+	if wpf != nil && wpf != wpt { // splitted package files
 		// get tags table offset as actual end of file
 		datpos = 0
 		if datend, err = wpf.Seek(0, io.SeekCurrent); err != nil {

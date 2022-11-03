@@ -8,7 +8,7 @@ files on last flush-function call, or package finalize.
 ]]
 
 local pkgpath = path.join(tmpdir, "build.wpt") -- make package tagset full file name on temporary directory
-local datpath = path.join(tmpdir, "build.wpd") -- make package data full file name on temporary directory
+local datpath = path.join(tmpdir, "build.wpf") -- make package data full file name on temporary directory
 
 -- inits new package
 local pkg = wpk.new()

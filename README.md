@@ -100,7 +100,7 @@ Package consist of 3 sections:
 
 Existing package can be opened to append new files, in this case new files blocks will be posted to *tags sets* old place.
 
-Package can be splitted in two files: 1) file with header and tags table, `.wpt`-file, it's a short file in most common, and 2) file with data files block, typically `.wpd`-file. In this case package is able for reading during new files packing to package. If process of packing new files will be broken by any case, package remains accessible with information pointed at last header record.
+Package can be splitted in two files: 1) file with header and tags table, `.wpt`-file, it's a short file in most common, and 2) file with data files block, typically `.wpf`-file. In this case package is able for reading during new files packing to package. If process of packing new files will be broken by any case, package remains accessible with information pointed at last header record.
 
 ## Lua-scripting API
 

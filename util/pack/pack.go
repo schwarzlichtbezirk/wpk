@@ -127,7 +127,7 @@ func packdirclosure(r io.ReadSeeker, ts *wpk.TagsetRaw) (err error) {
 }
 
 func writepackage() (err error) {
-	var fwpk, fwpd wpk.WriteSeekCloser
+	var fwpk, fwpf wpk.WriteSeekCloser
 	var pkgfile, datfile = DstFile, DstFile
 	var pkg = wpk.NewPackage(pts)
 	if Split {
@@ -141,10 +141,10 @@ func writepackage() (err error) {
 	defer fwpk.Close()
 
 	if Split {
-		if fwpd, err = os.OpenFile(datfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
+		if fwpf, err = os.OpenFile(datfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
 			return
 		}
-		defer fwpd.Close()
+		defer fwpf.Close()
 
 		log.Printf("destination tags part:  %s\n", pkgfile)
 		log.Printf("destination files part: %s\n", datfile)
@@ -153,14 +153,14 @@ func writepackage() (err error) {
 	}
 
 	// starts new package
-	if err = pkg.Begin(fwpk); err != nil {
+	if err = pkg.Begin(fwpk, fwpf); err != nil {
 		return
 	}
 
 	// data writer
 	var w = fwpk
-	if fwpd != nil {
-		w = fwpd
+	if fwpf != nil {
+		w = fwpf
 	}
 
 	// write all source folders
@@ -175,7 +175,7 @@ func writepackage() (err error) {
 
 	// finalize
 	log.Printf("write tags table")
-	if err = pkg.Sync(fwpk, fwpd); err != nil {
+	if err = pkg.Sync(fwpk, fwpf); err != nil {
 		return
 	}
 

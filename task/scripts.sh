@@ -19,7 +19,7 @@ echo ""
 echo "*** split.lua"
 $GOPATH/bin/wpkbuild.exe $(dirname $0)/../test/split.lua
 rm $TEMP/build.wpt
-rm $TEMP/build.wpd
+rm $TEMP/build.wpf
 
 echo ""
 echo "*** step1.lua and step2.lua"

@@ -24,7 +24,7 @@ var pts = wpk.TypeSize{
 var mediadir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/media/")
 var testpack = wpk.TempPath("testpack.wpk")
 var testpkgt = wpk.TempPath("testpack.wpt")
-var testpkgd = wpk.TempPath("testpack.wpd")
+var testpkgf = wpk.TempPath("testpack.wpf")
 
 var memdata = map[string][]byte{
 	"sample.txt": []byte("The quick brown fox jumps over the lazy dog"),
@@ -36,7 +36,7 @@ var memdata = map[string][]byte{
 }
 
 // Test package content on nested and external files equivalent.
-func CheckPackage(t *testing.T, fwpt, fwpd *os.File, tagsnum int) {
+func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 	var err error
 
 	// Open package files tags table
@@ -86,7 +86,7 @@ func CheckPackage(t *testing.T, fwpt, fwpd *os.File, tagsnum int) {
 
 		var extr = make([]byte, size)
 		var n int
-		if n, err = fwpd.ReadAt(extr, int64(offset)); err != nil {
+		if n, err = fwpf.ReadAt(extr, int64(offset)); err != nil {
 			t.Fatal(err)
 		}
 		if n != len(extr) {
@@ -133,7 +133,7 @@ func TestInfo(t *testing.T) {
 	defer fwpk.Close()
 
 	// starts new package
-	if err = pkg.Begin(fwpk); err != nil {
+	if err = pkg.Begin(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
 	// put package info somewhere before finalize
@@ -193,7 +193,7 @@ func TestPackDir(t *testing.T) {
 	defer fwpk.Close()
 
 	// starts new package
-	if err = pkg.Begin(fwpk); err != nil {
+	if err = pkg.Begin(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
 	// put package info somewhere before finalize
@@ -218,16 +218,14 @@ func TestPackDir(t *testing.T) {
 	CheckPackage(t, fwpk, fwpk, tagsnum)
 }
 
-// Test package writing to splitted header and data files.
-func TestPackDirSplit(t *testing.T) {
+// Test to read abnormal closed package in database mode.
+func TestBrokenDB(t *testing.T) {
 	var err error
-	var fwpt, fwpd *os.File
-	var tagsnum = 0
-	var fidcount wpk.Uint
+	var fwpt, fwpf *os.File
 	var pkg = wpk.NewPackage(pts)
 
 	defer os.Remove(testpkgt)
-	defer os.Remove(testpkgd)
+	defer os.Remove(testpkgf)
 
 	// open temporary header file for read/write
 	if fwpt, err = os.OpenFile(testpkgt, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
@@ -236,20 +234,75 @@ func TestPackDirSplit(t *testing.T) {
 	defer fwpt.Close()
 
 	// open temporary data file for read/write
-	if fwpd, err = os.OpenFile(testpkgd, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
+	if fwpf, err = os.OpenFile(testpkgf, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
 		t.Fatal(err)
 	}
-	defer fwpd.Close()
+	defer fwpf.Close()
 
 	// starts new package
-	if err = pkg.Begin(fwpt); err != nil {
+	if err = pkg.Begin(fwpt, fwpf); err != nil {
+		t.Fatal(err)
+	}
+
+	// try to read files tags table in empty package
+	if err = pkg.ReadFTT(fwpt); err != nil {
+		t.Fatal(err)
+	}
+
+	// put package info
+	pkg.SetInfo().
+		Put(wpk.TIDlabel, wpk.StrTag("broken-pkg"))
+
+	// put somewhat
+	for name, data := range memdata {
+		if _, err = pkg.PackData(fwpf, bytes.NewReader(data), name); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// finalize
+	if err = pkg.Sync(fwpt, fwpf); err != nil {
+		t.Fatal(err)
+	}
+
+	// try to read files tags table with some data
+	if err = pkg.ReadFTT(fwpt); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Test package writing to splitted header and data files.
+func TestPackDirSplit(t *testing.T) {
+	var err error
+	var fwpt, fwpf *os.File
+	var tagsnum = 0
+	var fidcount wpk.Uint
+	var pkg = wpk.NewPackage(pts)
+
+	defer os.Remove(testpkgt)
+	defer os.Remove(testpkgf)
+
+	// open temporary header file for read/write
+	if fwpt, err = os.OpenFile(testpkgt, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
+		t.Fatal(err)
+	}
+	defer fwpt.Close()
+
+	// open temporary data file for read/write
+	if fwpf, err = os.OpenFile(testpkgf, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
+		t.Fatal(err)
+	}
+	defer fwpf.Close()
+
+	// starts new package
+	if err = pkg.Begin(fwpt, fwpf); err != nil {
 		t.Fatal(err)
 	}
 	// put package info somewhere before finalize
 	pkg.SetInfo().
 		Put(wpk.TIDlabel, wpk.StrTag("splitted-pkg"))
 	// put media directory to file
-	if err = pkg.PackDir(fwpd, mediadir, "", func(r io.ReadSeeker, ts *wpk.TagsetRaw) error {
+	if err = pkg.PackDir(fwpf, mediadir, "", func(r io.ReadSeeker, ts *wpk.TagsetRaw) error {
 		tagsnum++
 		fidcount++
 		ts.Put(wpk.TIDfid, wpk.UintTag(fidcount))
@@ -259,12 +312,12 @@ func TestPackDirSplit(t *testing.T) {
 		t.Fatal(err)
 	}
 	// finalize
-	if err = pkg.Sync(fwpt, fwpd); err != nil {
+	if err = pkg.Sync(fwpt, fwpf); err != nil {
 		t.Fatal(err)
 	}
 
 	// make package file check up
-	CheckPackage(t, fwpt, fwpd, tagsnum)
+	CheckPackage(t, fwpt, fwpf, tagsnum)
 }
 
 // Test ability of files sequence packing, and make alias.
@@ -332,7 +385,7 @@ func TestPutFiles(t *testing.T) {
 	defer fwpk.Close()
 
 	// starts new package
-	if err = pkg.Begin(fwpk); err != nil {
+	if err = pkg.Begin(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
 	// put content
@@ -403,7 +456,7 @@ func TestAppendContinues(t *testing.T) {
 	defer fwpk.Close()
 
 	// starts new package
-	if err = pkg.Begin(fwpk); err != nil {
+	if err = pkg.Begin(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
 	// put content
@@ -478,7 +531,7 @@ func TestAppendDiscrete(t *testing.T) {
 		defer fwpk.Close()
 
 		// starts new package
-		if err = pkg.Begin(fwpk); err != nil {
+		if err = pkg.Begin(fwpk, nil); err != nil {
 			t.Fatal(err)
 		}
 		// put content
