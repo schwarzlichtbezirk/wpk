@@ -179,16 +179,19 @@ type Header struct {
 }
 
 // IsReady determines that package is ready for read the data.
-func (hdr *Header) IsReady() (err error) {
+func (hdr *Header) IsReady() error {
 	// can not read file tags table for opened on write single-file package.
-	if string(hdr.signature[:]) == SignBuild && !(hdr.datoffset == 0 && hdr.datsize > 0) {
-		return ErrSignPre
+	if string(hdr.signature[:]) == SignBuild {
+		if hdr.datoffset != 0 {
+			return ErrSignPre
+		}
+		return nil
 	}
 	// can not read file tags table on any incorrect signature
 	if string(hdr.signature[:]) != SignReady {
 		return ErrSignBad
 	}
-	return
+	return nil
 }
 
 // ReadFrom reads header from stream as binary data of constant length in little endian order.
@@ -280,6 +283,11 @@ func (ftt *FTT) NewTagset() *TagsetRaw {
 	return &TagsetRaw{nil, ftt.tidsz, ftt.tagsz}
 }
 
+// DataSize returns actual package data size from files tags table.
+func (ftt *FTT) DataSize() Uint {
+	return Uint(ftt.datsize)
+}
+
 // Info returns package information tagset if it present.
 func (ftt *FTT) Info() (ts *TagsetRaw, ok bool) {
 	var val interface{}
@@ -303,17 +311,14 @@ func (ftt *FTT) SetInfo() *TagsetRaw {
 
 // IsSplitted returns true if package is splitted on tags and data files.
 func (ftt *FTT) IsSplitted() bool {
-	return ftt.datoffset == 0 && ftt.datsize > 0
+	return ftt.datoffset == 0
 }
 
-type filepos struct {
-	offset Uint
-	size   Uint
-}
-
-func (ftt *FTT) checkTagset(ts *TagsetRaw, lim *filepos) (fpath string, err error) {
+// CheckTagset tests path & offset & size tags existence
+// and checks that size & offset is are in the bounds.
+func (ftt *FTT) CheckTagset(ts *TagsetRaw) (fpath string, err error) {
 	var ok bool
-	var pos filepos
+	var offset, size Uint
 
 	// get file key
 	if fpath, ok = ts.TagStr(TIDpath); !ok {
@@ -326,26 +331,23 @@ func (ftt *FTT) checkTagset(ts *TagsetRaw, lim *filepos) (fpath string, err erro
 	}
 
 	// check system tags
-	if pos.offset, ok = ts.TagUint(TIDoffset); !ok && fpath != InfoName {
+	if offset, ok = ts.TagUint(TIDoffset); !ok && fpath != InfoName {
 		err = &ErrTag{ErrNoOffset, fpath, TIDoffset}
 		return
 	}
-	if pos.size, ok = ts.TagUint(TIDsize); !ok && fpath != InfoName {
+	if size, ok = ts.TagUint(TIDsize); !ok && fpath != InfoName {
 		err = &ErrTag{ErrNoSize, fpath, TIDsize}
 		return
 	}
 
-	if fpath == InfoName { // setup whole package offset and size
-		lim.offset, lim.size = pos.offset, pos.size
-	} else if lim.size > 0 { // check up offset and tag if package info is provided
-		if pos.offset < lim.offset || pos.offset > lim.offset+lim.size {
-			err = &ErrTag{ErrOutOff, fpath, TIDoffset}
-			return
-		}
-		if pos.offset+pos.size > lim.offset+lim.size {
-			err = &ErrTag{ErrOutSize, fpath, TIDsize}
-			return
-		}
+	// check up offset and size
+	if uint64(offset) < ftt.datoffset || uint64(offset) > ftt.datoffset+ftt.datsize {
+		err = &ErrTag{ErrOutOff, fpath, TIDoffset}
+		return
+	}
+	if uint64(offset+size) > ftt.datoffset+ftt.datsize {
+		err = &ErrTag{ErrOutSize, fpath, TIDsize}
+		return
 	}
 
 	return
@@ -353,7 +355,6 @@ func (ftt *FTT) checkTagset(ts *TagsetRaw, lim *filepos) (fpath string, err erro
 
 // ReadFrom reads file tags table whole content from the given stream.
 func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
-	var limits filepos
 	for {
 		var tsl Uint
 		if tsl, err = ReadUint(r, ftt.tssize); err != nil {
@@ -381,7 +382,7 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 
 		var fpath string
-		if fpath, err = ftt.checkTagset(ts, &limits); err != nil {
+		if fpath, err = ftt.CheckTagset(ts); err != nil {
 			return
 		}
 

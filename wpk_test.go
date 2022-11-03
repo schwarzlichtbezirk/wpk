@@ -112,7 +112,7 @@ func CheckPackage(t *testing.T, fwpt, fwpd *os.File, tagsnum int) {
 	}
 }
 
-// Test package Info function and GetPackageInfo.
+// Test package SetInfo function and GetPackageInfo.
 func TestInfo(t *testing.T) {
 	var err error
 	var fwpk *os.File

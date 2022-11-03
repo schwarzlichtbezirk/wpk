@@ -171,10 +171,8 @@ func tostringPack(ls *lua.LState) int {
 	var items []string
 	items = append(items, fmt.Sprintf("records: %d", len(m)))
 	items = append(items, fmt.Sprintf("aliases: %d", n))
+	items = append(items, fmt.Sprintf("datasize: %d", pkg.DataSize()))
 	if ts, ok := pkg.Info(); ok {
-		if size, ok := ts.TagUint(wpk.TIDsize); ok {
-			items = append(items, fmt.Sprintf("datasize: %d", size))
-		}
 		if str, ok := ts.TagStr(wpk.TIDlabel); ok {
 			items = append(items, fmt.Sprintf("label: %s", str))
 		}
@@ -330,18 +328,7 @@ func getfftsize(ls *lua.LState) int {
 func getdatasize(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 
-	if pkg.wpd != nil { // splitted package files
-		if pos, err := pkg.wpd.Seek(0, io.SeekCurrent); err == nil {
-			ls.Push(lua.LNumber(pos))
-			return 1
-		}
-	} else { // single package file
-		if pos, err := pkg.wpt.Seek(0, io.SeekCurrent); err == nil {
-			ls.Push(lua.LNumber(pos - wpk.HeaderSize))
-			return 1
-		}
-	}
-	ls.Push(lua.LNil)
+	ls.Push(lua.LNumber(pkg.DataSize()))
 	return 1
 }
 
@@ -807,8 +794,9 @@ func wpkputfile(ls *lua.LState) int {
 
 // Renames tagset with file name kpath1 to kpath2.
 // rename(kpath1, kpath2)
-//   kpath1 - old file name
-//   kpath2 - new file name
+//
+//	kpath1 - old file name
+//	kpath2 - new file name
 func wpkrename(ls *lua.LState) int {
 	var err error
 	defer func() {
@@ -828,8 +816,9 @@ func wpkrename(ls *lua.LState) int {
 
 // Creates copy of tagset with new file name.
 // putalias(kpath1, kpath2)
-//   kpath1 - file name of packaged file
-//   kpath2 - new file name that will be reference to kpath1 file data
+//
+//	kpath1 - file name of packaged file
+//	kpath2 - new file name that will be reference to kpath1 file data
 func wpkputalias(ls *lua.LState) int {
 	var err error
 	defer func() {

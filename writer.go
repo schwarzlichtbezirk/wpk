@@ -163,6 +163,8 @@ func (pkg *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *T
 		if size, err = io.Copy(w, r); err != nil {
 			return
 		}
+		// update actual package data size
+		pkg.datsize += uint64(size)
 	}(); err != nil {
 		return
 	}
