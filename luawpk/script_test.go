@@ -9,7 +9,7 @@ import (
 	lw "github.com/schwarzlichtbezirk/wpk/luawpk"
 )
 
-var scrdir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/")
+var scrdir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/")
 var mediadir = scrdir + "media/"
 
 // Test package content on nested and external files equivalent.

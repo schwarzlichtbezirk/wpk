@@ -4,6 +4,7 @@ Library to build and use data files packages.
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/schwarzlichtbezirk/wpk.svg)](https://pkg.go.dev/github.com/schwarzlichtbezirk/wpk)
 [![Go Report Card](https://goreportcard.com/badge/github.com/schwarzlichtbezirk/wpk)](https://goreportcard.com/report/github.com/schwarzlichtbezirk/wpk)
+[![Hits-of-Code](https://hitsofcode.com/github/schwarzlichtbezirk/wpk?branch=master)](https://hitsofcode.com/github/schwarzlichtbezirk/wpk/view?branch=master)
 
 ## Preamble
 
@@ -42,7 +43,7 @@ Wrapper for package to get access to nested files by OS files. Actual for large 
 * **wpk/luawpk**
 Package writer with package building process scripting using [Lua 5.1]([https://www.lua.org/manual/5.1/](https://www.lua.org/manual/5.1/)). Typical script workflow is to create package for writing, setup some options, put group of files to package, and finalize it.
 
-* **wpk/test**
+* **wpk/testdata**
 Contains some Lua-scripts to test **`wpk/luawpk`** module and learn scripting API opportunities.
 
 * **wpk/util/pack**
@@ -64,10 +65,10 @@ At first, install [Golang](https://go.dev/dl/) minimum 1.18 version for last ver
 go get github.com/schwarzlichtbezirk/wpk
 ```
 
-Then you can make simple package with files at [test/media](https://github.com/schwarzlichtbezirk/wpk/tree/master/test/media) directory by command:
+Then you can make simple package with files at [testdata/media](https://github.com/schwarzlichtbezirk/wpk/tree/master/testdata/media) directory by command:
 
 ```batch
-go run github.com/schwarzlichtbezirk/wpk/util/pack --src=${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/media --dst=${GOPATH}/bin/media.wpk
+go run github.com/schwarzlichtbezirk/wpk/util/pack --src=${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/media --dst=${GOPATH}/bin/media.wpk
 ```
 
 It's runs utility that receives source directory full path and destination package full path. `${GOPATH}` at command line directory path replaced by `GOPATH` environment variable value. To place any other environment variable `VAR` you can by `${VAR}`. In this sample package placed into `bin` directory with other compiled golang binary files.
@@ -83,7 +84,7 @@ and see files in directory `${GOPATH}/bin/media`.
 To build package at development workflow you can by **`build`** utility. It can put files into package from any different paths with given names, and bind addition tags to each file, such as MIME types, keywords, CRC, MD5, SHA256 and others. Run this command to see how its work:
 
 ```batch
-go run github.com/schwarzlichtbezirk/wpk/util/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/build.lua
+go run github.com/schwarzlichtbezirk/wpk/util/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/build.lua
 ```
 
 and see `build.wpk` file in binary directory near compiled output.
@@ -104,21 +105,21 @@ Package can be splitted in two files: 1) file with header and tags table, `.wpt`
 
 ## Lua-scripting API
 
-**`build`** utility receives one or more Lua-scripts that maneges package building workflow. Typical sequence is to create new package, setup common properties, put files and add aliases with some tags if it necessary, and complete package building. See whole script API documentation in header comment of [api.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/api.lua) script, and sample package building algorithm below.
+**`build`** utility receives one or more Lua-scripts that maneges package building workflow. Typical sequence is to create new package, setup common properties, put files and add aliases with some tags if it necessary, and complete package building. See whole script API documentation in header comment of [api.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/testdata/api.lua) script, and sample package building algorithm below.
 
-[step1.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/step1.lua) and [step2.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/step2.lua) scripts shows sample how to create new package at *step1*:
+[step1.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/testdata/step1.lua) and [step2.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/testdata/step2.lua) scripts shows sample how to create new package at *step1*:
 
 ```batch
-go run github.com/schwarzlichtbezirk/wpk/util/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/step1.lua
+go run github.com/schwarzlichtbezirk/wpk/util/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/step1.lua
 ```
 
 and later append to exising package new files at *step2* call:
 
 ```batch
-go run github.com/schwarzlichtbezirk/wpk/util/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/step2.lua
+go run github.com/schwarzlichtbezirk/wpk/util/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/step2.lua
 ```
 
-[packdir.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/test/packdir.lua) script has function that can be used to put to package directory with original tree hierarchy.
+[packdir.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/testdata/packdir.lua) script has function that can be used to put to package directory with original tree hierarchy.
 
 ## WPK API usage
 

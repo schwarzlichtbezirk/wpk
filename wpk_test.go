@@ -21,7 +21,7 @@ var pts = wpk.TypeSize{
 	tssize,
 }
 
-var mediadir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/test/media/")
+var mediadir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/media/")
 var testpack = wpk.TempPath("testpack.wpk")
 var testpkgt = wpk.TempPath("testpack.wpt")
 var testpkgf = wpk.TempPath("testpack.wpf")
