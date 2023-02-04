@@ -168,10 +168,11 @@ func tostringPack(ls *lua.LState) int {
 		n++
 		return true
 	})
-	var items []string
-	items = append(items, fmt.Sprintf("records: %d", len(m)))
-	items = append(items, fmt.Sprintf("aliases: %d", n))
-	items = append(items, fmt.Sprintf("datasize: %d", pkg.DataSize()))
+	var items = []string{
+		fmt.Sprintf("records: %d", len(m)),
+		fmt.Sprintf("aliases: %d", n),
+		fmt.Sprintf("datasize: %d", pkg.DataSize()),
+	}
 	if ts, ok := pkg.Info(); ok {
 		if str, ok := ts.TagStr(wpk.TIDlabel); ok {
 			items = append(items, fmt.Sprintf("label: %s", str))

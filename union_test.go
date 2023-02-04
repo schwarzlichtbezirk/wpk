@@ -118,9 +118,9 @@ func TestUnion(t *testing.T) {
 			}
 			if df, ok := folder.(fs.ReadDirFile); ok {
 				var delist, _ = df.ReadDir(-1)
-				list = nil
-				for _, de := range delist {
-					list = append(list, path.Join(fname, de.Name()))
+				list = make([]string, len(delist))
+				for i, de := range delist {
+					list[i] = path.Join(fname, de.Name())
 				}
 			} else {
 				t.Fatalf("cannot cast '%s' directory property to fs.ReadDirFile", fname)

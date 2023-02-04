@@ -168,6 +168,10 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 	}
 	var found = map[string]Void{}
 	for _, pkg := range u.List {
+		var wslen int // length of workspace with terminated slash
+		if pkg.Workspace != "." && pkg.Workspace != "" {
+			wslen = len(pkg.Workspace) + 1
+		}
 		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
 				var suffix = fkey[len(prefix):]
@@ -183,7 +187,7 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 					if _, ok := found[subdir]; !ok {
 						var fpath = ts.Path() // extract not normalized path
 						var dts = MakeTagset(nil, 2, 2).
-							Put(TIDpath, StrTag(fpath[:len(subdir)]))
+							Put(TIDpath, StrTag(fpath[:wslen+len(subdir)]))
 						var f = &UnionDir{
 							TagsetRaw: dts,
 							Union:     u,

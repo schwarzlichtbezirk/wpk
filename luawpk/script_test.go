@@ -9,8 +9,8 @@ import (
 	lw "github.com/schwarzlichtbezirk/wpk/luawpk"
 )
 
-var scrdir = wpk.Envfmt("${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/")
-var mediadir = scrdir + "media/"
+const scrdir = "../testdata/"
+const mediadir = scrdir + "media/"
 
 // Test package content on nested and external files equivalent.
 func CheckPackage(t *testing.T, wptname, wpfname string) {

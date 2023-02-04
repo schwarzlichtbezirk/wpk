@@ -29,10 +29,11 @@ func ExampleFTT_Info() {
 	})
 
 	// Format package information
-	var items []string
-	items = append(items, fmt.Sprintf("files: %d", len(m)))
-	items = append(items, fmt.Sprintf("aliases: %d", n))
-	items = append(items, fmt.Sprintf("datasize: %d", pkg.DataSize()))
+	var items = []string{
+		fmt.Sprintf("files: %d", len(m)),
+		fmt.Sprintf("aliases: %d", n),
+		fmt.Sprintf("datasize: %d", pkg.DataSize()),
+	}
 	if ts, ok := pkg.Info(); ok { // get package info if it present
 		if str, ok := ts.TagStr(wpk.TIDlabel); ok {
 			items = append(items, fmt.Sprintf("label: %s", str))

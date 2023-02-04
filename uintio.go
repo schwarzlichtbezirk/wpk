@@ -59,18 +59,18 @@ func WriteUintBuf(b []byte, v Uint) {
 // ReadUint reads from stream unsigned integer with given size in bytes.
 // Size can be 1, 2, 4, 8.
 func ReadUint(r io.Reader, l byte) (data Uint, err error) {
-	var buf = make([]byte, l)
-	_, err = r.Read(buf)
-	data = ReadUintBuf(buf)
+	var buf [8]byte
+	_, err = r.Read(buf[:l])
+	data = ReadUintBuf(buf[:l])
 	return
 }
 
 // WriteUint writes to stream given unsigned integer with given size in bytes.
 // Size can be 1, 2, 4, 8.
 func WriteUint(w io.Writer, data Uint, l byte) (err error) {
-	var buf = make([]byte, l)
-	WriteUintBuf(buf, data)
-	_, err = w.Write(buf)
+	var buf [8]byte
+	WriteUintBuf(buf[:l], data)
+	_, err = w.Write(buf[:l])
 	return
 }
 
