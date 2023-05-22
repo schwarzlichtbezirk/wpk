@@ -180,7 +180,7 @@ func (pkg *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *T
 }
 
 // PackFile puts file with given file handle into package and associate keyname "fpath" with it.
-func (pkg *Package) PackFile(w io.WriteSeeker, file *os.File, fpath string) (ts *TagsetRaw, err error) {
+func (pkg *Package) PackFile(w io.WriteSeeker, file fs.File, fpath string) (ts *TagsetRaw, err error) {
 	var fi os.FileInfo
 	if fi, err = file.Stat(); err != nil {
 		return

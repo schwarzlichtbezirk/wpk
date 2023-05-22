@@ -3,6 +3,7 @@ package wpk_test
 import (
 	"bytes"
 	"io"
+	"io/fs"
 	"os"
 	"testing"
 
@@ -333,7 +334,7 @@ func TestPutFiles(t *testing.T) {
 
 	// helper functions
 	var putfile = func(name string) {
-		var file *os.File
+		var file fs.File
 		if file, err = os.Open(mediadir + name); err != nil {
 			t.Fatal(err)
 		}
@@ -432,7 +433,7 @@ func TestAppendContinues(t *testing.T) {
 
 	// helper functions
 	var putfile = func(name string) {
-		var file *os.File
+		var file fs.File
 		if file, err = os.Open(mediadir + name); err != nil {
 			t.Fatal(err)
 		}
@@ -506,7 +507,7 @@ func TestAppendDiscrete(t *testing.T) {
 
 	// helper functions
 	var putfile = func(name string) {
-		var file *os.File
+		var file fs.File
 		if file, err = os.Open(mediadir + name); err != nil {
 			t.Fatal(err)
 		}

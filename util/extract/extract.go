@@ -140,7 +140,7 @@ func readpackage() (err error) {
 				}
 				defer src.Close()
 
-				var dst *os.File
+				var dst io.WriteCloser
 				if dst, err = os.OpenFile(fullpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
 					return
 				}

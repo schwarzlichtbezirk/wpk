@@ -25,7 +25,7 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 
 	// helper functions
 	var putfile = func(name string) {
-		var file *os.File
+		var file fs.File
 		if file, err = os.Open(mediadir + name); err != nil {
 			t.Fatal(err)
 		}
