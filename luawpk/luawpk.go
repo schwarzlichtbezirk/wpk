@@ -222,30 +222,31 @@ var propertiesPack = []struct {
 }
 
 var methodsPack = map[string]lua.LGFunction{
-	"load":     wpkload,
-	"begin":    wpkbegin,
-	"append":   wpkappend,
-	"finalize": wpkfinalize,
-	"flush":    wpkflush,
-	"sumsize":  wpksumsize,
-	"glob":     wpkglob,
-	"hasfile":  wpkhasfile,
-	"filesize": wpkfilesize,
-	"putdata":  wpkputdata,
-	"putfile":  wpkputfile,
-	"rename":   wpkrename,
-	"putalias": wpkputalias,
-	"delalias": wpkdelalias,
-	"hastag":   wpkhastag,
-	"gettag":   wpkgettag,
-	"settag":   wpksettag,
-	"deltag":   wpkdeltag,
-	"gettags":  wpkgettags,
-	"settags":  wpksettags,
-	"addtags":  wpkaddtags,
-	"deltags":  wpkdeltags,
-	"getinfo":  wpkgetinfo,
-	"setinfo":  wpksetinfo,
+	"load":      wpkload,
+	"begin":     wpkbegin,
+	"append":    wpkappend,
+	"finalize":  wpkfinalize,
+	"flush":     wpkflush,
+	"sumsize":   wpksumsize,
+	"glob":      wpkglob,
+	"hasfile":   wpkhasfile,
+	"filesize":  wpkfilesize,
+	"putdata":   wpkputdata,
+	"putfile":   wpkputfile,
+	"rename":    wpkrename,
+	"renamedir": wpkrenamedir,
+	"putalias":  wpkputalias,
+	"delalias":  wpkdelalias,
+	"hastag":    wpkhastag,
+	"gettag":    wpkgettag,
+	"settag":    wpksettag,
+	"deltag":    wpkdeltag,
+	"gettags":   wpkgettags,
+	"settags":   wpksettags,
+	"addtags":   wpkaddtags,
+	"deltags":   wpkdeltags,
+	"getinfo":   wpkgetinfo,
+	"setinfo":   wpksetinfo,
 }
 
 // properties section
@@ -813,6 +814,32 @@ func wpkrename(ls *lua.LState) int {
 		return 0
 	}
 	return 0
+}
+
+// Renames all files in package with 'kpath1' path to 'kpath2' path.
+// rename(kpath1, kpath2)
+//
+//	kpath1 - old directory
+//	kpath2 - new directory
+//	skipexist - 'true' to skip files with existing new names
+func wpkrenamedir(ls *lua.LState) int {
+	var err error
+	defer func() {
+		if err != nil {
+			ls.RaiseError(err.Error())
+		}
+	}()
+	var pkg = CheckPack(ls, 1)
+	var kpath1 = ls.CheckString(2)
+	var kpath2 = ls.CheckString(3)
+	var skipexist = ls.OptBool(4, true)
+
+	var count int
+	if count, err = pkg.RenameDir(kpath1, kpath2, skipexist); err != nil {
+		return 0
+	}
+	ls.Push(lua.LNumber(count))
+	return 1
 }
 
 // Creates copy of tagset with new file name.

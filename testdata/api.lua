@@ -156,8 +156,11 @@ to build wpk-packages.
 		time as creation time tag will be inserted to tagset. After file writing
 		there is tagset adjust by add marked tags with hashes (MD5, SHA1, SHA224, etc).
 	rename(kpath1, kpath2) - rename file name with kpath1 to kpath2. Rename is
-		carried out by replace name tag in file tagset from one name to other.
+		carried out by replace name tag in file tagset from one name to another.
 		Keeps link to original file name.
+	renamedir(kpath1, kpath2, skipexist) - renames all files in package with
+		'kpath1' path to 'kpath2' path. Carried out by replace name tag in each
+		file tagset from one directory prefix to another.
 	putalias(kpath1, kpath2) - clone tagset with file name kpath1 and replace
 		name tag in it to kpath2. So, there will be two tagset referenced to
 		one data block. Keeps link to original file name.

@@ -417,6 +417,21 @@ func TestPutFiles(t *testing.T) {
 	if _, ok := pkg.Tagset("basaltbay.jpg"); ok {
 		t.Fatal("'basaltbay.jpg' alias not deleted")
 	}
+
+	// check renamedir call
+	var count int
+	if count, err = pkg.RenameDir("img2", "img3", false); err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Fatalf("expected 2 files to rename directory from 'img2' to 'img3', got %d", count)
+	}
+	if _, ok := pkg.Tagset("img3/marble.jpg"); !ok {
+		t.Fatal("'img3/marble.jpg' not found")
+	}
+	if _, ok := pkg.Tagset("img3/Uzuncı.jpg"); !ok {
+		t.Fatal("'img3/Uzuncı.jpg' not found")
+	}
 }
 
 // Test to make package in two steps on single package open:

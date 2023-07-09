@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"strings"
 
 	"gopkg.in/djherbis/times.v1"
 )
@@ -269,6 +270,34 @@ func (pkg *Package) Rename(oldname, newname string) error {
 	pkg.DelTagset(oldname)
 	pkg.SetTagset(newname, ts)
 	return nil
+}
+
+// RenameDir renames all files in package with 'olddir' path to 'newdir' path.
+func (pkg *Package) RenameDir(olddir, newdir string, skipexist bool) (count int, err error) {
+	if len(olddir) > 0 && olddir[len(olddir)-1] != '/' {
+		olddir += "/"
+	}
+	if len(newdir) > 0 && newdir[len(newdir)-1] != '/' {
+		newdir += "/"
+	}
+	pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
+		if strings.HasPrefix(fkey, olddir) {
+			var newkey = newdir + fkey[len(olddir):]
+			if _, ok := pkg.Tagset(newkey); ok {
+				err = &fs.PathError{Op: "renamedir", Path: newkey, Err: fs.ErrExist}
+				return skipexist
+			}
+			ts.Set(TIDpath, StrTag(ToSlash(pkg.FullPath(newkey))))
+			pkg.DelTagset(fkey)
+			pkg.SetTagset(newkey, ts)
+			count++
+		}
+		return true
+	})
+	if skipexist {
+		err = nil
+	}
+	return
 }
 
 // PutAlias makes clone tagset with file name 'oldname' and replace name tag
