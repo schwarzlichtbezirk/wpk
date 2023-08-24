@@ -29,7 +29,7 @@ var testpkgt = wpk.TempPath("testpack.wpt")
 var testpkgf = wpk.TempPath("testpack.wpf")
 
 var memdata = map[string][]byte{
-	"sample.txt": []byte("The quick brown fox jumps over the lazy dog"),
+	"sample.txt": wpk.S2B("The quick brown fox jumps over the lazy dog"),
 	"array.dat": {
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 		100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
@@ -71,7 +71,7 @@ func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 
 		var orig []byte
 		if isfile {
-			if orig, err = os.ReadFile(mediadir + string(link)); err != nil {
+			if orig, err = os.ReadFile(mediadir + wpk.B2S(link)); err != nil {
 				t.Fatal(err)
 			}
 		} else {

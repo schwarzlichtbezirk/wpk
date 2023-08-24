@@ -58,7 +58,7 @@ func CheckPackage(t *testing.T, wptname, wpfname string) {
 		}
 
 		var orig []byte
-		if orig, err = os.ReadFile(mediadir + string(link)); err != nil {
+		if orig, err = os.ReadFile(mediadir + wpk.B2S(link)); err != nil {
 			t.Fatal(err)
 		}
 

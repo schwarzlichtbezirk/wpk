@@ -181,14 +181,14 @@ type Header struct {
 // IsReady determines that package is ready for read the data.
 func (hdr *Header) IsReady() error {
 	// can not read file tags table for opened on write single-file package.
-	if string(hdr.signature[:]) == SignBuild {
+	if B2S(hdr.signature[:]) == SignBuild {
 		if hdr.datoffset != 0 {
 			return ErrSignPre
 		}
 		return nil
 	}
 	// can not read file tags table on any incorrect signature
-	if string(hdr.signature[:]) != SignReady {
+	if B2S(hdr.signature[:]) != SignReady {
 		return ErrSignBad
 	}
 	return nil

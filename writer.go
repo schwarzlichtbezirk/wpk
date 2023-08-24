@@ -56,7 +56,7 @@ func (ftt *FTT) Append(wpt, wpf io.WriteSeeker) (err error) {
 		return
 	}
 	// rewrite prebuild signature
-	if err = binary.Write(wpt, binary.LittleEndian, []byte(SignBuild)); err != nil {
+	if err = binary.Write(wpt, binary.LittleEndian, S2B(SignBuild)); err != nil {
 		return
 	}
 	// go to tags table start to replace it by new data

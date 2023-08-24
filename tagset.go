@@ -13,7 +13,7 @@ type TagRaw []byte
 
 // TagStr tag converter.
 func (t TagRaw) TagStr() (string, bool) {
-	return string(t), true
+	return B2S(t), true
 }
 
 // StrTag is string tag constructor.
