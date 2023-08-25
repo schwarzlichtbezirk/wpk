@@ -18,34 +18,24 @@ func OpenPath(ls *lua.LState) int {
 }
 
 var pathfuncs = map[string]lua.LGFunction{
-	"normalize": pathnormalize,
-	"toslash":   pathtoslash,
-	"clean":     pathclean,
-	"volume":    pathvolume,
-	"dir":       pathdir,
-	"base":      pathbase,
-	"ext":       pathext,
-	"split":     pathsplit,
-	"match":     pathmatch,
-	"join":      pathjoin,
-	"glob":      pathglob,
-	"enum":      pathenum,
-	"envfmt":    pathenvfmt,
-}
-
-func pathnormalize(ls *lua.LState) int {
-	var filename = ls.CheckString(1)
-
-	var name = wpk.Normalize(filename)
-	ls.Push(lua.LString(name))
-	return 1
+	"toslash": pathtoslash,
+	"clean":   pathclean,
+	"volume":  pathvolume,
+	"dir":     pathdir,
+	"base":    pathbase,
+	"ext":     pathext,
+	"split":   pathsplit,
+	"match":   pathmatch,
+	"join":    pathjoin,
+	"glob":    pathglob,
+	"enum":    pathenum,
+	"envfmt":  pathenvfmt,
 }
 
 func pathtoslash(ls *lua.LState) int {
 	var filename = ls.CheckString(1)
 
-	var name = wpk.ToSlash(filename)
-	ls.Push(lua.LString(name))
+	ls.Push(lua.LString(wpk.ToSlash(filename)))
 	return 1
 }
 

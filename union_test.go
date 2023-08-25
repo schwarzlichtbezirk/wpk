@@ -106,26 +106,26 @@ func TestUnion(t *testing.T) {
 			if len(list) != len(m) {
 				t.Fatalf("%s test: expected %d filenames in union, got %d", testname, len(m), len(list))
 			}
-			for _, fname := range list {
-				if _, ok := m[fname]; !ok {
-					t.Fatalf("%s test: got filename '%s' from union that does not present at preset", testname, fname)
+			for _, fpath := range list {
+				if _, ok := m[fpath]; !ok {
+					t.Fatalf("%s test: got filename '%s' from union that does not present at preset", testname, fpath)
 				}
 			}
 		}
-		checkfs = func(ufs fs.FS, fname string, m map[string]wpk.Void) {
-			if folder, err = ufs.Open(fname); err != nil {
+		checkfs = func(ufs fs.FS, fpath string, m map[string]wpk.Void) {
+			if folder, err = ufs.Open(fpath); err != nil {
 				t.Fatal(err)
 			}
 			if df, ok := folder.(fs.ReadDirFile); ok {
 				var delist, _ = df.ReadDir(-1)
 				list = make([]string, len(delist))
 				for i, de := range delist {
-					list[i] = path.Join(fname, de.Name())
+					list[i] = path.Join(fpath, de.Name())
 				}
 			} else {
-				t.Fatalf("cannot cast '%s' directory property to fs.ReadDirFile", fname)
+				t.Fatalf("cannot cast '%s' directory property to fs.ReadDirFile", fpath)
 			}
-			check(fname+" folder", m)
+			check(fpath+" folder", m)
 		}
 	)
 
@@ -215,9 +215,9 @@ func TestUnion(t *testing.T) {
 	// ReadFile test
 	//
 
-	var imgfname = path.Join(mediadir, "img1/Qarataşlar.jpg")
+	var imgfpath = path.Join(mediadir, "img1/Qarataşlar.jpg")
 	var imgb, pkgb []byte
-	if imgb, err = os.ReadFile(imgfname); err != nil {
+	if imgb, err = os.ReadFile(imgfpath); err != nil {
 		t.Fatal(err)
 	}
 	if pkgb, err = u.ReadFile("img1/Qarataşlar.jpg"); err != nil {

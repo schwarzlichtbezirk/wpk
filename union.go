@@ -158,7 +158,7 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 		var fulldir = pkg.FullPath(dir)
 		var prefix string
 		if fulldir != "." {
-			prefix = Normalize(path.Clean(fulldir)) + "/" // set terminated slash
+			prefix = Normalize(fulldir) + "/" // set terminated slash
 		}
 
 		pkg.Range(func(key, value interface{}) bool {
@@ -218,16 +218,17 @@ func (u *Union) Open(dir string) (fs.File, error) {
 		return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrNotExist}
 	}
 
-	var fulldir = u.List[0].FullPath(dir)
-	if strings.HasPrefix(fulldir, PackName+"/") {
-		var idx, err = strconv.ParseUint(dir[len(PackName)+1:], 10, 32)
-		if err != nil {
-			return nil, &fs.PathError{Op: "open", Path: dir, Err: err}
+	if len(u.List) > 0 {
+		if fulldir := u.List[0].FullPath(dir); strings.HasPrefix(fulldir, PackName+"/") {
+			var idx, err = strconv.ParseUint(dir[len(PackName)+1:], 10, 32)
+			if err != nil {
+				return nil, &fs.PathError{Op: "open", Path: dir, Err: err}
+			}
+			if idx >= uint64(len(u.List)) {
+				return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrNotExist}
+			}
+			return u.List[idx].Open(PackName)
 		}
-		if idx >= uint64(len(u.List)) {
-			return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrNotExist}
-		}
-		return u.List[idx].Open(PackName)
 	}
 
 	// try to get the file
@@ -240,14 +241,14 @@ func (u *Union) Open(dir string) (fs.File, error) {
 	// try to get the folder
 	var prefix string
 	if dir != "." && dir != "" {
-		prefix = Normalize(path.Clean(dir)) + "/" // set terminated slash
+		prefix = Normalize(dir) + "/" // set terminated slash
 	}
 	for _, pkg := range u.List {
 		var f *UnionDir
 		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
 				var dts = MakeTagset(nil, 2, 2).
-					Put(TIDpath, StrTag(pkg.FullPath(dir)))
+					Put(TIDpath, StrTag(ToSlash(pkg.FullPath(dir))))
 				f = &UnionDir{
 					TagsetRaw: dts,
 					Union:     u,

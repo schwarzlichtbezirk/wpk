@@ -101,9 +101,21 @@ func TempPath(fname string) string {
 	return path.Join(ToSlash(os.TempDir()), fname)
 }
 
-// ToSlash brings filenames to true slashes.
-func ToSlash(fpath string) string {
-	return strings.ReplaceAll(fpath, "\\", "/")
+// ToSlash brings filenames to true slashes
+// without superfluous allocations if it possible.
+func ToSlash(s string) string {
+	var b = S2B(s)
+	var bc = b
+	var c bool
+	for i, v := range b {
+		if v == '\\' {
+			if !c {
+				bc, c = []byte(s), true
+			}
+			bc[i] = '/'
+		}
+	}
+	return B2S(bc)
 }
 
 // Normalize brings file path to normalized form. Normalized path is the key to FTT map.
@@ -115,7 +127,7 @@ func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) 
 	var found = map[string]fs.DirEntry{}
 	var prefix string
 	if fulldir != "." && fulldir != "" {
-		prefix = Normalize(path.Clean(fulldir)) + "/" // set terminated slash
+		prefix = Normalize(fulldir) + "/" // set terminated slash
 	}
 
 	ftt.Range(func(key, value interface{}) bool {
@@ -160,7 +172,7 @@ func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) 
 func (ftt *FTT) OpenDir(fulldir string) (fs.ReadDirFile, error) {
 	var prefix string
 	if fulldir != "." && fulldir != "" {
-		prefix = Normalize(path.Clean(fulldir)) + "/" // set terminated slash
+		prefix = Normalize(fulldir) + "/" // set terminated slash
 	}
 	var f *PackDirFile
 	ftt.Range(func(key, value interface{}) bool {

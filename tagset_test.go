@@ -39,8 +39,8 @@ func TestTagset(t *testing.T) {
 		cond func() bool
 		msg  string
 	}{
-		{func() bool { return wpk.Normalize(kpath1) != fkey || wpk.Normalize(kpath2) != fkey },
-			"normalize test failed",
+		{func() bool { return wpk.ToSlash(kpath1) != fkey || wpk.ToSlash(kpath2) != fkey },
+			"toslash test failed",
 		},
 		{func() bool { return tsi.TID() != wpk.TIDnone },
 			"tag ID in created iterator should be 'none'",

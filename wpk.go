@@ -624,7 +624,7 @@ func (pkg *Package) Sub(dir string) (sub fs.FS, err error) {
 			sub = &Package{
 				FTT:       pkg.FTT,
 				Tagger:    pkg.Tagger,
-				Workspace: pkg.FullPath(dir),
+				Workspace: ToSlash(pkg.FullPath(dir)),
 			}
 			return false
 		}
