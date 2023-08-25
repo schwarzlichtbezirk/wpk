@@ -127,9 +127,8 @@ func readpackage() (err error) {
 				defer func() {
 					next = err == nil
 				}()
-				var fpath = ts.Path()
 
-				var fullpath = path.Join(DstPath, fpath)
+				var fullpath = path.Join(DstPath, fkey)
 				if err = os.MkdirAll(path.Dir(fullpath), os.ModePerm); err != nil {
 					return
 				}
@@ -161,7 +160,7 @@ func readpackage() (err error) {
 				sum += n
 
 				if ShowLog {
-					log.Printf("#%-3d %6d bytes   %s", num, n, fpath)
+					log.Printf("#%-3d %6d bytes   %s", num, n, fkey)
 				}
 				return
 			})

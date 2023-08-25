@@ -18,7 +18,7 @@ func (t TagRaw) TagStr() (string, bool) {
 
 // StrTag is string tag constructor.
 func StrTag(val string) TagRaw {
-	return TagRaw(val)
+	return S2B(val)
 }
 
 // TagBool is boolean tag converter.
@@ -275,7 +275,7 @@ func (ts *TagsetRaw) Get(tid Uint) (TagRaw, bool) {
 	if tsi.tid != tid {
 		return nil, false // ErrNoTag
 	}
-	return TagRaw(tsi.data[tsi.tag:tsi.pos]), true
+	return tsi.data[tsi.tag:tsi.pos], true
 }
 
 // Put appends new tag to tagset.

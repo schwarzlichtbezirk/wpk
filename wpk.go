@@ -537,6 +537,24 @@ func (pkg *Package) FullPath(fpath string) string {
 	return path.Join(pkg.Workspace, fpath)
 }
 
+// TrimPath returns trimmed path without workspace prefix.
+func (pkg *Package) TrimPath(fpath string) string {
+	if pkg.Workspace == "." || pkg.Workspace == "" {
+		return fpath
+	}
+	if !strings.HasPrefix(fpath, pkg.Workspace) {
+		return ""
+	}
+	fpath = fpath[len(pkg.Workspace):]
+	if fpath == "" || fpath == "/" {
+		return "."
+	}
+	if fpath[0] != '/' {
+		return ""
+	}
+	return fpath[1:]
+}
+
 // BaseTagset returns new tagset based on predefined TID type size and tag size type,
 // and puts file offset and file size into tagset with predefined sizes.
 func (pkg *Package) BaseTagset(offset, size Uint, fpath string) *TagsetRaw {

@@ -138,8 +138,8 @@ func TestUnion(t *testing.T) {
 		"bounty.jpg":          {},
 		"img1/claustral.jpg":  {},
 		"img2/marble.jpg":     {},
-		"img1/qarataşlar.jpg": {},
-		"img2/uzuncı.jpg":     {},
+		"img1/Qarataşlar.jpg": {},
+		"img2/Uzuncı.jpg":     {},
 	})
 
 	//
@@ -215,7 +215,7 @@ func TestUnion(t *testing.T) {
 	// ReadFile test
 	//
 
-	var imgfname = path.Join(mediadir, "img1/qarataşlar.jpg")
+	var imgfname = path.Join(mediadir, "img1/Qarataşlar.jpg")
 	var imgb, pkgb []byte
 	if imgb, err = os.ReadFile(imgfname); err != nil {
 		t.Fatal(err)
@@ -232,7 +232,7 @@ func TestUnion(t *testing.T) {
 	//
 
 	var imgf fs.File
-	if imgf, err = u1.Open("QARATAŞLAR.jpg"); err != nil {
+	if imgf, err = u1.Open("Qarataşlar.jpg"); err != nil {
 		t.Fatal(err)
 	}
 	var imgfi fs.FileInfo

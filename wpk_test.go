@@ -60,13 +60,12 @@ func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
 		var offset, size = ts.Pos()
 		var fid, _ = ts.TagUint(wpk.TIDfid)
-		var fpath = ts.Path()
 		realtagsnum++
 
 		var isfile = ts.Has(wpk.TIDmtime)
 		var link, islink = ts.Get(wpk.TIDlink)
 		if isfile && !islink {
-			t.Fatalf("found file without link #%d '%s'", fid, fpath)
+			t.Fatalf("found file without link #%d '%s'", fid, fkey)
 		}
 
 		var orig []byte
@@ -76,14 +75,14 @@ func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 			}
 		} else {
 			var is bool
-			if orig, is = memdata[fpath]; !is {
-				t.Fatalf("memory block named as '%s' not found", fpath)
+			if orig, is = memdata[fkey]; !is {
+				t.Fatalf("memory block named as '%s' not found", fkey)
 			}
 		}
 
 		if size != wpk.Uint(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
-				fpath, size, len(orig))
+				fkey, size, len(orig))
 		}
 
 		var extr = make([]byte, size)
@@ -92,10 +91,10 @@ func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 			t.Fatal(err)
 		}
 		if n != len(extr) {
-			t.Errorf("can not extract content of file '%s' completely", fpath)
+			t.Errorf("can not extract content of file '%s' completely", fkey)
 		}
 		if !bytes.Equal(orig, extr) {
-			t.Errorf("content of file '%s' is defer from original", fpath)
+			t.Errorf("content of file '%s' is defer from original", fkey)
 		}
 
 		if t.Failed() {
@@ -103,9 +102,9 @@ func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 		}
 
 		if isfile {
-			t.Logf("check file #%d '%s' is ok", fid, fpath)
+			t.Logf("check file #%d '%s' is ok", fid, fkey)
 		} else {
-			t.Logf("check data #%d '%s' is ok", fid, fpath)
+			t.Logf("check data #%d '%s' is ok", fid, fkey)
 		}
 		return true
 	})

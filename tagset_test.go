@@ -14,9 +14,9 @@ func TestTagset(t *testing.T) {
 		fid    = 100
 		offset = 0xDEADBEEF
 		size   = 1234
-		kpath1 = `Dir\FileName.Ext`
-		kpath2 = `DIR\FILENAME.EXT`
-		fkey   = `dir/filename.ext`
+		fkey   = `Dir/FileName.ext`
+		kpath1 = `Dir/FileName.ext`
+		kpath2 = `Dir\FileName.ext`
 		mime   = "image/jpeg"
 	)
 	var ts = wpk.MakeTagset(nil, tidsz, tagsz).
@@ -107,7 +107,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { return tsi.TID() != wpk.TIDpath },
 			"tag #4 is not 'path'",
 		},
-		{func() bool { return tsi.TagLen() != len(kpath1) },
+		{func() bool { return tsi.TagLen() != len(fkey) },
 			"length of 'path' tag does not equal to original length",
 		},
 		{func() bool { tag = tsi.Tag(); return tag == nil },
@@ -116,7 +116,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { str, ok = tag.TagStr(); return !ok },
 			"can not convert 'path' tag to value",
 		},
-		{func() bool { return str != wpk.ToSlash(kpath1) },
+		{func() bool { return str != fkey },
 			"'path' tag is not equal to original value",
 		},
 
@@ -163,15 +163,15 @@ func TestTagset(t *testing.T) {
 		},
 			"FSize getter does not work correctly",
 		},
-		{func() bool { return ts.Path() != wpk.ToSlash(kpath1) },
+		{func() bool { return ts.Path() != fkey },
 			"'Path' function does not work correctly",
 		},
-		{func() bool { return ts.Name() != path.Base(wpk.ToSlash(kpath1)) },
+		{func() bool { return ts.Name() != path.Base(fkey) },
 			"'Name' function does not work correctly",
 		},
 
 		// check up 'Set' and 'Del'
-		{func() bool { return ts.Set(wpk.TIDpath, wpk.StrTag(wpk.ToSlash(kpath2))) },
+		{func() bool { return ts.Set(wpk.TIDpath, wpk.StrTag(fkey)) },
 			"content of 'path' tag should be replaced by 'Set'",
 		},
 		{func() bool { return ts.Num() != 4 },

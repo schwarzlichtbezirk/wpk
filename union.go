@@ -36,19 +36,9 @@ func (f *UnionDir) Close() error {
 // fs.ReadDirFile interface implementation.
 func (f *UnionDir) ReadDir(n int) ([]fs.DirEntry, error) {
 	var dir = f.Path()
-	var workspace = f.List[0].Workspace
-	if workspace != "." && workspace != "" {
-		if !strings.HasPrefix(dir, workspace) {
+	if len(f.List) > 0 {
+		if dir = f.List[0].TrimPath(dir); dir == "" {
 			return nil, ErrOtherSubdir
-		}
-		dir = strings.TrimPrefix(dir, workspace)
-		if len(dir) > 0 {
-			if dir[0] != '/' {
-				return nil, ErrOtherSubdir
-			}
-			dir = dir[1:]
-		} else {
-			dir = "."
 		}
 	}
 	return f.ReadDirN(dir, n)
@@ -128,7 +118,7 @@ func (u *Union) Glob(pattern string) (res []string, err error) {
 		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if _, ok := found[fkey]; !ok {
 				if matched, _ := path.Match(pattern, fkey); matched {
-					res = append(res, ts.Path())
+					res = append(res, fkey)
 				}
 				found[fkey] = Void{}
 			}
@@ -162,49 +152,52 @@ func (u *Union) ReadFile(fpath string) ([]byte, error) {
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
 func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
-	var prefix string
-	if dir != "." && dir != "" {
-		prefix = Normalize(path.Clean(dir)) + "/" // set terminated slash
-	}
-	var found = map[string]Void{}
+	var found = map[string]fs.DirEntry{}
+	var ni = n
 	for _, pkg := range u.List {
-		var wslen int // length of workspace with terminated slash
-		if pkg.Workspace != "." && pkg.Workspace != "" {
-			wslen = len(pkg.Workspace) + 1
+		var fulldir = pkg.FullPath(dir)
+		var prefix string
+		if fulldir != "." {
+			prefix = Normalize(path.Clean(fulldir)) + "/" // set terminated slash
 		}
-		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
+
+		pkg.Range(func(key, value interface{}) bool {
+			var fkey, ts = key.(string), value.(*TagsetRaw)
 			if strings.HasPrefix(fkey, prefix) {
 				var suffix = fkey[len(prefix):]
 				var sp = strings.IndexByte(suffix, '/')
 				if sp < 0 { // file detected
-					if _, ok := found[fkey]; !ok {
-						list = append(list, ts)
-						found[fkey] = Void{}
-						n--
-					}
+					found[suffix] = ts
+					ni--
 				} else { // dir detected
 					var subdir = path.Join(prefix, suffix[:sp])
 					if _, ok := found[subdir]; !ok {
-						var fpath = ts.Path() // extract not normalized path
 						var dts = MakeTagset(nil, 2, 2).
-							Put(TIDpath, StrTag(fpath[:wslen+len(subdir)]))
-						var f = &UnionDir{
+							Put(TIDpath, StrTag(subdir))
+						var f = &PackDirFile{
 							TagsetRaw: dts,
-							Union:     u,
+							ftt:       pkg.FTT,
 						}
-						list = append(list, f)
-						found[subdir] = Void{}
-						n--
+						found[subdir] = f
+						ni--
 					}
 				}
 			}
-			return n != 0
+			return ni != 0
 		})
-		if n == 0 {
+
+		if ni == 0 {
 			break
 		}
 	}
-	if n > 0 {
+
+	list = make([]fs.DirEntry, len(found))
+	var i int
+	for _, de := range found {
+		list[i] = de
+		i++
+	}
+	if ni > 0 {
 		err = io.EOF
 	}
 	return
@@ -225,7 +218,7 @@ func (u *Union) Open(dir string) (fs.File, error) {
 		return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrNotExist}
 	}
 
-	var fulldir = path.Join(u.List[0].Workspace, dir)
+	var fulldir = u.List[0].FullPath(dir)
 	if strings.HasPrefix(fulldir, PackName+"/") {
 		var idx, err = strconv.ParseUint(dir[len(PackName)+1:], 10, 32)
 		if err != nil {

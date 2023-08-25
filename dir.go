@@ -106,46 +106,49 @@ func ToSlash(fpath string) string {
 	return strings.ReplaceAll(fpath, "\\", "/")
 }
 
-// Normalize brings file path to normalized form. It makes argument lowercase,
-// change back slashes to normal slashes. Normalized path is the key to FTT map.
-func Normalize(fpath string) string {
-	return strings.ToLower(ToSlash(fpath))
-}
+// Normalize brings file path to normalized form. Normalized path is the key to FTT map.
+var Normalize = ToSlash
 
 // ReadDirN returns fs.DirEntry array with nested into given package directory presentation.
 // It's core function for ReadDirFile and ReadDirFS structures.
 func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) {
+	var found = map[string]fs.DirEntry{}
 	var prefix string
 	if fulldir != "." && fulldir != "" {
 		prefix = Normalize(path.Clean(fulldir)) + "/" // set terminated slash
 	}
-	var found = map[string]Void{}
+
 	ftt.Range(func(key, value interface{}) bool {
 		var fkey, ts = key.(string), value.(*TagsetRaw)
 		if strings.HasPrefix(fkey, prefix) {
 			var suffix = fkey[len(prefix):]
 			var sp = strings.IndexByte(suffix, '/')
 			if sp < 0 { // file detected
-				list = append(list, ts)
+				found[suffix] = ts
 				n--
 			} else { // dir detected
 				var subdir = path.Join(prefix, suffix[:sp])
 				if _, ok := found[subdir]; !ok {
-					found[subdir] = Void{}
-					var fpath = ts.Path() // extract not normalized path
 					var dts = MakeTagset(nil, 2, 2).
-						Put(TIDpath, StrTag(fpath[:len(subdir)]))
+						Put(TIDpath, StrTag(subdir))
 					var f = &PackDirFile{
 						TagsetRaw: dts,
 						ftt:       ftt,
 					}
-					list = append(list, f)
+					found[subdir] = f
 					n--
 				}
 			}
 		}
 		return n != 0
 	})
+
+	list = make([]fs.DirEntry, len(found))
+	var i int
+	for _, de := range found {
+		list[i] = de
+		i++
+	}
 	if n > 0 {
 		err = io.EOF
 	}

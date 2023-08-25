@@ -200,7 +200,7 @@ func (pkg *Package) PackFile(w io.WriteSeeker, file fs.File, fpath string) (ts *
 	if tsp.HasBirthTime() {
 		ts.Put(TIDbtime, TimeTag(tsp.BirthTime()))
 	}
-	ts.Put(TIDlink, StrTag(ToSlash(fpath)))
+	ts.Put(TIDlink, StrTag(fpath))
 	return
 }
 
@@ -258,6 +258,7 @@ func (pkg *Package) PackDir(w io.WriteSeeker, dirname, prefix string, logger Pac
 // Rename tagset with file name 'oldname' to 'newname'.
 // Keeps link to original file name.
 func (pkg *Package) Rename(oldname, newname string) error {
+	oldname, newname = ToSlash(oldname), ToSlash(newname)
 	var ts, ok = pkg.Tagset(oldname)
 	if !ok {
 		return &fs.PathError{Op: "rename", Path: oldname, Err: fs.ErrNotExist}
@@ -266,7 +267,7 @@ func (pkg *Package) Rename(oldname, newname string) error {
 		return &fs.PathError{Op: "rename", Path: newname, Err: fs.ErrExist}
 	}
 
-	ts.Set(TIDpath, StrTag(ToSlash(pkg.FullPath(newname))))
+	ts.Set(TIDpath, StrTag(pkg.FullPath(newname)))
 	pkg.DelTagset(oldname)
 	pkg.SetTagset(newname, ts)
 	return nil
@@ -274,6 +275,7 @@ func (pkg *Package) Rename(oldname, newname string) error {
 
 // RenameDir renames all files in package with 'olddir' path to 'newdir' path.
 func (pkg *Package) RenameDir(olddir, newdir string, skipexist bool) (count int, err error) {
+	olddir, newdir = ToSlash(olddir), ToSlash(newdir)
 	if len(olddir) > 0 && olddir[len(olddir)-1] != '/' {
 		olddir += "/"
 	}
@@ -287,7 +289,7 @@ func (pkg *Package) RenameDir(olddir, newdir string, skipexist bool) (count int,
 				err = &fs.PathError{Op: "renamedir", Path: newkey, Err: fs.ErrExist}
 				return skipexist
 			}
-			ts.Set(TIDpath, StrTag(ToSlash(pkg.FullPath(newkey))))
+			ts.Set(TIDpath, StrTag(pkg.FullPath(newkey)))
 			pkg.DelTagset(fkey)
 			pkg.SetTagset(newkey, ts)
 			count++
@@ -303,6 +305,7 @@ func (pkg *Package) RenameDir(olddir, newdir string, skipexist bool) (count int,
 // PutAlias makes clone tagset with file name 'oldname' and replace name tag
 // in it to 'newname'. Keeps link to original file name.
 func (pkg *Package) PutAlias(oldname, newname string) error {
+	oldname, newname = ToSlash(oldname), ToSlash(newname)
 	var ts1, ok = pkg.Tagset(oldname)
 	if !ok {
 		return &fs.PathError{Op: "putalias", Path: oldname, Err: fs.ErrNotExist}
@@ -317,7 +320,7 @@ func (pkg *Package) PutAlias(oldname, newname string) error {
 		if tsi.tid != TIDpath {
 			ts2.Put(tsi.tid, tsi.Tag())
 		} else {
-			ts2.Put(TIDpath, StrTag(ToSlash(pkg.FullPath(newname))))
+			ts2.Put(TIDpath, StrTag(pkg.FullPath(newname)))
 		}
 	}
 	pkg.SetTagset(newname, ts2)
