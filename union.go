@@ -99,7 +99,7 @@ func (u *Union) Stat(fpath string) (fs.FileInfo, error) {
 	var ts *TagsetRaw
 	var is bool
 	for _, pkg := range u.List {
-		if ts, is = pkg.Tagset(fpath); is {
+		if ts, is = pkg.GetTagset(fpath); is {
 			return ts, nil
 		}
 	}
@@ -133,7 +133,7 @@ func (u *Union) Glob(pattern string) (res []string, err error) {
 // fs.ReadFileFS implementation.
 func (u *Union) ReadFile(fpath string) ([]byte, error) {
 	for _, pkg := range u.List {
-		if ts, is := pkg.Tagset(fpath); is {
+		if ts, is := pkg.GetTagset(fpath); is {
 			var f, err = pkg.Tagger.OpenTagset(ts)
 			if err != nil {
 				return nil, err
@@ -161,8 +161,7 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 			prefix = Normalize(fulldir) + "/" // set terminated slash
 		}
 
-		pkg.Range(func(key, value interface{}) bool {
-			var fkey, ts = key.(string), value.(*TagsetRaw)
+		pkg.rwm.Range(func(fkey string, ts *TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
 				var suffix = fkey[len(prefix):]
 				var sp = strings.IndexByte(suffix, '/')
@@ -233,7 +232,7 @@ func (u *Union) Open(dir string) (fs.File, error) {
 
 	// try to get the file
 	for _, pkg := range u.List {
-		if ts, is := pkg.Tagset(dir); is {
+		if ts, is := pkg.GetTagset(dir); is {
 			return pkg.Tagger.OpenTagset(ts)
 		}
 	}

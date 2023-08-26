@@ -130,8 +130,7 @@ func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) 
 		prefix = Normalize(fulldir) + "/" // set terminated slash
 	}
 
-	ftt.Range(func(key, value interface{}) bool {
-		var fkey, ts = key.(string), value.(*TagsetRaw)
+	ftt.rwm.Range(func(fkey string, ts *TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			var suffix = fkey[len(prefix):]
 			var sp = strings.IndexByte(suffix, '/')
@@ -175,8 +174,8 @@ func (ftt *FTT) OpenDir(fulldir string) (fs.ReadDirFile, error) {
 		prefix = Normalize(fulldir) + "/" // set terminated slash
 	}
 	var f *PackDirFile
-	ftt.Range(func(key, value interface{}) bool {
-		if strings.HasPrefix(key.(string), prefix) {
+	ftt.rwm.Range(func(fkey string, ts *TagsetRaw) bool {
+		if strings.HasPrefix(fkey, prefix) {
 			var dts = MakeTagset(nil, 2, 2).
 				Put(TIDpath, StrTag(fulldir))
 			f = &PackDirFile{

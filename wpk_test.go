@@ -410,10 +410,10 @@ func TestPutFiles(t *testing.T) {
 	CheckPackage(t, fwpk, fwpk, tagsnum)
 
 	// check alias existence
-	if _, ok := pkg.Tagset("jasper.jpg"); !ok {
+	if _, ok := pkg.GetTagset("jasper.jpg"); !ok {
 		t.Fatal("'jasper.jpg' alias not found")
 	}
-	if _, ok := pkg.Tagset("basaltbay.jpg"); ok {
+	if _, ok := pkg.GetTagset("basaltbay.jpg"); ok {
 		t.Fatal("'basaltbay.jpg' alias not deleted")
 	}
 
@@ -425,10 +425,10 @@ func TestPutFiles(t *testing.T) {
 	if count != 2 {
 		t.Fatalf("expected 2 files to rename directory from 'img2' to 'img3', got %d", count)
 	}
-	if _, ok := pkg.Tagset("img3/marble.jpg"); !ok {
+	if _, ok := pkg.GetTagset("img3/marble.jpg"); !ok {
 		t.Fatal("'img3/marble.jpg' not found")
 	}
-	if _, ok := pkg.Tagset("img3/Uzuncı.jpg"); !ok {
+	if _, ok := pkg.GetTagset("img3/Uzuncı.jpg"); !ok {
 		t.Fatal("'img3/Uzuncı.jpg' not found")
 	}
 }

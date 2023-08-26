@@ -259,10 +259,11 @@ const (
 
 // File tags table.
 type FTT struct {
-	sync.Map      // keys - package filenames in lower case, values - tagset slices.
-	tidsz    byte // tag ID size
-	tagsz    byte // length of tag size
-	tssize   byte // length of tagset size
+	rwm RWMap[string, *TagsetRaw] // keys - package filenames (case sensitive), values - tagset slices.
+
+	tidsz  byte // tag ID size
+	tagsz  byte // length of tag size
+	tssize byte // length of tagset size
 
 	datoffset uint64 // files data offset
 	datsize   uint64 // files data total size
@@ -272,6 +273,7 @@ type FTT struct {
 
 // Init performs initialization for given Package structure.
 func (ftt *FTT) Init(pts TypeSize) {
+	ftt.rwm.Init()
 	ftt.tidsz = pts[PTStidsz]
 	ftt.tagsz = pts[PTStagsz]
 	ftt.tssize = pts[PTStssize]
@@ -291,7 +293,7 @@ func (ftt *FTT) DataSize() Uint {
 // Info returns package information tagset if it present.
 func (ftt *FTT) Info() (ts *TagsetRaw, ok bool) {
 	var val interface{}
-	if val, ok = ftt.Load(InfoName); ok {
+	if val, ok = ftt.rwm.Get(InfoName); ok {
 		ts = val.(*TagsetRaw)
 	}
 	return
@@ -300,13 +302,14 @@ func (ftt *FTT) Info() (ts *TagsetRaw, ok bool) {
 // SetInfo returns package information tagset,
 // and stores if it not present before.
 func (ftt *FTT) SetInfo() *TagsetRaw {
-	var emptyinfo = ftt.NewTagset().
-		Put(TIDpath, StrTag(InfoName))
-	var val, _ = ftt.LoadOrStore(InfoName, emptyinfo)
-	if val == nil {
-		panic("can not obtain package info")
+	if info, ok := ftt.rwm.Get(InfoName); ok {
+		return info
+	} else {
+		var emptyinfo = ftt.NewTagset().
+			Put(TIDpath, StrTag(InfoName))
+		ftt.rwm.Set(InfoName, emptyinfo)
+		return emptyinfo
 	}
-	return val.(*TagsetRaw)
 }
 
 // IsSplitted returns true if package is splitted on tags and data files.
@@ -325,7 +328,7 @@ func (ftt *FTT) CheckTagset(ts *TagsetRaw) (fpath string, err error) {
 		err = &ErrTag{ErrNoPath, "", TIDpath}
 		return
 	}
-	if _, ok := ftt.Load(fpath); ok { // prevent same file from repeating
+	if ftt.rwm.Has(fpath) { // prevent same file from repeating
 		err = &ErrTag{fs.ErrExist, fpath, TIDpath}
 		return
 	}
@@ -350,6 +353,39 @@ func (ftt *FTT) CheckTagset(ts *TagsetRaw) (fpath string, err error) {
 		return
 	}
 
+	return
+}
+
+// Parse makes table from given byte slice.
+func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
+	for {
+		var tsl Uint
+		tsl = ReadUintBuf(buf[n : n+int64(ftt.tssize)])
+		n += int64(ftt.tssize)
+
+		if tsl == 0 {
+			break // end marker was reached
+		}
+
+		var data = buf[n : n+int64(tsl)]
+		n += int64(tsl)
+
+		var ts = &TagsetRaw{data, ftt.tidsz, ftt.tagsz}
+		var tsi = ts.Iterator()
+		for tsi.Next() {
+		}
+		if tsi.Failed() {
+			err = io.ErrUnexpectedEOF
+			return
+		}
+
+		var fpath string
+		if fpath, err = ftt.CheckTagset(ts); err != nil {
+			return
+		}
+
+		ftt.rwm.Set(Normalize(fpath), ts)
+	}
 	return
 }
 
@@ -386,7 +422,7 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 			return
 		}
 
-		ftt.Store(Normalize(fpath), ts)
+		ftt.rwm.Set(Normalize(fpath), ts)
 	}
 	return
 }
@@ -415,8 +451,7 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 	}
 
 	// write files tags table
-	ftt.Range(func(key, value interface{}) bool {
-		var fkey, ts = key.(string), value.(*TagsetRaw)
+	ftt.rwm.Range(func(fkey string, ts *TagsetRaw) bool {
 		if fkey == InfoName {
 			return true
 		}
@@ -471,10 +506,7 @@ func (ftt *FTT) ReadFTT(r io.ReadSeeker) (err error) {
 		return
 	}
 	// setup empty tags table
-	ftt.Map = sync.Map{}
-	ftt.tidsz = hdr.typesize[PTStidsz]
-	ftt.tagsz = hdr.typesize[PTStagsz]
-	ftt.tssize = hdr.typesize[PTStssize]
+	ftt.Init(hdr.typesize)
 	ftt.datoffset, ftt.datsize = hdr.datoffset, hdr.datsize
 	// go to file tags table start
 	if _, err = r.Seek(int64(hdr.fttoffset), io.SeekStart); err != nil {
@@ -564,13 +596,29 @@ func (pkg *Package) BaseTagset(offset, size Uint, fpath string) *TagsetRaw {
 		Put(TIDpath, StrTag(ToSlash(pkg.FullPath(fpath))))
 }
 
-// Tagset returns tagset with given filename key, if it found.
-func (pkg *Package) Tagset(fkey string) (ts *TagsetRaw, ok bool) {
-	var val interface{}
-	if val, ok = pkg.Load(Normalize(pkg.FullPath(fkey))); ok {
-		ts = val.(*TagsetRaw)
-	}
-	return
+// HasTagset check up that tagset with given filename key is present.
+func (pkg *Package) HasTagset(fkey string) bool {
+	return pkg.rwm.Has(Normalize(pkg.FullPath(fkey)))
+}
+
+// GetTagset returns tagset with given filename key, if it found.
+func (pkg *Package) GetTagset(fkey string) (*TagsetRaw, bool) {
+	return pkg.rwm.Get(Normalize(pkg.FullPath(fkey)))
+}
+
+// SetTagset puts tagset with given filename key.
+func (pkg *Package) SetTagset(fkey string, ts *TagsetRaw) {
+	pkg.rwm.Set(Normalize(pkg.FullPath(fkey)), ts)
+}
+
+// DelTagset deletes tagset with given filename key.
+func (pkg *Package) DelTagset(fkey string) {
+	pkg.rwm.Delete(Normalize(pkg.FullPath(fkey)))
+}
+
+// GetDelTagset deletes the tagset for a key, returning the previous tagset if any.
+func (pkg *Package) GetDelTagset(fkey string) (*TagsetRaw, bool) {
+	return pkg.rwm.GetAndDelete(Normalize(pkg.FullPath(fkey)))
 }
 
 // Enum calls given closure for each tagset in package. Skips package info.
@@ -579,37 +627,11 @@ func (pkg *Package) Enum(f func(string, *TagsetRaw) bool) {
 	if pkg.Workspace != "." && pkg.Workspace != "" {
 		prefix = Normalize(pkg.Workspace) + "/" // make prefix slash-terminated
 	}
-	pkg.Range(func(key, value interface{}) bool {
-		var fkey = key.(string)
+	pkg.rwm.Range(func(fkey string, ts *TagsetRaw) bool {
 		return fkey == InfoName ||
 			!strings.HasPrefix(fkey, prefix) ||
-			f(fkey[len(prefix):], value.(*TagsetRaw))
+			f(fkey[len(prefix):], ts)
 	})
-}
-
-// HasTagset check up that tagset with given filename key is present.
-func (pkg *Package) HasTagset(fkey string) (ok bool) {
-	_, ok = pkg.Load(Normalize(pkg.FullPath(fkey)))
-	return
-}
-
-// SetTagset puts tagset with given filename key.
-func (pkg *Package) SetTagset(fkey string, ts *TagsetRaw) {
-	pkg.Store(Normalize(pkg.FullPath(fkey)), ts)
-}
-
-// DelTagset deletes tagset with given filename key.
-func (pkg *Package) DelTagset(fkey string) {
-	pkg.Delete(Normalize(pkg.FullPath(fkey)))
-}
-
-// GetDelTagset deletes the tagset for a key, returning the previous tagset if any.
-func (pkg *Package) GetDelTagset(fkey string) (ts *TagsetRaw, ok bool) {
-	var val interface{}
-	if val, ok = pkg.LoadAndDelete(Normalize(pkg.FullPath(fkey))); ok {
-		ts = val.(*TagsetRaw)
-	}
-	return
 }
 
 // Sub clones object and gives access to pointed subdirectory.
@@ -639,7 +661,7 @@ func (pkg *Package) Sub(dir string) (sub fs.FS, err error) {
 // Stat returns a fs.FileInfo describing the file.
 // fs.StatFS interface implementation.
 func (pkg *Package) Stat(fpath string) (fs.FileInfo, error) {
-	if ts, is := pkg.Tagset(fpath); is {
+	if ts, is := pkg.GetTagset(fpath); is {
 		return ts, nil
 	}
 	return nil, &fs.PathError{Op: "stat", Path: fpath, Err: fs.ErrNotExist}
@@ -674,7 +696,7 @@ func (pkg *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
 // Makes content copy to prevent ambiguous access to closed mapped memory block.
 // fs.ReadFileFS implementation.
 func (pkg *Package) ReadFile(fpath string) ([]byte, error) {
-	if ts, is := pkg.Tagset(fpath); is {
+	if ts, is := pkg.GetTagset(fpath); is {
 		var f, err = pkg.Tagger.OpenTagset(ts)
 		if err != nil {
 			return nil, err
@@ -698,7 +720,7 @@ func (pkg *Package) Open(dir string) (fs.File, error) {
 		return pkg.Tagger.OpenTagset(ts)
 	}
 
-	if ts, is := pkg.Tagset(dir); is {
+	if ts, is := pkg.GetTagset(dir); is {
 		return pkg.Tagger.OpenTagset(ts)
 	}
 	return pkg.OpenDir(fullname)

@@ -712,7 +712,7 @@ func wpkfilesize(ls *lua.LState) int {
 
 	var ts *wpk.TagsetRaw
 	var ok bool
-	if ts, ok = pkg.Tagset(fkey); !ok {
+	if ts, ok = pkg.GetTagset(fkey); !ok {
 		err = &fs.PathError{Op: "filesize", Path: fkey, Err: fs.ErrNotExist}
 		return 0
 	}
@@ -894,7 +894,7 @@ func wpkhastag(ls *lua.LState) int {
 
 	var ts *wpk.TagsetRaw
 	var ok bool
-	if ts, ok = pkg.Tagset(fkey); !ok {
+	if ts, ok = pkg.GetTagset(fkey); !ok {
 		err = &fs.PathError{Op: "hastag", Path: fkey, Err: fs.ErrNotExist}
 		return 0
 	}
@@ -923,7 +923,7 @@ func wpkgettag(ls *lua.LState) int {
 
 	var ts *wpk.TagsetRaw
 	var ok bool
-	if ts, ok = pkg.Tagset(fkey); !ok {
+	if ts, ok = pkg.GetTagset(fkey); !ok {
 		err = &fs.PathError{Op: "gettag", Path: fkey, Err: fs.ErrNotExist}
 		return 0
 	}
@@ -964,7 +964,7 @@ func wpksettag(ls *lua.LState) int {
 		return 0
 	}
 
-	var ts, ok = pkg.Tagset(fkey)
+	var ts, ok = pkg.GetTagset(fkey)
 	if !ok {
 		err = &fs.PathError{Op: "settag", Path: fkey, Err: fs.ErrNotExist}
 		return 0
@@ -996,7 +996,7 @@ func wpkdeltag(ls *lua.LState) int {
 		return 0
 	}
 
-	var ts, ok = pkg.Tagset(fkey)
+	var ts, ok = pkg.GetTagset(fkey)
 	if !ok {
 		err = &fs.PathError{Op: "deltag", Path: fkey, Err: fs.ErrNotExist}
 		return 0
@@ -1017,7 +1017,7 @@ func wpkgettags(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 
-	var ts, ok = pkg.Tagset(fkey)
+	var ts, ok = pkg.GetTagset(fkey)
 	if !ok {
 		err = &fs.PathError{Op: "gettags", Path: fkey, Err: fs.ErrNotExist}
 		return 0
@@ -1066,7 +1066,7 @@ func wpksettags(ls *lua.LState) int {
 		}
 	}
 
-	var ts, ok = pkg.Tagset(fkey)
+	var ts, ok = pkg.GetTagset(fkey)
 	if !ok {
 		err = &fs.PathError{Op: "settags", Path: fkey, Err: fs.ErrNotExist}
 		return 0
@@ -1098,7 +1098,7 @@ func wpkaddtags(ls *lua.LState) int {
 		return 0
 	}
 
-	var ts, ok = pkg.Tagset(fkey)
+	var ts, ok = pkg.GetTagset(fkey)
 	if !ok {
 		err = &fs.PathError{Op: "addtags", Path: fkey, Err: fs.ErrNotExist}
 		return 0
@@ -1145,7 +1145,7 @@ func wpkdeltags(ls *lua.LState) int {
 		}
 	}
 
-	var ts, ok = pkg.Tagset(fkey)
+	var ts, ok = pkg.GetTagset(fkey)
 	if !ok {
 		err = &fs.PathError{Op: "deltags", Path: fkey, Err: fs.ErrNotExist}
 		return 0

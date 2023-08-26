@@ -151,7 +151,7 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 // PackData puts data streamed by given reader into package as a file
 // and associate keyname "kpath" with it.
 func (pkg *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *TagsetRaw, err error) {
-	if _, ok := pkg.Tagset(fpath); ok {
+	if _, ok := pkg.GetTagset(fpath); ok {
 		err = &fs.PathError{Op: "packdata", Path: fpath, Err: fs.ErrExist}
 		return
 	}
@@ -258,11 +258,11 @@ func (pkg *Package) PackDir(w io.WriteSeeker, dirname, prefix string, logger Pac
 // Rename tagset with file name 'oldname' to 'newname'.
 // Keeps link to original file name.
 func (pkg *Package) Rename(oldname, newname string) error {
-	var ts, ok = pkg.Tagset(oldname)
+	var ts, ok = pkg.GetTagset(oldname)
 	if !ok {
 		return &fs.PathError{Op: "rename", Path: oldname, Err: fs.ErrNotExist}
 	}
-	if _, ok = pkg.Tagset(newname); ok {
+	if _, ok = pkg.GetTagset(newname); ok {
 		return &fs.PathError{Op: "rename", Path: newname, Err: fs.ErrExist}
 	}
 
@@ -283,7 +283,7 @@ func (pkg *Package) RenameDir(olddir, newdir string, skipexist bool) (count int,
 	pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
 		if strings.HasPrefix(fkey, olddir) {
 			var newkey = newdir + fkey[len(olddir):]
-			if _, ok := pkg.Tagset(newkey); ok {
+			if _, ok := pkg.GetTagset(newkey); ok {
 				err = &fs.PathError{Op: "renamedir", Path: newkey, Err: fs.ErrExist}
 				return skipexist
 			}
@@ -303,11 +303,11 @@ func (pkg *Package) RenameDir(olddir, newdir string, skipexist bool) (count int,
 // PutAlias makes clone tagset with file name 'oldname' and replace name tag
 // in it to 'newname'. Keeps link to original file name.
 func (pkg *Package) PutAlias(oldname, newname string) error {
-	var ts1, ok = pkg.Tagset(oldname)
+	var ts1, ok = pkg.GetTagset(oldname)
 	if !ok {
 		return &fs.PathError{Op: "putalias", Path: oldname, Err: fs.ErrNotExist}
 	}
-	if _, ok = pkg.Tagset(newname); ok {
+	if _, ok = pkg.GetTagset(newname); ok {
 		return &fs.PathError{Op: "putalias", Path: newname, Err: fs.ErrExist}
 	}
 
