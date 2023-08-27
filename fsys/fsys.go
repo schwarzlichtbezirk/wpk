@@ -14,7 +14,7 @@ type ReaserAtCloser interface {
 }
 
 // ChunkFile structure gives access to nested into package file.
-// wpk.NestedFile interface implementation.
+// wpk.PkgFile interface implementation.
 type ChunkFile struct {
 	wpk.FileReader
 	wpkf io.Closer
@@ -60,7 +60,7 @@ func MakeTagger(fpath string) (wpk.Tagger, error) {
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
-func (tgr *Tagger) OpenTagset(ts *wpk.TagsetRaw) (wpk.NestedFile, error) {
+func (tgr *Tagger) OpenTagset(ts *wpk.TagsetRaw) (wpk.PkgFile, error) {
 	return NewChunkFile(tgr.dpath, ts)
 }
 

@@ -108,15 +108,15 @@ type FileReader interface {
 	Size() int64
 }
 
-// NestedFile is interface for access to nested into package files.
-type NestedFile interface {
+// PkgFile is interface for access to nested into package files.
+type PkgFile interface {
 	fs.File
 	FileReader
 }
 
 // Tagger provides acces to nested files by given tagset of this package.
 type Tagger interface {
-	OpenTagset(*TagsetRaw) (NestedFile, error)
+	OpenTagset(*TagsetRaw) (PkgFile, error)
 	io.Closer
 }
 

@@ -133,7 +133,7 @@ func readpackage() (err error) {
 					return
 				}
 
-				var src wpk.NestedFile
+				var src wpk.PkgFile
 				if src, err = pkg.OpenTagset(ts); err != nil {
 					return
 				}
