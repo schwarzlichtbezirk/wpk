@@ -14,13 +14,6 @@ import (
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
-// package type sizes
-var (
-	tidsz  uint
-	tagsz  uint
-	tssize uint
-)
-
 // command line settings
 var (
 	srcpath string
@@ -31,13 +24,7 @@ var (
 	Split   bool
 )
 
-var pts wpk.TypeSize
-
 func parseargs() {
-	flag.UintVar(&tidsz, "tidsz", 2, "tag ID type size")
-	flag.UintVar(&tagsz, "tagsz", 2, "tag size type size")
-	flag.UintVar(&tssize, "tssize", 2, "tagset size type size")
-
 	flag.StringVar(&srcpath, "src", "", "full path to folder with source files to be packaged, or list of folders divided by ';'")
 	flag.StringVar(&DstFile, "dst", "", "full path to output package file")
 	flag.BoolVar(&PutMIME, "mime", false, "put content MIME type defined by file extension")
@@ -48,16 +35,6 @@ func parseargs() {
 
 func checkargs() int {
 	var ec = 0 // error counter
-
-	pts = wpk.TypeSize{
-		byte(tidsz),
-		byte(tagsz),
-		byte(tssize),
-	}
-	if err := pts.Checkup(); err != nil {
-		log.Println(err.Error())
-		ec++
-	}
 
 	for i, fpath := range strings.Split(srcpath, ";") {
 		if fpath == "" {
@@ -129,7 +106,7 @@ func packdirclosure(r io.ReadSeeker, ts *wpk.TagsetRaw) (err error) {
 func writepackage() (err error) {
 	var fwpk, fwpf wpk.WriteSeekCloser
 	var pkgfile, datfile = DstFile, DstFile
-	var pkg = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage()
 	if Split {
 		pkgfile, datfile = wpk.MakeTagsPath(pkgfile), wpk.MakeDataPath(datfile)
 	}

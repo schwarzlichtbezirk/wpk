@@ -21,7 +21,7 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount wpk.Uint
-	var pkg = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage()
 
 	// helper functions
 	var putfile = func(name string) {

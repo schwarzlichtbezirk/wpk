@@ -79,15 +79,6 @@ var (
 	ErrSignBad = errors.New("signature does not pass")
 	ErrSignFTT = errors.New("header contains incorrect data")
 
-	ErrSizeFOffset = errors.New("size of file offset type is not in set {4, 8}")
-	ErrSizeFSize   = errors.New("size of file size type is not in set {4, 8}")
-	ErrSizeFID     = errors.New("size of file ID type is not in set {2, 4, 8}")
-	ErrSizeTID     = errors.New("size of tag ID type is not in set {1, 2, 4}")
-	ErrSizeTSize   = errors.New("size of tag size type is not in set {1, 2, 4}")
-	ErrSizeTSSize  = errors.New("size of tagset size type is not in set {2, 4}")
-	ErrCondFSize   = errors.New("size of file size type should be not more than file offset size")
-	ErrCondTID     = errors.New("size of tag ID type should be not more than tagset size")
-	ErrCondTSize   = errors.New("size of tag size type should be not more than tagset size")
 	ErrRangeTSSize = errors.New("tagset size value is exceeds out of the type dimension")
 
 	ErrNoTag    = errors.New("tag with given ID not found")
@@ -129,53 +120,21 @@ type CompleteFS interface {
 	fs.ReadFileFS
 }
 
-// TypeSize is set of package types sizes.
-type TypeSize [8]byte
-
+// Package types sizes.
 const (
-	PTStidsz  = iota // Index of "tag ID" type size.
-	PTStagsz         // Index of "tag size" type size.
-	PTStssize        // Index of "tagset size" type size.
+	PTStidsz  = 2 // "tag ID" type size.
+	PTStagsz  = 2 // "tag size" type size.
+	PTStssize = 4 // "tagset size" type size.
 )
-
-// Checkup performs check up sizes of all types in bytes
-// used in current WPK-file.
-func (pts TypeSize) Checkup() error {
-	switch pts[PTStidsz] {
-	case 1, 2, 4:
-	default:
-		return ErrSizeTID
-	}
-
-	switch pts[PTStagsz] {
-	case 1, 2, 4:
-	default:
-		return ErrSizeTSize
-	}
-
-	switch pts[PTStssize] {
-	case 2, 4:
-	default:
-		return ErrSizeTSSize
-	}
-
-	if pts[PTStidsz] > pts[PTStssize] {
-		return ErrCondTID
-	}
-	if pts[PTStagsz] > pts[PTStssize] {
-		return ErrCondTSize
-	}
-	return nil
-}
 
 // Header - package header.
 type Header struct {
 	signature [SignSize]byte
-	typesize  TypeSize // sizes of package types
-	fttoffset uint64   // file tags table offset
-	fttsize   uint64   // file tags table size
-	datoffset uint64   // files data offset
-	datsize   uint64   // files data total size
+	fttcount  uint64 // count of entries in file tags table
+	fttoffset uint64 // file tags table offset
+	fttsize   uint64 // file tags table size
+	datoffset uint64 // files data offset
+	datsize   uint64 // files data total size
 }
 
 // IsReady determines that package is ready for read the data.
@@ -200,7 +159,7 @@ func (hdr *Header) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 	n += SignSize
-	if _, err = r.Read(hdr.typesize[:]); err != nil {
+	if err = binary.Read(r, binary.LittleEndian, &hdr.fttcount); err != nil {
 		return
 	}
 	n += 8
@@ -229,7 +188,7 @@ func (hdr *Header) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 	n += SignSize
-	if _, err = w.Write(hdr.typesize[:]); err != nil {
+	if err = binary.Write(w, binary.LittleEndian, &hdr.fttcount); err != nil {
 		return
 	}
 	n += 8
@@ -272,11 +231,11 @@ type FTT struct {
 }
 
 // Init performs initialization for given Package structure.
-func (ftt *FTT) Init(pts TypeSize) {
-	ftt.rwm.Init()
-	ftt.tidsz = pts[PTStidsz]
-	ftt.tagsz = pts[PTStagsz]
-	ftt.tssize = pts[PTStssize]
+func (ftt *FTT) Init(c int) {
+	ftt.rwm.Init(c)
+	ftt.tidsz = PTStidsz
+	ftt.tagsz = PTStagsz
+	ftt.tssize = PTStssize
 }
 
 // NewTagset creates new empty tagset based on predefined
@@ -431,11 +390,11 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 	// write tagset with package info at first
 	if ts, ok := ftt.Info(); ok {
-		var tsl = Uint(len(ts.Data()))
-		if tsl > Uint(1<<(ftt.tssize*8)-1) {
+		if len(ts.Data()) > 1<<(PTStssize*8)-1 {
 			err = ErrRangeTSSize
 			return
 		}
+		var tsl = Uint(len(ts.Data()))
 
 		// write tagset length
 		if err = WriteUint(w, tsl, ftt.tssize); err != nil {
@@ -456,11 +415,11 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 			return true
 		}
 
-		var tsl = Uint(len(ts.Data()))
-		if tsl > Uint(1<<(ftt.tssize*8)-1) {
+		if len(ts.Data()) > 1<<(PTStssize*8)-1 {
 			err = ErrRangeTSSize
 			return false
 		}
+		var tsl = Uint(len(ts.Data()))
 
 		// write tagset length
 		if err = WriteUint(w, tsl, ftt.tssize); err != nil {
@@ -502,11 +461,8 @@ func (ftt *FTT) ReadFTT(r io.ReadSeeker) (err error) {
 	if err = hdr.IsReady(); err != nil {
 		return
 	}
-	if err = hdr.typesize.Checkup(); err != nil {
-		return
-	}
 	// setup empty tags table
-	ftt.Init(hdr.typesize)
+	ftt.Init(0)
 	ftt.datoffset, ftt.datsize = hdr.datoffset, hdr.datsize
 	// go to file tags table start
 	if _, err = r.Seek(int64(hdr.fttoffset), io.SeekStart); err != nil {
@@ -537,9 +493,9 @@ type Package struct {
 
 // NewPackage returns pointer to new initialized Package filesystem structure.
 // Tagger should be set later if access to nested files is needed.
-func NewPackage(pts TypeSize) *Package {
+func NewPackage() *Package {
 	var ftt = &FTT{}
-	ftt.Init(pts)
+	ftt.Init(0)
 	return &Package{
 		FTT:       ftt,
 		Workspace: ".",
@@ -741,9 +697,6 @@ func GetPackageInfo(r io.ReadSeeker) (ts *TagsetRaw, err error) {
 	if err = hdr.IsReady(); err != nil {
 		return
 	}
-	if err = hdr.typesize.Checkup(); err != nil {
-		return
-	}
 
 	// go to file tags table start
 	if _, err = r.Seek(int64(hdr.fttoffset), io.SeekStart); err != nil {
@@ -753,7 +706,7 @@ func GetPackageInfo(r io.ReadSeeker) (ts *TagsetRaw, err error) {
 	// read first tagset that can be package info,
 	// or some file tagset if info is absent
 	var tsl Uint
-	if tsl, err = ReadUint(r, hdr.typesize[PTStssize]); err != nil {
+	if tsl, err = ReadUint(r, PTStssize); err != nil {
 		return
 	}
 	if tsl == 0 {
@@ -765,7 +718,7 @@ func GetPackageInfo(r io.ReadSeeker) (ts *TagsetRaw, err error) {
 		return
 	}
 
-	ts = &TagsetRaw{data, hdr.typesize[PTStidsz], hdr.typesize[PTStagsz]}
+	ts = &TagsetRaw{data, PTStidsz, PTStagsz}
 	var tsi = ts.Iterator()
 	for tsi.Next() {
 	}

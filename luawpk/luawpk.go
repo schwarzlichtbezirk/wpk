@@ -82,22 +82,9 @@ func PushPack(ls *lua.LState, v *LuaPackage) {
 
 // NewPack is LuaPackage constructor.
 func NewPack(ls *lua.LState) int {
-	var tidsz = byte(ls.OptInt(1, 2))  // can be: 1, 2, 4
-	var tagsz = byte(ls.OptInt(2, 2))  // can be: 1, 2, 4
-	var tssize = byte(ls.OptInt(3, 2)) // can be: 2, 4
-
-	var pts = wpk.TypeSize{
-		tidsz,
-		tagsz,
-		tssize,
-	}
-	if err := pts.Checkup(); err != nil {
-		ls.RaiseError(err.Error())
-	}
-
 	var pkg LuaPackage
 	var ftt = &wpk.FTT{}
-	ftt.Init(pts)
+	ftt.Init(0)
 	pkg.FTT = ftt
 	pkg.Workspace = "."
 	PushPack(ls, &pkg)

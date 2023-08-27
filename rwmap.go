@@ -9,10 +9,13 @@ type RWMap[K comparable, T any] struct {
 	mux sync.RWMutex
 }
 
-func (rwm *RWMap[K, T]) Init() {
+func (rwm *RWMap[K, T]) Init(c int) {
+	if c < 8 {
+		c = 8
+	}
 	rwm.mux.Lock()
 	defer rwm.mux.Unlock()
-	rwm.m = map[K]T{}
+	rwm.m = make(map[K]T, c)
 }
 
 func (rwm *RWMap[K, T]) Len() int {

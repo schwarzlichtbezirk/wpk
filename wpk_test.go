@@ -16,12 +16,6 @@ const (
 	tssize = 2 // can be: 2, 4
 )
 
-var pts = wpk.TypeSize{
-	tidsz,
-	tagsz,
-	tssize,
-}
-
 const mediadir = "testdata/media/"
 
 var testpack = wpk.TempPath("testpack.wpk")
@@ -117,7 +111,7 @@ func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 func TestInfo(t *testing.T) {
 	var err error
 	var fwpk *os.File
-	var pkg = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage()
 
 	const (
 		label  = "empty-package"
@@ -183,7 +177,7 @@ func TestPackDir(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount wpk.Uint
-	var pkg = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage()
 
 	defer os.Remove(testpack)
 
@@ -223,7 +217,7 @@ func TestPackDir(t *testing.T) {
 func TestBrokenDB(t *testing.T) {
 	var err error
 	var fwpt, fwpf *os.File
-	var pkg = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage()
 
 	defer os.Remove(testpkgt)
 	defer os.Remove(testpkgf)
@@ -278,7 +272,7 @@ func TestPackDirSplit(t *testing.T) {
 	var fwpt, fwpf *os.File
 	var tagsnum = 0
 	var fidcount wpk.Uint
-	var pkg = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage()
 
 	defer os.Remove(testpkgt)
 	defer os.Remove(testpkgf)
@@ -327,7 +321,7 @@ func TestPutFiles(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount wpk.Uint
-	var pkg = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage()
 
 	defer os.Remove(testpack)
 
@@ -441,7 +435,7 @@ func TestAppendContinues(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount wpk.Uint
-	var pkg = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage()
 
 	defer os.Remove(testpack)
 
@@ -515,7 +509,7 @@ func TestAppendDiscrete(t *testing.T) {
 	var fwpk *os.File
 	var tagsnum = 0
 	var fidcount wpk.Uint
-	var pkg = wpk.NewPackage(pts)
+	var pkg = wpk.NewPackage()
 
 	defer os.Remove(testpack)
 

@@ -28,13 +28,13 @@ func (ftt *FTT) Begin(wpt, wpf io.WriteSeeker) (err error) {
 		offset = HeaderSize
 	}
 	var hdr = Header{
-		typesize:  TypeSize{ftt.tidsz, ftt.tagsz, ftt.tssize},
+		signature: [SignSize]byte(S2B(SignBuild)),
+		fttcount:  0,
 		fttoffset: offset,
 		fttsize:   0,
 		datoffset: offset,
 		datsize:   0,
 	}
-	copy(hdr.signature[:], SignBuild)
 	if _, err = wpt.Seek(0, io.SeekStart); err != nil {
 		return
 	}
@@ -130,13 +130,13 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 	// rewrite true header
 	var hdr = Header{
-		typesize:  TypeSize{ftt.tidsz, ftt.tagsz, ftt.tssize},
+		signature: [SignSize]byte(S2B(SignReady)),
+		fttcount:  uint64(ftt.rwm.Len()),
 		fttoffset: uint64(fftpos),
 		fttsize:   uint64(fftend - fftpos),
 		datoffset: uint64(datpos),
 		datsize:   uint64(datend - datpos),
 	}
-	copy(hdr.signature[:], SignReady)
 	if _, err = wpt.Seek(0, io.SeekStart); err != nil {
 		return
 	}

@@ -85,8 +85,7 @@ to build wpk-packages.
 *wpk* library:
 
 	constructor:
-	new(tidsz, tagsz, tssize) - creates new empty object. With optional parameters
-		tidsz, tagsz, tssize thats defines tagset streaming sizes.
+	new() - creates new empty package object.
 
 	properties:
 	label - getter/setter for package label in package info. Getter returns
@@ -198,7 +197,7 @@ local function logfmt(...) -- write to log formatted string
 	log(string.format(...))
 end
 function wpk.create(fpath)-- additional wpk-constructor
-	local pkg = wpk.new(1, 1, 2)
+	local pkg = wpk.new()
 	pkg.automime = true -- put MIME type for each file if it is not given explicit
 	pkg.nolink = true -- exclude links
 	pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
