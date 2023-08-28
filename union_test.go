@@ -31,14 +31,14 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 		}
 		defer file.Close()
 
-		var ts *wpk.TagsetRaw
+		var ts wpk.TagsetRaw
 		if ts, err = pkg.PackFile(fwpk, file, name); err != nil {
 			t.Fatal(err)
 		}
 
 		tagsnum++
 		fidcount++
-		ts.Put(wpk.TIDfid, wpk.UintTag(fidcount))
+		pkg.SetupTagset(ts.Put(wpk.TIDfid, wpk.UintTag(fidcount)))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}

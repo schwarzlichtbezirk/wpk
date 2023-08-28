@@ -27,8 +27,8 @@ func MakeDataPath(fpath string) string {
 // PackDirFile is a directory file whose entries can be read with the ReadDir method.
 // fs.ReadDirFile interface implementation.
 type PackDirFile struct {
-	*TagsetRaw // has fs.FileInfo interface
-	ftt        *FTT
+	TagsetRaw // has fs.FileInfo interface
+	ftt       *FTT
 }
 
 // fs.ReadDirFile interface implementation.
@@ -130,7 +130,7 @@ func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) 
 		prefix = Normalize(fulldir) + "/" // set terminated slash
 	}
 
-	ftt.rwm.Range(func(fkey string, ts *TagsetRaw) bool {
+	ftt.rwm.Range(func(fkey string, ts TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			var suffix = fkey[len(prefix):]
 			var sp = strings.IndexByte(suffix, '/')
@@ -140,7 +140,7 @@ func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) 
 			} else { // dir detected
 				var subdir = path.Join(prefix, suffix[:sp])
 				if _, ok := found[subdir]; !ok {
-					var dts = MakeTagset(nil).
+					var dts = TagsetRaw{}.
 						Put(TIDpath, StrTag(subdir))
 					var f = &PackDirFile{
 						TagsetRaw: dts,
@@ -174,9 +174,9 @@ func (ftt *FTT) OpenDir(fulldir string) (fs.ReadDirFile, error) {
 		prefix = Normalize(fulldir) + "/" // set terminated slash
 	}
 	var f *PackDirFile
-	ftt.rwm.Range(func(fkey string, ts *TagsetRaw) bool {
+	ftt.rwm.Range(func(fkey string, ts TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
-			var dts = MakeTagset(nil).
+			var dts = TagsetRaw{}.
 				Put(TIDpath, StrTag(fulldir))
 			f = &PackDirFile{
 				TagsetRaw: dts,

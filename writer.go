@@ -88,9 +88,10 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 		fftpos = HeaderSize
 
 		// update package info if it has
-		if ts, ok := ftt.Info(); ok {
-			ts.Set(TIDoffset, UintTag(Uint(datpos)))
-			ts.Set(TIDsize, UintTag(Uint(datend-datpos)))
+		if ts, ok := ftt.GetInfo(); ok {
+			ts, _ = ts.Set(TIDoffset, UintTag(Uint(datpos)))
+			ts, _ = ts.Set(TIDsize, UintTag(Uint(datend-datpos)))
+			ftt.SetInfo(ts)
 		}
 
 		// write file tags table
@@ -113,9 +114,10 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 		fftpos = datend
 
 		// update package info if it has
-		if ts, ok := ftt.Info(); ok {
-			ts.Set(TIDoffset, UintTag(Uint(datpos)))
-			ts.Set(TIDsize, UintTag(Uint(datend-datpos)))
+		if ts, ok := ftt.GetInfo(); ok {
+			ts, _ = ts.Set(TIDoffset, UintTag(Uint(datpos)))
+			ts, _ = ts.Set(TIDsize, UintTag(Uint(datend-datpos)))
+			ftt.SetInfo(ts)
 		}
 
 		// write file tags table
@@ -150,7 +152,7 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 // PackData puts data streamed by given reader into package as a file
 // and associate keyname "kpath" with it.
-func (pkg *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *TagsetRaw, err error) {
+func (pkg *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts TagsetRaw, err error) {
 	if _, ok := pkg.GetTagset(fpath); ok {
 		err = &fs.PathError{Op: "packdata", Path: fpath, Err: fs.ErrExist}
 		return
@@ -181,7 +183,7 @@ func (pkg *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts *T
 }
 
 // PackFile puts file with given file handle into package and associate keyname "fpath" with it.
-func (pkg *Package) PackFile(w io.WriteSeeker, file fs.File, fpath string) (ts *TagsetRaw, err error) {
+func (pkg *Package) PackFile(w io.WriteSeeker, file fs.File, fpath string) (ts TagsetRaw, err error) {
 	var fi os.FileInfo
 	if fi, err = file.Stat(); err != nil {
 		return
@@ -190,23 +192,24 @@ func (pkg *Package) PackFile(w io.WriteSeeker, file fs.File, fpath string) (ts *
 		return
 	}
 
-	//ts.Put(TIDmtime, TimeTag(fi.ModTime()))
+	//ts = ts.Put(TIDmtime, TimeTag(fi.ModTime()))
 	var tsp = times.Get(fi)
-	ts.Put(TIDmtime, TimeTag(tsp.ModTime()))
-	ts.Put(TIDatime, TimeTag(tsp.AccessTime()))
+	ts = ts.Put(TIDmtime, TimeTag(tsp.ModTime()))
+	ts = ts.Put(TIDatime, TimeTag(tsp.AccessTime()))
 	if tsp.HasChangeTime() {
-		ts.Put(TIDctime, TimeTag(tsp.ChangeTime()))
+		ts = ts.Put(TIDctime, TimeTag(tsp.ChangeTime()))
 	}
 	if tsp.HasBirthTime() {
-		ts.Put(TIDbtime, TimeTag(tsp.BirthTime()))
+		ts = ts.Put(TIDbtime, TimeTag(tsp.BirthTime()))
 	}
-	ts.Put(TIDlink, StrTag(fpath))
+	ts = ts.Put(TIDlink, StrTag(fpath))
+	pkg.SetTagset(fpath, ts)
 	return
 }
 
 // PackDirLogger is function called during PackDir processing after each
 // file with OS file object and inserted tagset, that can be modified.
-type PackDirLogger func(r io.ReadSeeker, ts *TagsetRaw) error
+type PackDirLogger func(pkg *Package, r io.ReadSeeker, ts TagsetRaw) error
 
 // PackDir puts all files of given folder and it's subfolders into package.
 // Logger function can be nil.
@@ -235,7 +238,7 @@ func (pkg *Package) PackDir(w io.WriteSeeker, dirname, prefix string, logger Pac
 				}
 			} else if func() {
 				var file *os.File
-				var ts *TagsetRaw
+				var ts TagsetRaw
 				if file, err = os.Open(fpath); err != nil {
 					return
 				}
@@ -244,7 +247,7 @@ func (pkg *Package) PackDir(w io.WriteSeeker, dirname, prefix string, logger Pac
 				if ts, err = pkg.PackFile(w, file, kpath); err != nil {
 					return
 				}
-				if err = logger(file, ts); err != nil {
+				if err = logger(pkg, file, ts); err != nil {
 					return
 				}
 			}(); err != nil {
@@ -266,7 +269,7 @@ func (pkg *Package) Rename(oldname, newname string) error {
 		return &fs.PathError{Op: "rename", Path: newname, Err: fs.ErrExist}
 	}
 
-	ts.Set(TIDpath, StrTag(ToSlash(pkg.FullPath(newname))))
+	ts, _ = ts.Set(TIDpath, StrTag(ToSlash(pkg.FullPath(newname))))
 	pkg.DelTagset(oldname)
 	pkg.SetTagset(newname, ts)
 	return nil
@@ -280,14 +283,14 @@ func (pkg *Package) RenameDir(olddir, newdir string, skipexist bool) (count int,
 	if len(newdir) > 0 && newdir[len(newdir)-1] != '/' {
 		newdir += "/"
 	}
-	pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts TagsetRaw) bool {
 		if strings.HasPrefix(fkey, olddir) {
 			var newkey = newdir + fkey[len(olddir):]
 			if _, ok := pkg.GetTagset(newkey); ok {
 				err = &fs.PathError{Op: "renamedir", Path: newkey, Err: fs.ErrExist}
 				return skipexist
 			}
-			ts.Set(TIDpath, StrTag(ToSlash(pkg.FullPath(newkey))))
+			ts, _ = ts.Set(TIDpath, StrTag(ToSlash(pkg.FullPath(newkey))))
 			pkg.DelTagset(fkey)
 			pkg.SetTagset(newkey, ts)
 			count++
@@ -303,7 +306,7 @@ func (pkg *Package) RenameDir(olddir, newdir string, skipexist bool) (count int,
 // PutAlias makes clone tagset with file name 'oldname' and replace name tag
 // in it to 'newname'. Keeps link to original file name.
 func (pkg *Package) PutAlias(oldname, newname string) error {
-	var ts1, ok = pkg.GetTagset(oldname)
+	var ts, ok = pkg.GetTagset(oldname)
 	if !ok {
 		return &fs.PathError{Op: "putalias", Path: oldname, Err: fs.ErrNotExist}
 	}
@@ -311,16 +314,9 @@ func (pkg *Package) PutAlias(oldname, newname string) error {
 		return &fs.PathError{Op: "putalias", Path: newname, Err: fs.ErrExist}
 	}
 
-	var tsi = ts1.Iterator()
-	var ts2 = pkg.NewTagset()
-	for tsi.Next() {
-		if tsi.tid != TIDpath {
-			ts2.Put(tsi.tid, tsi.Tag())
-		} else {
-			ts2.Put(TIDpath, StrTag(ToSlash(pkg.FullPath(newname))))
-		}
-	}
-	pkg.SetTagset(newname, ts2)
+	ts = append([]byte{}, ts...) // make a copy
+	ts, _ = ts.Set(TIDpath, StrTag(ToSlash(pkg.FullPath(newname))))
+	pkg.SetTagset(newname, ts)
 	return nil
 }
 

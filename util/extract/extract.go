@@ -123,7 +123,7 @@ func readpackage() (err error) {
 			defer pkg.Close()
 
 			var num, sum int64
-			pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) (next bool) {
+			pkg.Enum(func(fkey string, ts wpk.TagsetRaw) (next bool) {
 				defer func() {
 					next = err == nil
 				}()

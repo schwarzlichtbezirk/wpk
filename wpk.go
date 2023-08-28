@@ -47,8 +47,8 @@ const (
 	TIDsha384 = 24 // [48]byte
 	TIDsha512 = 25 // [64]byte
 
-	TIDtmbimg   = 100 // []byte, thumbnail image (icon)
-	TIDtmbmime  = 101 // string, MIME type of thumbnail image
+	TIDtmbjpeg  = 100 // []byte, thumbnail image (icon) in JPEG format
+	TIDtmbwebp  = 101 // []byte, thumbnail image (icon) in WebP format
 	TIDlabel    = 110 // string
 	TIDlink     = 111 // string
 	TIDkeywords = 112 // string
@@ -107,7 +107,7 @@ type PkgFile interface {
 
 // Tagger provides acces to nested files by given tagset of this package.
 type Tagger interface {
-	OpenTagset(*TagsetRaw) (PkgFile, error)
+	OpenTagset(TagsetRaw) (PkgFile, error)
 	io.Closer
 }
 
@@ -220,7 +220,7 @@ const (
 
 // File tags table.
 type FTT struct {
-	rwm RWMap[string, *TagsetRaw] // keys - package filenames (case sensitive), values - tagset slices.
+	rwm RWMap[string, TagsetRaw] // keys - package filenames (case sensitive), values - tagset slices.
 
 	datoffset uint64 // files data offset
 	datsize   uint64 // files data total size
@@ -233,37 +233,20 @@ func (ftt *FTT) Init(c int) {
 	ftt.rwm.Init(c)
 }
 
-// NewTagset creates new empty tagset based on predefined
-// TID type size and tag size type.
-func (ftt *FTT) NewTagset() *TagsetRaw {
-	return &TagsetRaw{nil}
-}
-
 // DataSize returns actual package data size from files tags table.
 func (ftt *FTT) DataSize() Uint {
 	return Uint(ftt.datsize)
 }
 
-// Info returns package information tagset if it present.
-func (ftt *FTT) Info() (ts *TagsetRaw, ok bool) {
-	var val interface{}
-	if val, ok = ftt.rwm.Get(InfoName); ok {
-		ts = val.(*TagsetRaw)
-	}
-	return
+// GetInfo returns package information tagset if it present.
+func (ftt *FTT) GetInfo() (TagsetRaw, bool) {
+	return ftt.rwm.Get(InfoName)
 }
 
-// SetInfo returns package information tagset,
-// and stores if it not present before.
-func (ftt *FTT) SetInfo() *TagsetRaw {
-	if info, ok := ftt.rwm.Get(InfoName); ok {
-		return info
-	} else {
-		var emptyinfo = ftt.NewTagset().
-			Put(TIDpath, StrTag(InfoName))
-		ftt.rwm.Set(InfoName, emptyinfo)
-		return emptyinfo
-	}
+// SetInfo puts given tagset as package information tagset with "@info" path tag.
+func (ftt *FTT) SetInfo(ts TagsetRaw) {
+	ts, _ = ts.Set(TIDpath, StrTag(InfoName))
+	ftt.rwm.Set(InfoName, ts)
 }
 
 // IsSplitted returns true if package is splitted on tags and data files.
@@ -273,7 +256,7 @@ func (ftt *FTT) IsSplitted() bool {
 
 // CheckTagset tests path & offset & size tags existence
 // and checks that size & offset is are in the bounds.
-func (ftt *FTT) CheckTagset(ts *TagsetRaw) (fpath string, err error) {
+func (ftt *FTT) CheckTagset(ts TagsetRaw) (fpath string, err error) {
 	var ok bool
 	var offset, size Uint
 
@@ -321,10 +304,9 @@ func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 			break // end marker was reached
 		}
 
-		var data = buf[n : n+int64(tsl)]
+		var ts = TagsetRaw(buf[n : n+int64(tsl)])
 		n += int64(tsl)
 
-		var ts = &TagsetRaw{data}
 		var tsi = ts.Iterator()
 		for tsi.Next() {
 		}
@@ -356,13 +338,12 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 			break // end marker was reached
 		}
 
-		var data = make([]byte, tsl)
-		if _, err = r.Read(data); err != nil {
+		var ts = make(TagsetRaw, tsl)
+		if _, err = r.Read(ts); err != nil {
 			return
 		}
 		n += int64(tsl)
 
-		var ts = &TagsetRaw{data}
 		var tsi = ts.Iterator()
 		for tsi.Next() {
 		}
@@ -384,12 +365,12 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 // WriteTo writes file tags table whole content to the given stream.
 func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 	// write tagset with package info at first
-	if ts, ok := ftt.Info(); ok {
-		if len(ts.Data()) > tsmaxlen {
+	if ts, ok := ftt.GetInfo(); ok {
+		var tsl = Uint(len(ts))
+		if tsl > tsmaxlen {
 			err = ErrRangeTSSize
 			return
 		}
-		var tsl = Uint(len(ts.Data()))
 
 		// write tagset length
 		if err = WriteUint(w, tsl, PTStssize); err != nil {
@@ -398,23 +379,23 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 		n += PTStssize
 
 		// write tagset content
-		if _, err = w.Write(ts.Data()); err != nil {
+		if _, err = w.Write(ts); err != nil {
 			return
 		}
 		n += int64(tsl)
 	}
 
 	// write files tags table
-	ftt.rwm.Range(func(fkey string, ts *TagsetRaw) bool {
+	ftt.rwm.Range(func(fkey string, ts TagsetRaw) bool {
 		if fkey == InfoName {
 			return true
 		}
 
-		if len(ts.Data()) > tsmaxlen {
+		var tsl = Uint(len(ts))
+		if tsl > tsmaxlen {
 			err = ErrRangeTSSize
 			return false
 		}
-		var tsl = Uint(len(ts.Data()))
 
 		// write tagset length
 		if err = WriteUint(w, tsl, PTStssize); err != nil {
@@ -423,7 +404,7 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 		n += PTStssize
 
 		// write tagset content
-		if _, err = w.Write(ts.Data()); err != nil {
+		if _, err = w.Write(ts); err != nil {
 			return false
 		}
 		n += int64(tsl)
@@ -540,8 +521,8 @@ func (pkg *Package) TrimPath(fpath string) string {
 
 // BaseTagset returns new tagset based on predefined TID type size and tag size type,
 // and puts file offset and file size into tagset with predefined sizes.
-func (pkg *Package) BaseTagset(offset, size Uint, fpath string) *TagsetRaw {
-	return pkg.NewTagset().
+func (pkg *Package) BaseTagset(offset, size Uint, fpath string) TagsetRaw {
+	return TagsetRaw{}.
 		Put(TIDoffset, UintTag(offset)).
 		Put(TIDsize, UintTag(size)).
 		Put(TIDpath, StrTag(ToSlash(pkg.FullPath(fpath))))
@@ -553,13 +534,18 @@ func (pkg *Package) HasTagset(fkey string) bool {
 }
 
 // GetTagset returns tagset with given filename key, if it found.
-func (pkg *Package) GetTagset(fkey string) (*TagsetRaw, bool) {
+func (pkg *Package) GetTagset(fkey string) (TagsetRaw, bool) {
 	return pkg.rwm.Get(Normalize(pkg.FullPath(fkey)))
 }
 
 // SetTagset puts tagset with given filename key.
-func (pkg *Package) SetTagset(fkey string, ts *TagsetRaw) {
+func (pkg *Package) SetTagset(fkey string, ts TagsetRaw) {
 	pkg.rwm.Set(Normalize(pkg.FullPath(fkey)), ts)
+}
+
+// SetupTagset puts tagset with filename key stored at tagset.
+func (pkg *Package) SetupTagset(ts TagsetRaw) {
+	pkg.rwm.Set(ts.Path(), ts)
 }
 
 // DelTagset deletes tagset with given filename key.
@@ -568,17 +554,17 @@ func (pkg *Package) DelTagset(fkey string) {
 }
 
 // GetDelTagset deletes the tagset for a key, returning the previous tagset if any.
-func (pkg *Package) GetDelTagset(fkey string) (*TagsetRaw, bool) {
+func (pkg *Package) GetDelTagset(fkey string) (TagsetRaw, bool) {
 	return pkg.rwm.GetAndDelete(Normalize(pkg.FullPath(fkey)))
 }
 
 // Enum calls given closure for each tagset in package. Skips package info.
-func (pkg *Package) Enum(f func(string, *TagsetRaw) bool) {
+func (pkg *Package) Enum(f func(string, TagsetRaw) bool) {
 	var prefix string
 	if pkg.Workspace != "." && pkg.Workspace != "" {
 		prefix = Normalize(pkg.Workspace) + "/" // make prefix slash-terminated
 	}
-	pkg.rwm.Range(func(fkey string, ts *TagsetRaw) bool {
+	pkg.rwm.Range(func(fkey string, ts TagsetRaw) bool {
 		return fkey == InfoName ||
 			!strings.HasPrefix(fkey, prefix) ||
 			f(fkey[len(prefix):], ts)
@@ -592,7 +578,7 @@ func (pkg *Package) Sub(dir string) (sub fs.FS, err error) {
 	if dir != "." && dir != "" {
 		prefix = Normalize(dir) + "/" // make prefix slash-terminated
 	}
-	pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			sub = &Package{
 				FTT:       pkg.FTT,
@@ -626,7 +612,7 @@ func (pkg *Package) Glob(pattern string) (res []string, err error) {
 	if _, err = path.Match(pattern, ""); err != nil {
 		return
 	}
-	pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts TagsetRaw) bool {
 		if matched, _ := path.Match(pattern, fkey); matched {
 			res = append(res, fkey)
 		}
@@ -679,7 +665,7 @@ func (pkg *Package) Open(dir string) (fs.File, error) {
 
 // GetPackageInfo returns tagset with package information.
 // It's a quick function to get info from the file.
-func GetPackageInfo(r io.ReadSeeker) (ts *TagsetRaw, err error) {
+func GetPackageInfo(r io.ReadSeeker) (ts TagsetRaw, err error) {
 	var hdr Header
 	// go to file start
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
@@ -708,12 +694,11 @@ func GetPackageInfo(r io.ReadSeeker) (ts *TagsetRaw, err error) {
 		return // end marker was reached
 	}
 
-	var data = make([]byte, tsl)
-	if _, err = r.Read(data); err != nil {
+	ts = make(TagsetRaw, tsl)
+	if _, err = r.Read(ts); err != nil {
 		return
 	}
 
-	ts = &TagsetRaw{data}
 	var tsi = ts.Iterator()
 	for tsi.Next() {
 	}

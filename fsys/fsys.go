@@ -18,11 +18,11 @@ type ReaserAtCloser interface {
 type ChunkFile struct {
 	wpk.FileReader
 	wpkf io.Closer
-	tags *wpk.TagsetRaw // has fs.FileInfo interface
+	tags wpk.TagsetRaw // has fs.FileInfo interface
 }
 
 // NewChunkFile creates ChunkFile file structure based on given tags slice.
-func NewChunkFile(fpath string, ts *wpk.TagsetRaw) (f *ChunkFile, err error) {
+func NewChunkFile(fpath string, ts wpk.TagsetRaw) (f *ChunkFile, err error) {
 	var wpkf *os.File
 	if wpkf, err = os.Open(fpath); err != nil {
 		return
@@ -60,7 +60,7 @@ func MakeTagger(fpath string) (wpk.Tagger, error) {
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
-func (tgr *Tagger) OpenTagset(ts *wpk.TagsetRaw) (wpk.PkgFile, error) {
+func (tgr *Tagger) OpenTagset(ts wpk.TagsetRaw) (wpk.PkgFile, error) {
 	return NewChunkFile(tgr.dpath, ts)
 }
 

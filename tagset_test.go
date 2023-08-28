@@ -19,7 +19,7 @@ func TestTagset(t *testing.T) {
 		kpath2 = `Dir\FileName.ext`
 		mime   = "image/jpeg"
 	)
-	var ts = wpk.MakeTagset(nil).
+	var ts = wpk.TagsetRaw{}.
 		Put(wpk.TIDoffset, wpk.UintTag(offset)).
 		Put(wpk.TIDsize, wpk.UintTag(size)).
 		Put(wpk.TIDfid, wpk.UintTag(fid)).
@@ -171,7 +171,10 @@ func TestTagset(t *testing.T) {
 		},
 
 		// check up 'Set' and 'Del'
-		{func() bool { return ts.Set(wpk.TIDpath, wpk.StrTag(fkey)) },
+		{func() (ok bool) {
+			ts, ok = ts.Set(wpk.TIDpath, wpk.StrTag(fkey))
+			return ok
+		},
 			"content of 'path' tag should be replaced by 'Set'",
 		},
 		{func() bool { return ts.Num() != 4 },
@@ -180,7 +183,10 @@ func TestTagset(t *testing.T) {
 		{func() bool { return ts.Path() != wpk.ToSlash(kpath2) },
 			"'Set' function does not work correctly",
 		},
-		{func() bool { return !ts.Set(wpk.TIDmime, wpk.StrTag(mime)) },
+		{func() (ok bool) {
+			ts, ok = ts.Set(wpk.TIDmime, wpk.StrTag(mime))
+			return !ok
+		},
 			"content of 'mime' tag should be added by 'Set'",
 		},
 		{func() bool { return ts.Num() != 4+1 },
@@ -192,7 +198,10 @@ func TestTagset(t *testing.T) {
 		{func() bool { str, _ = tag.TagStr(); return str != mime },
 			"'mime' tag is not equal to original value",
 		},
-		{func() bool { return !ts.Del(wpk.TIDmime) },
+		{func() (ok bool) {
+			ts, ok = ts.Del(wpk.TIDmime)
+			return !ok
+		},
 			"'mime' tag is not deleted",
 		},
 		{func() bool { return ts.Has(wpk.TIDmime) },
@@ -201,7 +210,10 @@ func TestTagset(t *testing.T) {
 		{func() bool { return ts.Num() != 4 },
 			"number of tags after delete 'mime' must be restored",
 		},
-		{func() bool { return ts.Del(wpk.TIDmime) },
+		{func() (ok bool) {
+			ts, ok = ts.Del(wpk.TIDmime)
+			return ok
+		},
 			"'mime' tag can not be deleted again",
 		},
 		{func() bool { return ts.Num() != 4 },
@@ -215,7 +227,7 @@ func TestTagset(t *testing.T) {
 }
 
 func ExampleTagsetIterator_Next() {
-	var ts = wpk.MakeTagset(nil).
+	var ts = wpk.TagsetRaw{}.
 		Put(wpk.TIDpath, wpk.StrTag("picture.jpg")).
 		Put(wpk.TIDmtime, wpk.TimeTag(time.Now())).
 		Put(wpk.TIDmime, wpk.StrTag("image/jpeg"))
@@ -234,7 +246,7 @@ func ExampleTagsetIterator_Passed() {
 		3, 0, 4, 0, 10, 0, 0, 0,
 		4, 0, 12, 0, 115, 111, 109, 101, 102, 105, 108, 101, 46, 100, 97, 116,
 	}
-	var tsi = wpk.MakeTagset(slice).Iterator()
+	var tsi = wpk.TagsetRaw(slice).Iterator()
 	for tsi.Next() {
 		// place some handler code here
 	}

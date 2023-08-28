@@ -70,19 +70,19 @@ func checkargs() int {
 
 var num, sum int64
 
-func packdirclosure(r io.ReadSeeker, ts *wpk.TagsetRaw) (err error) {
+func packdirclosure(pkg *wpk.Package, r io.ReadSeeker, ts wpk.TagsetRaw) (err error) {
 	var size = ts.Size()
-	var fname = ts.Path()
+	var fpath = ts.Path()
 	num++
 	sum += size
 	if ShowLog {
-		log.Printf("#%-4d %7d bytes   %s", num, size, fname)
+		log.Printf("#%-4d %7d bytes   %s", num, size, fpath)
 	}
 
 	// adjust tags
 	if PutMIME {
 		const sniffLen = 512
-		var ctype = mime.TypeByExtension(path.Ext(fname))
+		var ctype = mime.TypeByExtension(path.Ext(fpath))
 		if ctype == "" {
 			// rewind to file start
 			if _, err = r.Seek(0, io.SeekStart); err != nil {
@@ -97,7 +97,7 @@ func packdirclosure(r io.ReadSeeker, ts *wpk.TagsetRaw) (err error) {
 			ctype = http.DetectContentType(buf[:n])
 		}
 		if ctype != "" {
-			ts.Put(wpk.TIDmime, wpk.StrTag(ctype))
+			pkg.SetupTagset(ts.Put(wpk.TIDmime, wpk.StrTag(ctype)))
 		}
 	}
 	return nil

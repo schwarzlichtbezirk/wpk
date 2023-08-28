@@ -35,13 +35,13 @@ func CheckPackage(t *testing.T, wptname, wpfname string) {
 	}
 	defer fwpf.Close()
 
-	if ts, ok := pkg.Info(); ok {
+	if ts, ok := pkg.GetInfo(); ok {
 		var offset, size = ts.Pos()
 		var label, _ = ts.TagStr(wpk.TIDlabel)
 		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
 	}
 	var n = 0
-	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
 		var ok bool
 		var offset, size = ts.Pos()
 		n++

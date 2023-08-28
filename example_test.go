@@ -8,7 +8,7 @@ import (
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
-func ExampleFTT_Info() {
+func ExampleFTT_GetInfo() {
 	var err error
 
 	// Open package files tags table
@@ -20,9 +20,9 @@ func ExampleFTT_Info() {
 	// How many records in package
 	var m = map[wpk.Uint]wpk.Void{}
 	var n = 0
-	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
 		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
-			m[offset] = wpk.Void{}
+			m[offset] = wpk.Void{} // count unique offsets
 		}
 		n++
 		return true
@@ -31,12 +31,15 @@ func ExampleFTT_Info() {
 	// Format package information
 	var items = []string{
 		fmt.Sprintf("files: %d", len(m)),
-		fmt.Sprintf("aliases: %d", n),
+		fmt.Sprintf("aliases: %d", n-len(m)),
 		fmt.Sprintf("datasize: %d", pkg.DataSize()),
 	}
-	if ts, ok := pkg.Info(); ok { // get package info if it present
+	if ts, ok := pkg.GetInfo(); ok { // get package info if it present
 		if str, ok := ts.TagStr(wpk.TIDlabel); ok {
 			items = append(items, fmt.Sprintf("label: %s", str))
+		}
+		if str, ok := ts.TagStr(wpk.TIDlink); ok {
+			items = append(items, fmt.Sprintf("link: %s", str))
 		}
 	}
 	log.Println(strings.Join(items, ", "))
@@ -53,7 +56,7 @@ func ExamplePackage_Enum() {
 
 	// How many records in package
 	var n = 0
-	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
 		if n < 5 { // print not more than 5 file names from package
 			log.Println(fkey)
 		}

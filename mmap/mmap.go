@@ -18,13 +18,13 @@ const pagesize = 64 * 1024
 // wpk.PkgFile interface implementation.
 type MappedFile struct {
 	wpk.FileReader
-	tags   *wpk.TagsetRaw // has fs.FileInfo interface
+	tags   wpk.TagsetRaw // has fs.FileInfo interface
 	region []byte
 	mm.MMap
 }
 
 // NewMappedFile maps nested to package file based on given tags slice.
-func NewMappedFile(fwpk *os.File, ts *wpk.TagsetRaw) (f *MappedFile, err error) {
+func NewMappedFile(fwpk *os.File, ts wpk.TagsetRaw) (f *MappedFile, err error) {
 	// calculate paged size/offset
 	var offset, size = ts.Pos()
 	var pgoff = offset % pagesize
@@ -71,7 +71,7 @@ func MakeTagger(fpath string) (wpk.Tagger, error) {
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
-func (tgr *Tagger) OpenTagset(ts *wpk.TagsetRaw) (wpk.PkgFile, error) {
+func (tgr *Tagger) OpenTagset(ts wpk.TagsetRaw) (wpk.PkgFile, error) {
 	return NewMappedFile(tgr.fwpk, ts)
 }
 

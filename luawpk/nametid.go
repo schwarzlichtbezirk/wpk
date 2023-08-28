@@ -35,8 +35,8 @@ var NameTid = map[string]wpk.Uint{
 	"sha384": wpk.TIDsha384,
 	"sha512": wpk.TIDsha512,
 
-	"tmbimg":   wpk.TIDtmbimg,
-	"tmbmime":  wpk.TIDtmbmime,
+	"tmbjpeg":  wpk.TIDtmbjpeg,
+	"tmbwebp":  wpk.TIDtmbwebp,
 	"label":    wpk.TIDlabel,
 	"link":     wpk.TIDlink,
 	"keywords": wpk.TIDkeywords,
@@ -123,7 +123,8 @@ func ValueToTag(v lua.LValue) (tag wpk.TagRaw, err error) {
 // or string names associated ID values. Lua-table values can be strings,
 // boolean or "tag" userdata values. Numbers can not be passed to table
 // to prevent ambiguous type representation.
-func TableToTagset(lt *lua.LTable, ts *wpk.TagsetRaw) (err error) {
+func TableToTagset(lt *lua.LTable, ts wpk.TagsetRaw) (wpk.TagsetRaw, error) {
+	var err error
 	lt.ForEach(func(k lua.LValue, v lua.LValue) {
 		var (
 			tid wpk.Uint
@@ -137,9 +138,9 @@ func TableToTagset(lt *lua.LTable, ts *wpk.TagsetRaw) (err error) {
 			return
 		}
 
-		ts.Put(tid, tag)
+		ts = ts.Put(tid, tag)
 	})
-	return
+	return ts, err
 }
 
 // The End.

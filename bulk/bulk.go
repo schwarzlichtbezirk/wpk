@@ -12,11 +12,11 @@ import (
 // wpk.PkgFile interface implementation.
 type SliceFile struct {
 	wpk.FileReader
-	tags *wpk.TagsetRaw // has fs.FileInfo interface
+	tags wpk.TagsetRaw // has fs.FileInfo interface
 }
 
 // NewSliceFile creates SliceFile file structure based on given tags slice.
-func NewSliceFile(bulk []byte, ts *wpk.TagsetRaw) (f *SliceFile, err error) {
+func NewSliceFile(bulk []byte, ts wpk.TagsetRaw) (f *SliceFile, err error) {
 	var offset, size = ts.Pos()
 	f = &SliceFile{
 		FileReader: bytes.NewReader(bulk[offset : offset+size]),
@@ -52,7 +52,7 @@ func MakeTagger(fpath string) (wpk.Tagger, error) {
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
-func (tgr *Tagger) OpenTagset(ts *wpk.TagsetRaw) (wpk.PkgFile, error) {
+func (tgr *Tagger) OpenTagset(ts wpk.TagsetRaw) (wpk.PkgFile, error) {
 	return NewSliceFile(tgr.bulk, ts)
 }
 

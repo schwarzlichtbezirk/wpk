@@ -148,19 +148,19 @@ func tostringPack(ls *lua.LState) int {
 
 	var m = map[wpk.Uint]wpk.Void{}
 	var n = 0
-	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
 		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
-			m[offset] = wpk.Void{}
+			m[offset] = wpk.Void{} // count unique offsets
 		}
 		n++
 		return true
 	})
 	var items = []string{
-		fmt.Sprintf("records: %d", len(m)),
-		fmt.Sprintf("aliases: %d", n),
+		fmt.Sprintf("files: %d", len(m)),
+		fmt.Sprintf("aliases: %d", n-len(m)),
 		fmt.Sprintf("datasize: %d", pkg.DataSize()),
 	}
-	if ts, ok := pkg.Info(); ok {
+	if ts, ok := pkg.GetInfo(); ok {
 		if str, ok := ts.TagStr(wpk.TIDlabel); ok {
 			items = append(items, fmt.Sprintf("label: %s", str))
 		}
@@ -241,7 +241,7 @@ var methodsPack = map[string]lua.LGFunction{
 func getlabel(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 
-	if ts, ok := pkg.Info(); ok {
+	if ts, ok := pkg.GetInfo(); ok {
 		if str, ok := ts.TagStr(wpk.TIDlabel); ok {
 			ls.Push(lua.LString(str))
 			return 1
@@ -255,7 +255,9 @@ func setlabel(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var label = ls.CheckString(2)
 
-	pkg.SetInfo().Set(wpk.TIDlabel, wpk.StrTag(label))
+	var ts, _ = pkg.GetInfo()
+	ts, _ = ts.Set(wpk.TIDlabel, wpk.StrTag(label))
+	pkg.SetInfo(ts)
 	return 0
 }
 
@@ -282,7 +284,7 @@ func getdatpath(ls *lua.LState) int {
 func getrecnum(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var m = map[wpk.Uint]wpk.Void{}
-	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
 		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
 			m[offset] = wpk.Void{}
 		}
@@ -295,7 +297,7 @@ func getrecnum(ls *lua.LState) int {
 func gettagnum(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var n int
-	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
 		n++
 		return true
 	})
@@ -306,8 +308,8 @@ func gettagnum(ls *lua.LState) int {
 func getfftsize(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var size int
-	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
-		size += len(ts.Data())
+	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
+		size += len(ts)
 		return true
 	})
 	ls.Push(lua.LNumber(size))
@@ -642,7 +644,7 @@ func wpksumsize(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 
 	var sum int64
-	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
 		var size = ts.Size()
 		sum += size
 		return true
@@ -667,7 +669,7 @@ func wpkglob(ls *lua.LState) int {
 	if _, err = path.Match(pattern, ""); err != nil {
 		return 0
 	}
-	pkg.Enum(func(fkey string, ts *wpk.TagsetRaw) bool {
+	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
 		if matched, _ = path.Match(pattern, fkey); matched {
 			ls.Push(lua.LString(fkey))
 			n++
@@ -697,7 +699,7 @@ func wpkfilesize(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 
-	var ts *wpk.TagsetRaw
+	var ts wpk.TagsetRaw
 	var ok bool
 	if ts, ok = pkg.GetTagset(fkey); !ok {
 		err = &fs.PathError{Op: "filesize", Path: fkey, Err: fs.ErrNotExist}
@@ -731,7 +733,7 @@ func wpkputdata(ls *lua.LState) int {
 	if pkg.wpf != nil {
 		w = pkg.wpf
 	}
-	var ts *wpk.TagsetRaw
+	var ts wpk.TagsetRaw
 	if ts, err = pkg.PackData(w, r, kpath); err != nil {
 		return 0
 	}
@@ -769,7 +771,7 @@ func wpkputfile(ls *lua.LState) int {
 	if pkg.wpf != nil {
 		w = pkg.wpf
 	}
-	var ts *wpk.TagsetRaw
+	var ts wpk.TagsetRaw
 	if ts, err = pkg.PackFile(w, file, kpath); err != nil {
 		return 0
 	}
@@ -879,7 +881,7 @@ func wpkhastag(ls *lua.LState) int {
 		return 0
 	}
 
-	var ts *wpk.TagsetRaw
+	var ts wpk.TagsetRaw
 	var ok bool
 	if ts, ok = pkg.GetTagset(fkey); !ok {
 		err = &fs.PathError{Op: "hastag", Path: fkey, Err: fs.ErrNotExist}
@@ -908,7 +910,7 @@ func wpkgettag(ls *lua.LState) int {
 		return 0
 	}
 
-	var ts *wpk.TagsetRaw
+	var ts wpk.TagsetRaw
 	var ok bool
 	if ts, ok = pkg.GetTagset(fkey); !ok {
 		err = &fs.PathError{Op: "gettag", Path: fkey, Err: fs.ErrNotExist}
@@ -956,7 +958,8 @@ func wpksettag(ls *lua.LState) int {
 		err = &fs.PathError{Op: "settag", Path: fkey, Err: fs.ErrNotExist}
 		return 0
 	}
-	ok = ts.Set(tid, tag)
+	ts, ok = ts.Set(tid, tag)
+	pkg.SetupTagset(ts)
 
 	ls.Push(lua.LBool(ok))
 	return 1
@@ -988,7 +991,8 @@ func wpkdeltag(ls *lua.LState) int {
 		err = &fs.PathError{Op: "deltag", Path: fkey, Err: fs.ErrNotExist}
 		return 0
 	}
-	ok = ts.Del(tid)
+	ts, ok = ts.Del(tid)
+	pkg.SetupTagset(ts)
 
 	ls.Push(lua.LBool(ok))
 	return 1
@@ -1039,8 +1043,8 @@ func wpksettags(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
-	var opts = pkg.NewTagset()
-	if err = TableToTagset(lt, opts); err != nil {
+	var opts wpk.TagsetRaw
+	if opts, err = TableToTagset(lt, opts); err != nil {
 		return 0
 	}
 
@@ -1061,8 +1065,9 @@ func wpksettags(ls *lua.LState) int {
 
 	optsi.Reset()
 	for optsi.Next() {
-		ts.Set(optsi.TID(), optsi.Tag())
+		ts, _ = ts.Set(optsi.TID(), optsi.Tag())
 	}
+	pkg.SetupTagset(ts)
 
 	return 0
 }
@@ -1080,8 +1085,8 @@ func wpkaddtags(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
-	var opts = pkg.NewTagset()
-	if err = TableToTagset(lt, opts); err != nil {
+	var opts wpk.TagsetRaw
+	if opts, err = TableToTagset(lt, opts); err != nil {
 		return 0
 	}
 
@@ -1096,10 +1101,11 @@ func wpkaddtags(ls *lua.LState) int {
 	for optsi.Next() {
 		var tid = optsi.TID()
 		if ok := ts.Has(tid); !ok {
-			ts.Put(tid, optsi.Tag())
+			ts = ts.Put(tid, optsi.Tag())
 			n++
 		}
 	}
+	pkg.SetupTagset(ts)
 
 	ls.Push(lua.LNumber(n))
 	return 1
@@ -1118,8 +1124,8 @@ func wpkdeltags(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var lt = ls.CheckTable(3)
 
-	var opts = pkg.NewTagset()
-	if err = TableToTagset(lt, opts); err != nil {
+	var opts wpk.TagsetRaw
+	if opts, err = TableToTagset(lt, opts); err != nil {
 		return 0
 	}
 
@@ -1161,7 +1167,7 @@ func wpkgetinfo(ls *lua.LState) int {
 	}()
 	var pkg = CheckPack(ls, 1)
 
-	if ts, ok := pkg.Info(); ok {
+	if ts, ok := pkg.GetInfo(); ok {
 		var tb = ls.CreateTable(0, 0)
 		var tsi = ts.Iterator()
 		for tsi.Next() {
@@ -1194,19 +1200,11 @@ func wpksetinfo(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var lt = ls.CheckTable(2)
 
-	var opts = pkg.NewTagset()
-	if err = TableToTagset(lt, opts); err != nil {
+	var opts wpk.TagsetRaw
+	if opts, err = TableToTagset(lt, opts); err != nil {
 		return 0
 	}
-	var optsi = opts.Iterator()
-	var ts = pkg.SetInfo()
-	for optsi.Next() {
-		var tid, tag = optsi.TID(), optsi.Tag()
-		if tid == wpk.TIDfid || tid == wpk.TIDpath {
-			continue
-		}
-		ts.Set(tid, tag)
-	}
+	pkg.SetInfo(opts)
 	return 0
 }
 

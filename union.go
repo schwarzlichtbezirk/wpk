@@ -14,7 +14,7 @@ type Void = struct{}
 // UnionDir is helper to get access to union directories,
 // that contains files from all packages with same dir if it present.
 type UnionDir struct {
-	*TagsetRaw
+	TagsetRaw
 	*Union
 }
 
@@ -66,7 +66,7 @@ func (u *Union) Close() (err error) {
 func (u *Union) AllKeys() (res []string) {
 	var found = map[string]Void{}
 	for _, pkg := range u.List {
-		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
+		pkg.Enum(func(fkey string, ts TagsetRaw) bool {
 			if _, ok := found[fkey]; !ok {
 				res = append(res, fkey)
 				found[fkey] = Void{}
@@ -96,7 +96,7 @@ func (u *Union) Sub(dir string) (fs.FS, error) {
 // If union have more than one file with the same name, info of the first will be returned.
 // fs.StatFS implementation.
 func (u *Union) Stat(fpath string) (fs.FileInfo, error) {
-	var ts *TagsetRaw
+	var ts TagsetRaw
 	var is bool
 	for _, pkg := range u.List {
 		if ts, is = pkg.GetTagset(fpath); is {
@@ -115,7 +115,7 @@ func (u *Union) Glob(pattern string) (res []string, err error) {
 	}
 	var found = map[string]Void{}
 	for _, pkg := range u.List {
-		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
+		pkg.Enum(func(fkey string, ts TagsetRaw) bool {
 			if _, ok := found[fkey]; !ok {
 				if matched, _ := path.Match(pattern, fkey); matched {
 					res = append(res, fkey)
@@ -161,7 +161,7 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 			prefix = Normalize(fulldir) + "/" // set terminated slash
 		}
 
-		pkg.rwm.Range(func(fkey string, ts *TagsetRaw) bool {
+		pkg.rwm.Range(func(fkey string, ts TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
 				var suffix = fkey[len(prefix):]
 				var sp = strings.IndexByte(suffix, '/')
@@ -171,7 +171,7 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 				} else { // dir detected
 					var subdir = path.Join(prefix, suffix[:sp])
 					if _, ok := found[subdir]; !ok {
-						var dts = MakeTagset(nil).
+						var dts = TagsetRaw{}.
 							Put(TIDpath, StrTag(subdir))
 						var f = &PackDirFile{
 							TagsetRaw: dts,
@@ -244,9 +244,9 @@ func (u *Union) Open(dir string) (fs.File, error) {
 	}
 	for _, pkg := range u.List {
 		var f *UnionDir
-		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
+		pkg.Enum(func(fkey string, ts TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
-				var dts = MakeTagset(nil).
+				var dts = TagsetRaw{}.
 					Put(TIDpath, StrTag(ToSlash(pkg.FullPath(dir))))
 				f = &UnionDir{
 					TagsetRaw: dts,
