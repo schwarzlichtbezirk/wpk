@@ -124,7 +124,9 @@ type CompleteFS interface {
 const (
 	PTStidsz  = 2 // "tag ID" type size.
 	PTStagsz  = 2 // "tag size" type size.
-	PTStssize = 4 // "tagset size" type size.
+	PTStssize = 2 // "tagset size" type size.
+
+	tsmaxlen = 1<<(PTStssize*8) - 1 // tagset maximum length.
 )
 
 // Header - package header.
@@ -220,10 +222,6 @@ const (
 type FTT struct {
 	rwm RWMap[string, *TagsetRaw] // keys - package filenames (case sensitive), values - tagset slices.
 
-	tidsz  byte // tag ID size
-	tagsz  byte // length of tag size
-	tssize byte // length of tagset size
-
 	datoffset uint64 // files data offset
 	datsize   uint64 // files data total size
 
@@ -233,15 +231,12 @@ type FTT struct {
 // Init performs initialization for given Package structure.
 func (ftt *FTT) Init(c int) {
 	ftt.rwm.Init(c)
-	ftt.tidsz = PTStidsz
-	ftt.tagsz = PTStagsz
-	ftt.tssize = PTStssize
 }
 
 // NewTagset creates new empty tagset based on predefined
 // TID type size and tag size type.
 func (ftt *FTT) NewTagset() *TagsetRaw {
-	return &TagsetRaw{nil, ftt.tidsz, ftt.tagsz}
+	return &TagsetRaw{nil}
 }
 
 // DataSize returns actual package data size from files tags table.
@@ -319,8 +314,8 @@ func (ftt *FTT) CheckTagset(ts *TagsetRaw) (fpath string, err error) {
 func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 	for {
 		var tsl Uint
-		tsl = ReadUintBuf(buf[n : n+int64(ftt.tssize)])
-		n += int64(ftt.tssize)
+		tsl = ReadUintBuf(buf[n : n+PTStssize])
+		n += PTStssize
 
 		if tsl == 0 {
 			break // end marker was reached
@@ -329,7 +324,7 @@ func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 		var data = buf[n : n+int64(tsl)]
 		n += int64(tsl)
 
-		var ts = &TagsetRaw{data, ftt.tidsz, ftt.tagsz}
+		var ts = &TagsetRaw{data}
 		var tsi = ts.Iterator()
 		for tsi.Next() {
 		}
@@ -352,10 +347,10 @@ func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 	for {
 		var tsl Uint
-		if tsl, err = ReadUint(r, ftt.tssize); err != nil {
+		if tsl, err = ReadUint(r, PTStssize); err != nil {
 			return
 		}
-		n += int64(ftt.tssize)
+		n += PTStssize
 
 		if tsl == 0 {
 			break // end marker was reached
@@ -367,7 +362,7 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 		n += int64(tsl)
 
-		var ts = &TagsetRaw{data, ftt.tidsz, ftt.tagsz}
+		var ts = &TagsetRaw{data}
 		var tsi = ts.Iterator()
 		for tsi.Next() {
 		}
@@ -390,17 +385,17 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 	// write tagset with package info at first
 	if ts, ok := ftt.Info(); ok {
-		if len(ts.Data()) > 1<<(PTStssize*8)-1 {
+		if len(ts.Data()) > tsmaxlen {
 			err = ErrRangeTSSize
 			return
 		}
 		var tsl = Uint(len(ts.Data()))
 
 		// write tagset length
-		if err = WriteUint(w, tsl, ftt.tssize); err != nil {
+		if err = WriteUint(w, tsl, PTStssize); err != nil {
 			return
 		}
-		n += int64(ftt.tssize)
+		n += PTStssize
 
 		// write tagset content
 		if _, err = w.Write(ts.Data()); err != nil {
@@ -415,17 +410,17 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 			return true
 		}
 
-		if len(ts.Data()) > 1<<(PTStssize*8)-1 {
+		if len(ts.Data()) > tsmaxlen {
 			err = ErrRangeTSSize
 			return false
 		}
 		var tsl = Uint(len(ts.Data()))
 
 		// write tagset length
-		if err = WriteUint(w, tsl, ftt.tssize); err != nil {
+		if err = WriteUint(w, tsl, PTStssize); err != nil {
 			return false
 		}
-		n += int64(ftt.tssize)
+		n += PTStssize
 
 		// write tagset content
 		if _, err = w.Write(ts.Data()); err != nil {
@@ -438,10 +433,10 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 	// write tags table end marker
-	if err = WriteUint(w, 0, ftt.tssize); err != nil {
+	if err = WriteUint(w, 0, PTStssize); err != nil {
 		return
 	}
-	n += int64(ftt.tssize)
+	n += PTStssize
 	return
 }
 
@@ -718,7 +713,7 @@ func GetPackageInfo(r io.ReadSeeker) (ts *TagsetRaw, err error) {
 		return
 	}
 
-	ts = &TagsetRaw{data, PTStidsz, PTStagsz}
+	ts = &TagsetRaw{data}
 	var tsi = ts.Iterator()
 	for tsi.Next() {
 	}

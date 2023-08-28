@@ -10,12 +10,6 @@ import (
 	"github.com/schwarzlichtbezirk/wpk"
 )
 
-const (
-	tidsz  = 2 // can be: 1, 2, 4
-	tagsz  = 2 // can be: 1, 2, 4
-	tssize = 2 // can be: 2, 4
-)
-
 const mediadir = "testdata/media/"
 
 var testpack = wpk.TempPath("testpack.wpk")

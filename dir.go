@@ -140,7 +140,7 @@ func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) 
 			} else { // dir detected
 				var subdir = path.Join(prefix, suffix[:sp])
 				if _, ok := found[subdir]; !ok {
-					var dts = MakeTagset(nil, 2, 2).
+					var dts = MakeTagset(nil).
 						Put(TIDpath, StrTag(subdir))
 					var f = &PackDirFile{
 						TagsetRaw: dts,
@@ -176,7 +176,7 @@ func (ftt *FTT) OpenDir(fulldir string) (fs.ReadDirFile, error) {
 	var f *PackDirFile
 	ftt.rwm.Range(func(fkey string, ts *TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
-			var dts = MakeTagset(nil, 2, 2).
+			var dts = MakeTagset(nil).
 				Put(TIDpath, StrTag(fulldir))
 			f = &PackDirFile{
 				TagsetRaw: dts,

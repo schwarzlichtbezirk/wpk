@@ -230,14 +230,12 @@ func TimeTag(val time.Time) TagRaw {
 // (at number of tags), and can continues after record end.
 // fs.FileInfo interface implementation.
 type TagsetRaw struct {
-	data  []byte
-	tidsz byte
-	tagsz byte
+	data []byte
 }
 
 // MakeTagset returns tagset with given slice.
-func MakeTagset(data []byte, tidsz, tagsz byte) *TagsetRaw {
-	return &TagsetRaw{data, tidsz, tagsz}
+func MakeTagset(data []byte) *TagsetRaw {
+	return &TagsetRaw{data}
 }
 
 // Data returns whole tagset content.
@@ -285,9 +283,9 @@ func (ts *TagsetRaw) Put(tid Uint, tag TagRaw) *TagsetRaw {
 		return ts
 	}
 
-	var buf = make([]byte, ts.tidsz+ts.tagsz)
-	WriteUintBuf(buf[:ts.tidsz], tid)
-	WriteUintBuf(buf[ts.tidsz:], Uint(len(tag)))
+	var buf = make([]byte, PTStidsz+PTStagsz)
+	WriteUintBuf(buf[:PTStidsz], tid)
+	WriteUintBuf(buf[PTStidsz:], Uint(len(tag)))
 	ts.data = append(ts.data, buf...)
 	ts.data = append(ts.data, tag...)
 	return ts
@@ -312,7 +310,7 @@ func (ts *TagsetRaw) Set(tid Uint, tag TagRaw) bool {
 	if tl == Uint(tsi.pos-tsi.tag) {
 		copy(ts.data[tsi.tag:tsi.pos], tag)
 	} else {
-		WriteUintBuf(ts.data[tsi.tag-int(ts.tagsz):tsi.tag], tl) // set tag length
+		WriteUintBuf(ts.data[tsi.tag-PTStagsz:tsi.tag], tl) // set tag length
 		var suff = ts.data[tsi.pos:]
 		ts.data = append(ts.data[:tsi.tag], tag...)
 		ts.data = append(ts.data, suff...)
@@ -332,7 +330,7 @@ func (ts *TagsetRaw) Del(tid Uint) bool {
 	if tsi.tid != tid {
 		return false // ErrNoTag
 	}
-	ts.data = append(ts.data[:tsi.tag-int(ts.tagsz)-int(ts.tidsz)], ts.data[tsi.pos:]...)
+	ts.data = append(ts.data[:tsi.tag-PTStagsz-PTStidsz], ts.data[tsi.pos:]...)
 	return true
 }
 
@@ -514,10 +512,10 @@ func (ts *TagsetRaw) HasBirthTime() bool {
 }
 
 // Iterator clones this tagset to iterate through all tags.
-func (ts *TagsetRaw) Iterator() *TagsetIterator {
-	var tsi TagsetIterator
-	tsi.TagsetRaw = *ts
-	return &tsi
+func (ts TagsetRaw) Iterator() TagsetIterator {
+	return TagsetIterator{
+		TagsetRaw: ts,
+	}
 }
 
 // TagsetIterator helps to iterate through all tags.
@@ -577,16 +575,16 @@ func (tsi *TagsetIterator) Next() (ok bool) {
 	}
 
 	// get tag identifier
-	if tsi.pos += int(tsi.tidsz); tsi.pos > tsl {
+	if tsi.pos += PTStidsz; tsi.pos > tsl {
 		return
 	}
-	var tid = ReadUintBuf(tsi.data[tsi.pos-int(tsi.tidsz) : tsi.pos])
+	var tid = ReadUintBuf(tsi.data[tsi.pos-PTStidsz : tsi.pos])
 
 	// get tag length
-	if tsi.pos += int(tsi.tagsz); tsi.pos > tsl {
+	if tsi.pos += PTStagsz; tsi.pos > tsl {
 		return
 	}
-	var len = ReadUintBuf(tsi.data[tsi.pos-int(tsi.tagsz) : tsi.pos])
+	var len = ReadUintBuf(tsi.data[tsi.pos-PTStagsz : tsi.pos])
 	// store tag content position
 	var tag = tsi.pos
 

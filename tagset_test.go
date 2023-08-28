@@ -19,7 +19,7 @@ func TestTagset(t *testing.T) {
 		kpath2 = `Dir\FileName.ext`
 		mime   = "image/jpeg"
 	)
-	var ts = wpk.MakeTagset(nil, tidsz, tagsz).
+	var ts = wpk.MakeTagset(nil).
 		Put(wpk.TIDoffset, wpk.UintTag(offset)).
 		Put(wpk.TIDsize, wpk.UintTag(size)).
 		Put(wpk.TIDfid, wpk.UintTag(fid)).
@@ -215,7 +215,7 @@ func TestTagset(t *testing.T) {
 }
 
 func ExampleTagsetIterator_Next() {
-	var ts = wpk.MakeTagset(nil, tidsz, tagsz).
+	var ts = wpk.MakeTagset(nil).
 		Put(wpk.TIDpath, wpk.StrTag("picture.jpg")).
 		Put(wpk.TIDmtime, wpk.TimeTag(time.Now())).
 		Put(wpk.TIDmime, wpk.StrTag("image/jpeg"))
@@ -234,7 +234,7 @@ func ExampleTagsetIterator_Passed() {
 		3, 0, 4, 0, 10, 0, 0, 0,
 		4, 0, 12, 0, 115, 111, 109, 101, 102, 105, 108, 101, 46, 100, 97, 116,
 	}
-	var tsi = wpk.MakeTagset(slice, tidsz, tagsz).Iterator()
+	var tsi = wpk.MakeTagset(slice).Iterator()
 	for tsi.Next() {
 		// place some handler code here
 	}

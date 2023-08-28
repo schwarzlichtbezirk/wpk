@@ -171,7 +171,7 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 				} else { // dir detected
 					var subdir = path.Join(prefix, suffix[:sp])
 					if _, ok := found[subdir]; !ok {
-						var dts = MakeTagset(nil, 2, 2).
+						var dts = MakeTagset(nil).
 							Put(TIDpath, StrTag(subdir))
 						var f = &PackDirFile{
 							TagsetRaw: dts,
@@ -246,7 +246,7 @@ func (u *Union) Open(dir string) (fs.File, error) {
 		var f *UnionDir
 		pkg.Enum(func(fkey string, ts *TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
-				var dts = MakeTagset(nil, 2, 2).
+				var dts = MakeTagset(nil).
 					Put(TIDpath, StrTag(ToSlash(pkg.FullPath(dir))))
 				f = &UnionDir{
 					TagsetRaw: dts,
