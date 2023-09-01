@@ -118,16 +118,14 @@ func ToSlash(s string) string {
 	return B2S(bc)
 }
 
-// Normalize brings file path to normalized form. Normalized path is the key to FTT map.
-var Normalize = ToSlash
-
 // ReadDirN returns fs.DirEntry array with nested into given package directory presentation.
 // It's core function for ReadDirFile and ReadDirFS structures.
 func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) {
+	fulldir = ToSlash(fulldir)
 	var found = map[string]fs.DirEntry{}
 	var prefix string
 	if fulldir != "." && fulldir != "" {
-		prefix = Normalize(fulldir) + "/" // set terminated slash
+		prefix = fulldir + "/" // set terminated slash
 	}
 
 	ftt.rwm.Range(func(fkey string, ts TagsetRaw) bool {
@@ -169,9 +167,10 @@ func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) 
 // OpenDir returns PackDirFile structure associated with group of files in package
 // pooled with common directory prefix. Usable to implement fs.FileSystem interface.
 func (ftt *FTT) OpenDir(fulldir string) (fs.ReadDirFile, error) {
+	fulldir = ToSlash(fulldir)
 	var prefix string
 	if fulldir != "." && fulldir != "" {
-		prefix = Normalize(fulldir) + "/" // set terminated slash
+		prefix = fulldir + "/" // set terminated slash
 	}
 	var f *PackDirFile
 	ftt.rwm.Range(func(fkey string, ts TagsetRaw) bool {

@@ -109,7 +109,7 @@ func (u *Union) Stat(fpath string) (fs.FileInfo, error) {
 // Glob returns the names of all files in union matching pattern or nil
 // if there is no matching file.
 func (u *Union) Glob(pattern string) (res []string, err error) {
-	pattern = Normalize(pattern)
+	pattern = ToSlash(pattern)
 	if _, err = path.Match(pattern, ""); err != nil {
 		return
 	}
@@ -152,13 +152,14 @@ func (u *Union) ReadFile(fpath string) ([]byte, error) {
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
 func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
+	dir = ToSlash(dir)
 	var found = map[string]fs.DirEntry{}
 	var ni = n
 	for _, pkg := range u.List {
 		var fulldir = pkg.FullPath(dir)
 		var prefix string
 		if fulldir != "." {
-			prefix = Normalize(fulldir) + "/" // set terminated slash
+			prefix = fulldir + "/" // set terminated slash
 		}
 
 		pkg.rwm.Range(func(fkey string, ts TagsetRaw) bool {
@@ -213,6 +214,7 @@ func (u *Union) ReadDir(dir string) ([]fs.DirEntry, error) {
 // If union have more than one file with the same name, first will be returned.
 // fs.FS implementation.
 func (u *Union) Open(dir string) (fs.File, error) {
+	dir = ToSlash(dir)
 	if len(u.List) == 0 {
 		return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrNotExist}
 	}
@@ -240,14 +242,14 @@ func (u *Union) Open(dir string) (fs.File, error) {
 	// try to get the folder
 	var prefix string
 	if dir != "." && dir != "" {
-		prefix = Normalize(dir) + "/" // set terminated slash
+		prefix = dir + "/" // set terminated slash
 	}
 	for _, pkg := range u.List {
 		var f *UnionDir
 		pkg.Enum(func(fkey string, ts TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
 				var dts = TagsetRaw{}.
-					Put(TIDpath, StrTag(ToSlash(pkg.FullPath(dir))))
+					Put(TIDpath, StrTag(pkg.FullPath(dir)))
 				f = &UnionDir{
 					TagsetRaw: dts,
 					Union:     u,

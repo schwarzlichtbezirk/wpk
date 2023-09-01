@@ -133,7 +133,7 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 	// rewrite true header
 	var hdr = Header{
 		signature: [SignSize]byte(S2B(SignReady)),
-		fttcount:  uint64(ftt.rwm.Len()),
+		fttcount:  uint64(ftt.TagsetNum()),
 		fttoffset: uint64(fftpos),
 		fttsize:   uint64(fftend - fftpos),
 		datoffset: uint64(datpos),
@@ -269,7 +269,7 @@ func (pkg *Package) Rename(oldname, newname string) error {
 		return &fs.PathError{Op: "rename", Path: newname, Err: fs.ErrExist}
 	}
 
-	ts, _ = ts.Set(TIDpath, StrTag(ToSlash(pkg.FullPath(newname))))
+	ts, _ = ts.Set(TIDpath, StrTag(pkg.FullPath(ToSlash(newname))))
 	pkg.DelTagset(oldname)
 	pkg.SetTagset(newname, ts)
 	return nil
@@ -290,7 +290,7 @@ func (pkg *Package) RenameDir(olddir, newdir string, skipexist bool) (count int,
 				err = &fs.PathError{Op: "renamedir", Path: newkey, Err: fs.ErrExist}
 				return skipexist
 			}
-			ts, _ = ts.Set(TIDpath, StrTag(ToSlash(pkg.FullPath(newkey))))
+			ts, _ = ts.Set(TIDpath, StrTag(pkg.FullPath(ToSlash(newkey))))
 			pkg.DelTagset(fkey)
 			pkg.SetTagset(newkey, ts)
 			count++
@@ -315,7 +315,7 @@ func (pkg *Package) PutAlias(oldname, newname string) error {
 	}
 
 	ts = append([]byte{}, ts...) // make a copy
-	ts, _ = ts.Set(TIDpath, StrTag(ToSlash(pkg.FullPath(newname))))
+	ts, _ = ts.Set(TIDpath, StrTag(pkg.FullPath(ToSlash(newname))))
 	pkg.SetTagset(newname, ts)
 	return nil
 }

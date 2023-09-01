@@ -238,6 +238,11 @@ func (ftt *FTT) DataSize() Uint {
 	return Uint(ftt.datsize)
 }
 
+// TagsetNum returns number of entries at files tags table.
+func (ftt *FTT) TagsetNum() int {
+	return ftt.rwm.Len()
+}
+
 // GetInfo returns package information tagset if it present.
 func (ftt *FTT) GetInfo() (TagsetRaw, bool) {
 	return ftt.rwm.Get(InfoName)
@@ -320,7 +325,7 @@ func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 			return
 		}
 
-		ftt.rwm.Set(Normalize(fpath), ts)
+		ftt.rwm.Set(ToSlash(fpath), ts)
 	}
 	return
 }
@@ -357,7 +362,7 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 			return
 		}
 
-		ftt.rwm.Set(Normalize(fpath), ts)
+		ftt.rwm.Set(ToSlash(fpath), ts)
 	}
 	return
 }
@@ -437,17 +442,17 @@ func (ftt *FTT) ReadFTT(r io.ReadSeeker) (err error) {
 	if err = hdr.IsReady(); err != nil {
 		return
 	}
-	// setup empty tags table
-	ftt.Init(0)
+	if hdr.fttcount == 0 || hdr.fttsize == 0 {
+		return
+	}
+	// setup empty tags table with reserved map size
+	ftt.Init(int(hdr.fttcount))
 	ftt.datoffset, ftt.datsize = hdr.datoffset, hdr.datsize
 	// go to file tags table start
 	if _, err = r.Seek(int64(hdr.fttoffset), io.SeekStart); err != nil {
 		return
 	}
 	// read file tags table
-	if hdr.fttsize == 0 {
-		return
-	}
 	var fttsize int64
 	if fttsize, err = ftt.ReadFrom(r); err != nil {
 		return
@@ -525,22 +530,22 @@ func (pkg *Package) BaseTagset(offset, size Uint, fpath string) TagsetRaw {
 	return TagsetRaw{}.
 		Put(TIDoffset, UintTag(offset)).
 		Put(TIDsize, UintTag(size)).
-		Put(TIDpath, StrTag(ToSlash(pkg.FullPath(fpath))))
+		Put(TIDpath, StrTag(pkg.FullPath(ToSlash(fpath))))
 }
 
 // HasTagset check up that tagset with given filename key is present.
 func (pkg *Package) HasTagset(fkey string) bool {
-	return pkg.rwm.Has(Normalize(pkg.FullPath(fkey)))
+	return pkg.rwm.Has(pkg.FullPath(ToSlash(fkey)))
 }
 
 // GetTagset returns tagset with given filename key, if it found.
 func (pkg *Package) GetTagset(fkey string) (TagsetRaw, bool) {
-	return pkg.rwm.Get(Normalize(pkg.FullPath(fkey)))
+	return pkg.rwm.Get(pkg.FullPath(ToSlash(fkey)))
 }
 
 // SetTagset puts tagset with given filename key.
 func (pkg *Package) SetTagset(fkey string, ts TagsetRaw) {
-	pkg.rwm.Set(Normalize(pkg.FullPath(fkey)), ts)
+	pkg.rwm.Set(pkg.FullPath(ToSlash(fkey)), ts)
 }
 
 // SetupTagset puts tagset with filename key stored at tagset.
@@ -550,19 +555,19 @@ func (pkg *Package) SetupTagset(ts TagsetRaw) {
 
 // DelTagset deletes tagset with given filename key.
 func (pkg *Package) DelTagset(fkey string) {
-	pkg.rwm.Delete(Normalize(pkg.FullPath(fkey)))
+	pkg.rwm.Delete(pkg.FullPath(ToSlash(fkey)))
 }
 
 // GetDelTagset deletes the tagset for a key, returning the previous tagset if any.
 func (pkg *Package) GetDelTagset(fkey string) (TagsetRaw, bool) {
-	return pkg.rwm.GetAndDelete(Normalize(pkg.FullPath(fkey)))
+	return pkg.rwm.GetAndDelete(pkg.FullPath(ToSlash(fkey)))
 }
 
 // Enum calls given closure for each tagset in package. Skips package info.
 func (pkg *Package) Enum(f func(string, TagsetRaw) bool) {
 	var prefix string
 	if pkg.Workspace != "." && pkg.Workspace != "" {
-		prefix = Normalize(pkg.Workspace) + "/" // make prefix slash-terminated
+		prefix = pkg.Workspace + "/" // make prefix path slash-terminated
 	}
 	pkg.rwm.Range(func(fkey string, ts TagsetRaw) bool {
 		return fkey == InfoName ||
@@ -576,14 +581,14 @@ func (pkg *Package) Enum(f func(string, TagsetRaw) bool) {
 func (pkg *Package) Sub(dir string) (sub fs.FS, err error) {
 	var prefix string
 	if dir != "." && dir != "" {
-		prefix = Normalize(dir) + "/" // make prefix slash-terminated
+		prefix = ToSlash(dir) + "/" // make prefix slash-terminated
 	}
 	pkg.Enum(func(fkey string, ts TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			sub = &Package{
 				FTT:       pkg.FTT,
 				Tagger:    pkg.Tagger,
-				Workspace: ToSlash(pkg.FullPath(dir)),
+				Workspace: pkg.FullPath(ToSlash(dir)),
 			}
 			return false
 		}
@@ -608,7 +613,7 @@ func (pkg *Package) Stat(fpath string) (fs.FileInfo, error) {
 // if there is no matching file.
 // fs.GlobFS interface implementation.
 func (pkg *Package) Glob(pattern string) (res []string, err error) {
-	pattern = Normalize(pattern)
+	pattern = ToSlash(pattern)
 	if _, err = path.Match(pattern, ""); err != nil {
 		return
 	}

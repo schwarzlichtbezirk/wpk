@@ -12,8 +12,8 @@ import (
 var NameTid = map[string]wpk.Uint{
 	"offset": wpk.TIDoffset,
 	"size":   wpk.TIDsize,
-	"fid":    wpk.TIDfid,
 	"path":   wpk.TIDpath,
+	"fid":    wpk.TIDfid,
 	"mtime":  wpk.TIDmtime,
 	"atime":  wpk.TIDatime,
 	"ctime":  wpk.TIDctime,
