@@ -30,10 +30,7 @@ func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 	var err error
 
 	// Open package files tags table
-	var pkg = wpk.Package{
-		FTT:       &wpk.FTT{},
-		Workspace: ".",
-	}
+	var pkg = wpk.NewPackage()
 	if err = pkg.OpenStream(fwpt); err != nil {
 		t.Fatal(err)
 	}

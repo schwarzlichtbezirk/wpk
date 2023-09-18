@@ -26,7 +26,7 @@ var (
 	PkgMode string
 )
 
-var pkg *wpk.Package
+var pkg = wpk.NewPackage()
 
 var (
 	ErrNoWay = errors.New("no way to here")
@@ -88,7 +88,7 @@ func checkargs() int {
 }
 
 func openpackage(pkgpath string) (err error) {
-	if pkg, err = wpk.OpenFile(pkgpath); err != nil {
+	if err = pkg.OpenFile(pkgpath); err != nil {
 		return
 	}
 	var fpath string

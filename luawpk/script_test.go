@@ -17,8 +17,8 @@ func CheckPackage(t *testing.T, wptname, wpfname string) {
 	var err error
 
 	// Open package files tags table
-	var pkg *wpk.Package
-	if pkg, err = wpk.OpenFile(wptname); err != nil {
+	var pkg = wpk.NewPackage()
+	if err = pkg.OpenFile(wptname); err != nil {
 		t.Fatal(err)
 	}
 

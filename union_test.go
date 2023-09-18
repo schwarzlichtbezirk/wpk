@@ -81,14 +81,15 @@ func TestUnion(t *testing.T) {
 	defer os.Remove(testpack2)
 
 	var err error
-	var pack1, pack2 *wpk.Package
-	if pack1, err = wpk.OpenFile(testpack1); err != nil {
+	var pack1 = wpk.NewPackage()
+	if err = pack1.OpenFile(testpack1); err != nil {
 		t.Fatal(err)
 	}
 	if pack1.Tagger, err = mmap.MakeTagger(testpack1); err != nil {
 		t.Fatal(err)
 	}
-	if pack2, err = wpk.OpenFile(testpack2); err != nil {
+	var pack2 = wpk.NewPackage()
+	if err = pack2.OpenFile(testpack2); err != nil {
 		t.Fatal(err)
 	}
 	if pack2.Tagger, err = bulk.MakeTagger(testpack2); err != nil {

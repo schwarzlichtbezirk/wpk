@@ -157,6 +157,7 @@ func (hdr *Header) IsReady() error {
 }
 
 // Parse fills header from given byte slice.
+// It's high performance method without extra allocations calls.
 func (hdr *Header) Parse(buf []byte) (n int64, err error) {
 	if len(buf) < HeaderSize {
 		err = io.EOF
@@ -256,14 +257,18 @@ func (ftt *FTT) Init(hdr *Header) {
 	ftt.datoffset, ftt.datsize = hdr.datoffset, hdr.datsize
 }
 
+// TagsetNum returns actual number of entries at files tags table.
+func (ftt *FTT) TagsetNum() (num int) {
+	num = ftt.rwm.Len()
+	if ftt.rwm.Has(InfoName) {
+		num--
+	}
+	return
+}
+
 // DataSize returns actual package data size from files tags table.
 func (ftt *FTT) DataSize() Uint {
 	return Uint(ftt.datsize)
-}
-
-// TagsetNum returns number of entries at files tags table.
-func (ftt *FTT) TagsetNum() int {
-	return ftt.rwm.Len()
 }
 
 // GetInfo returns package information tagset if it present.
@@ -337,6 +342,7 @@ func (ftt *FTT) CheckTagset(ts TagsetRaw) (fpath string, err error) {
 }
 
 // Parse makes table from given byte slice.
+// It's high performance method without extra allocations calls.
 func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 	for {
 		var tsl uint16
@@ -491,6 +497,20 @@ func (ftt *FTT) OpenStream(r io.ReadSeeker) (err error) {
 	return
 }
 
+// OpenFile opens package from the file with given name,
+// it calls `OpenStream` method with file stream.
+// Tagger should be set later if access to nested files is needed.
+func (ftt *FTT) OpenFile(fpath string) (err error) {
+	var r io.ReadSeekCloser
+	if r, err = os.Open(fpath); err != nil {
+		return
+	}
+	defer r.Close()
+
+	err = ftt.OpenStream(r)
+	return
+}
+
 // Package structure contains file tags table, tagger object
 // to get access to nested files, and subdirectory workspace.
 type Package struct {
@@ -508,24 +528,6 @@ func NewPackage() *Package {
 		FTT:       ftt,
 		Workspace: ".",
 	}
-}
-
-// OpenFile creates Package objects and reads package file tags table
-// from the file with given name.
-// Tagger should be set later if access to nested files is needed.
-func OpenFile(fpath string) (pkg *Package, err error) {
-	var r io.ReadSeekCloser
-	if r, err = os.Open(fpath); err != nil {
-		return
-	}
-	defer r.Close()
-
-	pkg = &Package{
-		FTT:       &FTT{},
-		Workspace: ".",
-	}
-	err = pkg.OpenStream(r)
-	return
 }
 
 // FullPath returns concatenation of workspace and relative path.

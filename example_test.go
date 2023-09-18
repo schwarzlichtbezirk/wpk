@@ -12,8 +12,8 @@ func ExampleFTT_GetInfo() {
 	var err error
 
 	// Open package files tags table
-	var pkg *wpk.Package
-	if pkg, err = wpk.OpenFile("example.wpk"); err != nil {
+	var pkg = wpk.NewPackage()
+	if err = pkg.OpenFile("example.wpk"); err != nil {
 		log.Fatal(err)
 	}
 
@@ -49,8 +49,8 @@ func ExamplePackage_Enum() {
 	var err error
 
 	// Open package files tags table
-	var pkg *wpk.Package
-	if pkg, err = wpk.OpenFile("example.wpk"); err != nil {
+	var pkg = wpk.NewPackage()
+	if err = pkg.OpenFile("example.wpk"); err != nil {
 		log.Fatal(err)
 	}
 
@@ -70,8 +70,8 @@ func ExamplePackage_Glob() {
 	var err error
 
 	// Open package files tags table
-	var pkg *wpk.Package
-	if pkg, err = wpk.OpenFile("example.wpk"); err != nil {
+	var pkg = wpk.NewPackage()
+	if err = pkg.OpenFile("example.wpk"); err != nil {
 		log.Fatal(err)
 	}
 

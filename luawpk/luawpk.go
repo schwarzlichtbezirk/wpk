@@ -3,7 +3,6 @@ package luawpk
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -496,17 +495,10 @@ func wpkload(ls *lua.LState) int {
 	}
 
 	// open package file
-	var src io.ReadSeekCloser
-	if src, err = os.Open(pkgpath); err != nil {
+	if err = pkg.OpenFile(pkgpath); err != nil {
 		return 0
 	}
-	defer src.Close()
-
 	pkg.pkgpath, pkg.datpath = pkgpath, datpath
-
-	if err = pkg.OpenStream(src); err != nil {
-		return 0
-	}
 
 	return 0
 }
