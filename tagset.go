@@ -1,12 +1,13 @@
 package wpk
 
 import (
-	"encoding/binary"
 	"io/fs"
-	"math"
 	"path"
 	"time"
 )
+
+// Uint can hold unsigned integer of any size.
+type Uint uint64
 
 // TagRaw - file description item.
 type TagRaw []byte
@@ -55,7 +56,7 @@ func ByteTag(val byte) TagRaw {
 // TagUint16 is 16-bit unsigned int tag converter.
 func (t TagRaw) TagUint16() (uint16, bool) {
 	if len(t) == 2 {
-		return uint16(binary.LittleEndian.Uint16(t)), true
+		return GetU16(t), true
 	}
 	return 0, false
 }
@@ -63,14 +64,14 @@ func (t TagRaw) TagUint16() (uint16, bool) {
 // Uint16Tag is 16-bit unsigned int tag constructor.
 func Uint16Tag(val uint16) TagRaw {
 	var buf [2]byte
-	binary.LittleEndian.PutUint16(buf[:], uint16(val))
+	SetU16(buf[:], val)
 	return buf[:]
 }
 
 // TagUint32 is 32-bit unsigned int tag converter.
 func (t TagRaw) TagUint32() (uint32, bool) {
 	if len(t) == 4 {
-		return binary.LittleEndian.Uint32(t), true
+		return GetU32(t), true
 	}
 	return 0, false
 }
@@ -78,14 +79,14 @@ func (t TagRaw) TagUint32() (uint32, bool) {
 // Uint32Tag is 32-bit unsigned int tag constructor.
 func Uint32Tag(val uint32) TagRaw {
 	var buf [4]byte
-	binary.LittleEndian.PutUint32(buf[:], val)
+	SetU32(buf[:], val)
 	return buf[:]
 }
 
 // TagUint64 is 64-bit unsigned int tag converter.
 func (t TagRaw) TagUint64() (uint64, bool) {
 	if len(t) == 8 {
-		return binary.LittleEndian.Uint64(t), true
+		return GetU64(t), true
 	}
 	return 0, false
 }
@@ -93,98 +94,75 @@ func (t TagRaw) TagUint64() (uint64, bool) {
 // Uint64Tag is 64-bit unsigned int tag constructor.
 func Uint64Tag(val uint64) TagRaw {
 	var buf [8]byte
-	binary.LittleEndian.PutUint64(buf[:], val)
+	SetU64(buf[:], val)
 	return buf[:]
 }
 
 // TagUint is unspecified size unsigned int tag converter.
-func (t TagRaw) TagUint() (ret Uint, ok bool) {
+func (t TagRaw) TagUint() (Uint, bool) {
 	switch len(t) {
 	case 8:
-		ret |= Uint(t[7]) << 56
-		ret |= Uint(t[6]) << 48
-		ret |= Uint(t[5]) << 40
-		ret |= Uint(t[4]) << 32
-		fallthrough
+		return Uint(GetU64(t)), true
 	case 4:
-		ret |= Uint(t[3]) << 24
-		ret |= Uint(t[2]) << 16
-		fallthrough
+		return Uint(GetU32(t)), true
 	case 2:
-		ret |= Uint(t[1]) << 8
-		fallthrough
+		return Uint(GetU16(t)), true
 	case 1:
-		ret |= Uint(t[0])
-		ok = true
+		return Uint(t[0]), true
 	}
-	return
+	return 0, false
 }
 
 // UintTag is unspecified size unsigned int tag constructor.
 func UintTag(val Uint) TagRaw {
-	var l int
-	var buf [8]byte
 	switch {
 	case val > 0xffffffff:
-		if l == 0 {
-			l = 8
-		}
-		buf[7] = byte(val >> 56)
-		buf[6] = byte(val >> 48)
-		buf[5] = byte(val >> 40)
-		buf[4] = byte(val >> 32)
-		fallthrough
+		var buf [8]byte
+		SetU64(buf[:], uint64(val))
+		return buf[:]
 	case val > 0xffff:
-		if l == 0 {
-			l = 4
-		}
-		buf[3] = byte(val >> 24)
-		buf[2] = byte(val >> 16)
-		fallthrough
+		var buf [4]byte
+		SetU32(buf[:], uint32(val))
+		return buf[:]
 	case val > 0xff:
-		if l == 0 {
-			l = 2
-		}
-		buf[1] = byte(val >> 8)
-		fallthrough
+		var buf [2]byte
+		SetU16(buf[:], uint16(val))
+		return buf[:]
 	default:
-		if l == 0 {
-			l = 1
-		}
+		var buf [1]byte
 		buf[0] = byte(val)
+		return buf[:]
 	}
-	return buf[:l]
 }
 
 // UintLenTag is unsigned int tag constructor with specified length in bytes.
-func UintLenTag(val Uint, l byte) TagRaw {
-	var buf [8]byte
+func UintLenTag(val Uint, l int) TagRaw {
 	switch l {
 	case 8:
-		buf[7] = byte(val >> 56)
-		buf[6] = byte(val >> 48)
-		buf[5] = byte(val >> 40)
-		buf[4] = byte(val >> 32)
-		fallthrough
+		var buf [8]byte
+		SetU64(buf[:], uint64(val))
+		return buf[:]
 	case 4:
-		buf[3] = byte(val >> 24)
-		buf[2] = byte(val >> 16)
-		fallthrough
+		var buf [4]byte
+		SetU32(buf[:], uint32(val))
+		return buf[:]
 	case 2:
-		buf[1] = byte(val >> 8)
-		fallthrough
+		var buf [2]byte
+		SetU16(buf[:], uint16(val))
+		return buf[:]
 	case 1:
+		var buf [1]byte
 		buf[0] = byte(val)
+		return buf[:]
 	default:
-		panic("undefined condition")
+		panic("unacceptable integer length")
 	}
-	return buf[:l]
 }
 
 // TagNumber is 64-bit float tag converter.
 func (t TagRaw) TagNumber() (float64, bool) {
 	if len(t) == 8 {
-		return math.Float64frombits(binary.LittleEndian.Uint64(t)), true
+		return GetF64(t), true
 	}
 	return 0, false
 }
@@ -192,7 +170,7 @@ func (t TagRaw) TagNumber() (float64, bool) {
 // NumberTag is 64-bit float tag constructor.
 func NumberTag(val float64) TagRaw {
 	var buf [8]byte
-	binary.LittleEndian.PutUint64(buf[:], math.Float64bits(val))
+	SetF64(buf[:], val)
 	return buf[:]
 }
 
@@ -200,11 +178,11 @@ func NumberTag(val float64) TagRaw {
 func (t TagRaw) TagTime() (time.Time, bool) {
 	switch len(t) {
 	case 8:
-		var milli = int64(binary.LittleEndian.Uint64(t))
+		var milli = int64(GetU64(t))
 		return time.Unix(milli/1000, (milli%1000)*1000000), true
 	case 12:
-		var sec = int64(binary.LittleEndian.Uint64(t[:8]))
-		var nsec = int64(binary.LittleEndian.Uint32(t[8:]))
+		var sec = int64(GetU64(t[:8]))
+		var nsec = int64(GetU32(t[8:]))
 		return time.Unix(sec, nsec), true
 	}
 	return time.Time{}, false
@@ -213,15 +191,15 @@ func (t TagRaw) TagTime() (time.Time, bool) {
 // UnixTag is 8-bytes UNIX time in milliseconds tag constructor.
 func UnixTag(val time.Time) TagRaw {
 	var buf [8]byte
-	binary.LittleEndian.PutUint64(buf[:], uint64(val.UnixMilli()))
+	SetU64(buf[:], uint64(val.UnixMilli()))
 	return buf[:]
 }
 
 // TimeTag is 12-bytes UNIX time tag constructor.
 func TimeTag(val time.Time) TagRaw {
 	var buf [12]byte
-	binary.LittleEndian.PutUint64(buf[:8], uint64(val.Unix()))
-	binary.LittleEndian.PutUint32(buf[8:], uint32(val.Nanosecond()))
+	SetU64(buf[:8], uint64(val.Unix()))
+	SetU32(buf[8:], uint32(val.Nanosecond()))
 	return buf[:]
 }
 
@@ -239,7 +217,7 @@ func (ts TagsetRaw) Num() (n int) {
 }
 
 // Has checks existence of tag with given ID.
-func (ts TagsetRaw) Has(tid Uint) bool {
+func (ts TagsetRaw) Has(tid TID) bool {
 	var tsi = ts.Iterator()
 	for tsi.Next() && tsi.tid != tid {
 	}
@@ -249,7 +227,7 @@ func (ts TagsetRaw) Has(tid Uint) bool {
 // GetTag returns TagRaw with given identifier.
 // If tag is not found, slice content is broken,
 // returns false.
-func (ts TagsetRaw) Get(tid Uint) (TagRaw, bool) {
+func (ts TagsetRaw) Get(tid TID) (TagRaw, bool) {
 	var tsi = ts.Iterator()
 	for tsi.Next() && tsi.tid != tid {
 	}
@@ -262,28 +240,22 @@ func (ts TagsetRaw) Get(tid Uint) (TagRaw, bool) {
 	return TagRaw(tsi.TagsetRaw[tsi.tag:tsi.pos]), true
 }
 
+const taghdrsz = PTStidsz + PTStagsz
+
 // Put appends new tag to tagset.
 // Can be used in chain calls at initialization.
-func (ts TagsetRaw) Put(tid Uint, tag TagRaw) TagsetRaw {
-	if tid == TIDnone { // special case
-		return ts
-	}
-
-	var buf = make([]byte, PTStidsz+PTStagsz)
-	WriteUintBuf(buf[:PTStidsz], tid)
-	WriteUintBuf(buf[PTStidsz:], Uint(len(tag)))
+func (ts TagsetRaw) Put(tid TID, tag TagRaw) TagsetRaw {
+	var buf = make([]byte, taghdrsz+len(tag))
+	SetU16(buf, tid)
+	SetU16(buf[PTStidsz:], uint16(len(tag)))
+	copy(buf[taghdrsz:], tag)
 	ts = append(ts, buf...)
-	ts = append(ts, tag...)
 	return ts
 }
 
 // Set replaces tag with given ID and equal size, or
 // appends it to tagset. Returns true if new one added.
-func (ts TagsetRaw) Set(tid Uint, tag TagRaw) (TagsetRaw, bool) {
-	if tid == TIDnone { // special case
-		return ts, false
-	}
-
+func (ts TagsetRaw) Set(tid TID, tag TagRaw) (TagsetRaw, bool) {
 	var tsi = ts.Iterator()
 	for tsi.Next() && tsi.tid != tid {
 	}
@@ -291,11 +263,11 @@ func (ts TagsetRaw) Set(tid Uint, tag TagRaw) (TagsetRaw, bool) {
 		return ts.Put(tid, tag), true
 	}
 
-	var tl = Uint(len(tag))
-	if tl == Uint(tsi.pos-tsi.tag) {
+	var tl = uint16(len(tag))
+	if tl == uint16(tsi.pos-tsi.tag) {
 		copy(ts[tsi.tag:tsi.pos], tag)
 	} else {
-		WriteUintBuf(ts[tsi.tag-PTStagsz:tsi.tag], tl) // set tag length
+		SetU16(ts[tsi.tag-PTStagsz:tsi.tag], tl) // set tag length
 		var suff = ts[tsi.pos:]
 		ts = append(ts[:tsi.tag], tag...)
 		ts = append(ts, suff...)
@@ -304,11 +276,7 @@ func (ts TagsetRaw) Set(tid Uint, tag TagRaw) (TagsetRaw, bool) {
 }
 
 // Del deletes tag with given ID.
-func (ts TagsetRaw) Del(tid Uint) (TagsetRaw, bool) {
-	if tid == TIDnone { // special case
-		return ts, false
-	}
-
+func (ts TagsetRaw) Del(tid TID) (TagsetRaw, bool) {
 	var tsi = ts.Iterator()
 	for tsi.Next() && tsi.tid != tid {
 	}
@@ -320,7 +288,7 @@ func (ts TagsetRaw) Del(tid Uint) (TagsetRaw, bool) {
 }
 
 // TagStr tag getter.
-func (ts TagsetRaw) TagStr(tid Uint) (string, bool) {
+func (ts TagsetRaw) TagStr(tid TID) (string, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagStr()
 	}
@@ -328,7 +296,7 @@ func (ts TagsetRaw) TagStr(tid Uint) (string, bool) {
 }
 
 // TagBool is boolean tag getter.
-func (ts TagsetRaw) TagBool(tid Uint) (bool, bool) {
+func (ts TagsetRaw) TagBool(tid TID) (bool, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagBool()
 	}
@@ -336,7 +304,7 @@ func (ts TagsetRaw) TagBool(tid Uint) (bool, bool) {
 }
 
 // TagByte tag getter.
-func (ts TagsetRaw) TagByte(tid Uint) (byte, bool) {
+func (ts TagsetRaw) TagByte(tid TID) (byte, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagByte()
 	}
@@ -345,7 +313,7 @@ func (ts TagsetRaw) TagByte(tid Uint) (byte, bool) {
 
 // TagUint16 is 16-bit unsigned int tag getter.
 // Conversion can be used to get signed 16-bit integers.
-func (ts TagsetRaw) TagUint16(tid Uint) (uint16, bool) {
+func (ts TagsetRaw) TagUint16(tid TID) (uint16, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagUint16()
 	}
@@ -354,7 +322,7 @@ func (ts TagsetRaw) TagUint16(tid Uint) (uint16, bool) {
 
 // TagUint32 is 32-bit unsigned int tag getter.
 // Conversion can be used to get signed 32-bit integers.
-func (ts TagsetRaw) TagUint32(tid Uint) (uint32, bool) {
+func (ts TagsetRaw) TagUint32(tid TID) (uint32, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagUint32()
 	}
@@ -363,7 +331,7 @@ func (ts TagsetRaw) TagUint32(tid Uint) (uint32, bool) {
 
 // TagUint64 is 64-bit unsigned int tag getter.
 // Conversion can be used to get signed 64-bit integers.
-func (ts TagsetRaw) TagUint64(tid Uint) (uint64, bool) {
+func (ts TagsetRaw) TagUint64(tid TID) (uint64, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagUint64()
 	}
@@ -371,7 +339,7 @@ func (ts TagsetRaw) TagUint64(tid Uint) (uint64, bool) {
 }
 
 // TagUint is unspecified size unsigned int tag getter.
-func (ts TagsetRaw) TagUint(tid Uint) (Uint, bool) {
+func (ts TagsetRaw) TagUint(tid TID) (Uint, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagUint()
 	}
@@ -379,7 +347,7 @@ func (ts TagsetRaw) TagUint(tid Uint) (Uint, bool) {
 }
 
 // TagNumber is 64-bit float tag getter.
-func (ts TagsetRaw) TagNumber(tid Uint) (float64, bool) {
+func (ts TagsetRaw) TagNumber(tid TID) (float64, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagNumber()
 	}
@@ -387,7 +355,7 @@ func (ts TagsetRaw) TagNumber(tid Uint) (float64, bool) {
 }
 
 // TagTime is time tag getter.
-func (ts TagsetRaw) TagTime(tid Uint) (time.Time, bool) {
+func (ts TagsetRaw) TagTime(tid TID) (time.Time, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagTime()
 	}
@@ -397,8 +365,17 @@ func (ts TagsetRaw) TagTime(tid Uint) (time.Time, bool) {
 // Pos returns file offset and file size in package.
 // Those values required to be present in any tagset.
 func (ts TagsetRaw) Pos() (offset, size Uint) {
-	offset, _ = ts.TagUint(TIDoffset)
-	size, _ = ts.TagUint(TIDsize)
+	var tsi, n = ts.Iterator(), 2
+	for tsi.Next() && n > 0 {
+		switch tsi.tid {
+		case TIDoffset:
+			offset, _ = TagRaw(tsi.TagsetRaw[tsi.tag:tsi.pos]).TagUint()
+			n--
+		case TIDsize:
+			size, _ = TagRaw(tsi.TagsetRaw[tsi.tag:tsi.pos]).TagUint()
+			n--
+		}
+	}
 	return
 }
 
@@ -506,9 +483,9 @@ func (ts TagsetRaw) Iterator() TagsetIterator {
 // TagsetIterator helps to iterate through all tags.
 type TagsetIterator struct {
 	TagsetRaw
-	tid Uint // tag ID of last readed tag
-	pos int  // current position in the slice
-	tag int  // start position of last readed tag content
+	tid TID // tag ID of last readed tag
+	pos int // current position in the slice
+	tag int // start position of last readed tag content
 }
 
 // Reset restarts iterator for new iterations loop.
@@ -519,7 +496,7 @@ func (tsi *TagsetIterator) Reset() {
 }
 
 // TID returns the tag ID of the last readed tag.
-func (tsi *TagsetIterator) TID() Uint {
+func (tsi *TagsetIterator) TID() TID {
 	return tsi.tid
 }
 
@@ -563,13 +540,13 @@ func (tsi *TagsetIterator) Next() (ok bool) {
 	if tsi.pos += PTStidsz; tsi.pos > tsl {
 		return
 	}
-	var tid = ReadUintBuf(tsi.TagsetRaw[tsi.pos-PTStidsz : tsi.pos])
+	var tid = GetU16(tsi.TagsetRaw[tsi.pos-PTStidsz : tsi.pos])
 
 	// get tag length
 	if tsi.pos += PTStagsz; tsi.pos > tsl {
 		return
 	}
-	var len = ReadUintBuf(tsi.TagsetRaw[tsi.pos-PTStagsz : tsi.pos])
+	var len = GetU16(tsi.TagsetRaw[tsi.pos-PTStagsz : tsi.pos])
 	// store tag content position
 	var tag = tsi.pos
 

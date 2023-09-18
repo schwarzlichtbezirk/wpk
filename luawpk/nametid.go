@@ -8,8 +8,8 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-// NameTid helps convert Lua-table string keys to associated Uint values.
-var NameTid = map[string]wpk.Uint{
+// NameTid helps convert Lua-table string keys to associated TID values.
+var NameTid = map[string]wpk.TID{
 	"offset": wpk.TIDoffset,
 	"size":   wpk.TIDsize,
 	"path":   wpk.TIDpath,
@@ -46,9 +46,9 @@ var NameTid = map[string]wpk.Uint{
 	"comment":  wpk.TIDcomment,
 }
 
-// TidName helps format Lua-tables with string keys associated to Uint values.
-var TidName = func() map[wpk.Uint]string {
-	var tn = map[wpk.Uint]string{}
+// TidName helps format Lua-tables with string keys associated to TID values.
+var TidName = func() map[wpk.TID]string {
+	var tn = map[wpk.TID]string{}
 	for name, tid := range NameTid {
 		tn[tid] = name
 	}
@@ -73,9 +73,9 @@ var (
 // ValueToTID converts LValue to uint16 tag identifier.
 // Numbers converts explicitly, strings converts to uint16
 // values which they presents. Error returns on any other case.
-func ValueToTID(k lua.LValue) (tid wpk.Uint, err error) {
+func ValueToTID(k lua.LValue) (tid wpk.TID, err error) {
 	if n, ok := k.(lua.LNumber); ok {
-		tid = wpk.Uint(n)
+		tid = wpk.TID(n)
 	} else if name, ok := k.(lua.LString); ok {
 		if n, ok := NameTid[string(name)]; ok {
 			tid = n
@@ -127,7 +127,7 @@ func TableToTagset(lt *lua.LTable, ts wpk.TagsetRaw) (wpk.TagsetRaw, error) {
 	var err error
 	lt.ForEach(func(k lua.LValue, v lua.LValue) {
 		var (
-			tid wpk.Uint
+			tid wpk.TID
 			tag wpk.TagRaw
 		)
 

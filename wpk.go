@@ -58,11 +58,13 @@ const (
 	TIDcomment  = 116 // string
 )
 
+type TID = uint16
+
 // ErrTag is error on some field of tags set.
 type ErrTag struct {
 	What error  // error message
 	Key  string // normalized file name
-	TID  Uint   // tag ID
+	TID  TID    // tag ID
 }
 
 func (e *ErrTag) Error() string {
@@ -84,8 +86,8 @@ var (
 	ErrNoTag    = errors.New("tag with given ID not found")
 	ErrNoPath   = errors.New("file name is absent")
 	ErrNoOffset = errors.New("file offset is absent")
-	ErrOutOff   = errors.New("file offset is out of bounds")
 	ErrNoSize   = errors.New("file size is absent")
+	ErrOutOff   = errors.New("file offset is out of bounds")
 	ErrOutSize  = errors.New("file size is out of bounds")
 
 	ErrOtherSubdir = errors.New("directory refers to other workspace")
@@ -262,11 +264,28 @@ func (ftt *FTT) IsSplitted() bool {
 // CheckTagset tests path & offset & size tags existence
 // and checks that size & offset is are in the bounds.
 func (ftt *FTT) CheckTagset(ts TagsetRaw) (fpath string, err error) {
-	var ok bool
 	var offset, size Uint
+	var ispath, isoffset, issize bool
 
-	// get file key
-	if fpath, ok = ts.TagStr(TIDpath); !ok {
+	// find expected tags
+	var tsi = ts.Iterator()
+	for tsi.Next() {
+		switch tsi.tid {
+		case TIDoffset:
+			offset, isoffset = TagRaw(tsi.TagsetRaw[tsi.tag:tsi.pos]).TagUint()
+		case TIDsize:
+			size, issize = TagRaw(tsi.TagsetRaw[tsi.tag:tsi.pos]).TagUint()
+		case TIDpath:
+			fpath, ispath = TagRaw(tsi.TagsetRaw[tsi.tag:tsi.pos]).TagStr()
+		}
+	}
+	if tsi.Failed() {
+		err = io.ErrUnexpectedEOF
+		return
+	}
+
+	// check tags existence
+	if !ispath {
 		err = &ErrTag{ErrNoPath, "", TIDpath}
 		return
 	}
@@ -274,13 +293,11 @@ func (ftt *FTT) CheckTagset(ts TagsetRaw) (fpath string, err error) {
 		err = &ErrTag{fs.ErrExist, fpath, TIDpath}
 		return
 	}
-
-	// check system tags
-	if offset, ok = ts.TagUint(TIDoffset); !ok && fpath != InfoName {
+	if !isoffset && fpath != InfoName {
 		err = &ErrTag{ErrNoOffset, fpath, TIDoffset}
 		return
 	}
-	if size, ok = ts.TagUint(TIDsize); !ok && fpath != InfoName {
+	if !issize && fpath != InfoName {
 		err = &ErrTag{ErrNoSize, fpath, TIDsize}
 		return
 	}
@@ -301,8 +318,8 @@ func (ftt *FTT) CheckTagset(ts TagsetRaw) (fpath string, err error) {
 // Parse makes table from given byte slice.
 func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 	for {
-		var tsl Uint
-		tsl = ReadUintBuf(buf[n : n+PTStssize])
+		var tsl uint16
+		tsl = GetU16(buf[n : n+PTStssize])
 		n += PTStssize
 
 		if tsl == 0 {
@@ -311,14 +328,6 @@ func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 
 		var ts = TagsetRaw(buf[n : n+int64(tsl)])
 		n += int64(tsl)
-
-		var tsi = ts.Iterator()
-		for tsi.Next() {
-		}
-		if tsi.Failed() {
-			err = io.ErrUnexpectedEOF
-			return
-		}
 
 		var fpath string
 		if fpath, err = ftt.CheckTagset(ts); err != nil {
@@ -333,8 +342,8 @@ func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 // ReadFrom reads file tags table whole content from the given stream.
 func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 	for {
-		var tsl Uint
-		if tsl, err = ReadUint(r, PTStssize); err != nil {
+		var tsl uint16
+		if tsl, err = ReadU16(r); err != nil {
 			return
 		}
 		n += PTStssize
@@ -348,14 +357,6 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 			return
 		}
 		n += int64(tsl)
-
-		var tsi = ts.Iterator()
-		for tsi.Next() {
-		}
-		if tsi.Failed() {
-			err = io.ErrUnexpectedEOF
-			return
-		}
 
 		var fpath string
 		if fpath, err = ftt.CheckTagset(ts); err != nil {
@@ -371,14 +372,14 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 	// write tagset with package info at first
 	if ts, ok := ftt.GetInfo(); ok {
-		var tsl = Uint(len(ts))
+		var tsl = len(ts)
 		if tsl > tsmaxlen {
 			err = ErrRangeTSSize
 			return
 		}
 
 		// write tagset length
-		if err = WriteUint(w, tsl, PTStssize); err != nil {
+		if err = WriteU16(w, uint16(tsl)); err != nil {
 			return
 		}
 		n += PTStssize
@@ -396,14 +397,14 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 			return true
 		}
 
-		var tsl = Uint(len(ts))
+		var tsl = len(ts)
 		if tsl > tsmaxlen {
 			err = ErrRangeTSSize
 			return false
 		}
 
 		// write tagset length
-		if err = WriteUint(w, tsl, PTStssize); err != nil {
+		if err = WriteU16(w, uint16(tsl)); err != nil {
 			return false
 		}
 		n += PTStssize
@@ -419,7 +420,7 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 	// write tags table end marker
-	if err = WriteUint(w, 0, PTStssize); err != nil {
+	if err = WriteU16(w, 0); err != nil {
 		return
 	}
 	n += PTStssize
@@ -691,8 +692,8 @@ func GetPackageInfo(r io.ReadSeeker) (ts TagsetRaw, err error) {
 
 	// read first tagset that can be package info,
 	// or some file tagset if info is absent
-	var tsl Uint
-	if tsl, err = ReadUint(r, PTStssize); err != nil {
+	var tsl uint16
+	if tsl, err = ReadU16(r); err != nil {
 		return
 	}
 	if tsl == 0 {

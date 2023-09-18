@@ -16,7 +16,7 @@ import (
 // ErrProtected is "protected tag" error.
 type ErrProtected struct {
 	key string
-	tid wpk.Uint
+	tid wpk.TID
 }
 
 func (e *ErrProtected) Error() string {
@@ -876,7 +876,7 @@ func wpkhastag(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
-	var tid wpk.Uint
+	var tid wpk.TID
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
@@ -905,7 +905,7 @@ func wpkgettag(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
-	var tid wpk.Uint
+	var tid wpk.TID
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
@@ -939,7 +939,7 @@ func wpksettag(ls *lua.LState) int {
 	var k = ls.Get(3)
 	var v = ls.Get(4)
 
-	var tid wpk.Uint
+	var tid wpk.TID
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
@@ -977,7 +977,7 @@ func wpkdeltag(ls *lua.LState) int {
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 
-	var tid wpk.Uint
+	var tid wpk.TID
 	if tid, err = ValueToTID(k); err != nil {
 		return 0
 	}
