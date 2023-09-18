@@ -1,6 +1,7 @@
 package wpk
 
 import (
+	"errors"
 	"io/fs"
 	"path"
 	"time"
@@ -8,6 +9,11 @@ import (
 
 // Uint can hold unsigned integer of any size.
 type Uint uint64
+
+var (
+	ErrBadIntLen = errors.New("unacceptable integer length")
+	ErrTsiConst  = errors.New("content changes are disabled for iterator")
+)
 
 // TagRaw - file description item.
 type TagRaw []byte
@@ -155,7 +161,7 @@ func UintLenTag(val Uint, l int) TagRaw {
 		buf[0] = byte(val)
 		return buf[:]
 	default:
-		panic("unacceptable integer length")
+		panic(ErrBadIntLen)
 	}
 }
 
@@ -560,21 +566,19 @@ func (tsi *TagsetIterator) Next() (ok bool) {
 	return
 }
 
-const tsiconst = "content changes are disabled for iterator"
-
 // Put is the stub to disable any changes to data content of iterator.
 func (tsi *TagsetIterator) Put(tid Uint, tag TagRaw) TagsetRaw {
-	panic(tsiconst)
+	panic(ErrTsiConst)
 }
 
 // Set is the stub to disable any changes to data content of iterator.
 func (tsi *TagsetIterator) Set(tid Uint, tag TagRaw) (TagsetRaw, bool) {
-	panic(tsiconst)
+	panic(ErrTsiConst)
 }
 
 // Del is the stub to disable any changes to data content of iterator.
 func (tsi *TagsetIterator) Del(tid Uint) (TagsetRaw, bool) {
-	panic(tsiconst)
+	panic(ErrTsiConst)
 }
 
 // The End.

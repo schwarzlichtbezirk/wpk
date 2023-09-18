@@ -84,7 +84,7 @@ func PushPack(ls *lua.LState, v *LuaPackage) {
 func NewPack(ls *lua.LState) int {
 	var pkg LuaPackage
 	var ftt = &wpk.FTT{}
-	ftt.Init(0)
+	ftt.Init(&wpk.Header{})
 	pkg.FTT = ftt
 	pkg.Workspace = "."
 	PushPack(ls, &pkg)
@@ -504,7 +504,7 @@ func wpkload(ls *lua.LState) int {
 
 	pkg.pkgpath, pkg.datpath = pkgpath, datpath
 
-	if err = pkg.ReadFTT(src); err != nil {
+	if err = pkg.OpenStream(src); err != nil {
 		return 0
 	}
 

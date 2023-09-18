@@ -34,7 +34,7 @@ func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 		FTT:       &wpk.FTT{},
 		Workspace: ".",
 	}
-	if err = pkg.ReadFTT(fwpt); err != nil {
+	if err = pkg.OpenStream(fwpt); err != nil {
 		t.Fatal(err)
 	}
 
@@ -234,7 +234,7 @@ func TestBrokenDB(t *testing.T) {
 	}
 
 	// try to read files tags table in empty package
-	if err = pkg.ReadFTT(fwpt); err != nil {
+	if err = pkg.OpenStream(fwpt); err != nil {
 		t.Fatal(err)
 	}
 
@@ -255,7 +255,7 @@ func TestBrokenDB(t *testing.T) {
 	}
 
 	// try to read files tags table with some data
-	if err = pkg.ReadFTT(fwpt); err != nil {
+	if err = pkg.OpenStream(fwpt); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -566,7 +566,7 @@ func TestAppendDiscrete(t *testing.T) {
 		// pkg value already contains data from previous step
 		// and this call can be skipped,
 		// but we want to test here read functionality
-		if err = pkg.ReadFTT(fwpk); err != nil {
+		if err = pkg.OpenStream(fwpk); err != nil {
 			t.Fatal(err)
 		}
 

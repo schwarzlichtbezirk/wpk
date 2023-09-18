@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"io"
 	"log"
@@ -26,6 +27,10 @@ var (
 )
 
 var pkg *wpk.Package
+
+var (
+	ErrNoWay = errors.New("no way to here")
+)
 
 func parseargs() {
 	flag.StringVar(&srcfile, "src", "", "package full file name, or list of files divided by ';'")
@@ -83,7 +88,7 @@ func checkargs() int {
 }
 
 func openpackage(pkgpath string) (err error) {
-	if pkg, err = wpk.OpenPackage(pkgpath); err != nil {
+	if pkg, err = wpk.OpenFile(pkgpath); err != nil {
 		return
 	}
 	var fpath string
@@ -106,7 +111,7 @@ func openpackage(pkgpath string) (err error) {
 			return
 		}
 	default:
-		panic("no way to here")
+		panic(ErrNoWay)
 	}
 	return
 }

@@ -1,7 +1,6 @@
 package wpk
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -157,58 +156,79 @@ func (hdr *Header) IsReady() error {
 	return nil
 }
 
-// ReadFrom reads header from stream as binary data of constant length in little endian order.
+// Parse fills header from given byte slice.
+func (hdr *Header) Parse(buf []byte) (n int64, err error) {
+	if len(buf) < HeaderSize {
+		err = io.EOF
+		return
+	}
+	copy(hdr.signature[:], buf)
+	n += SignSize
+	hdr.fttcount = GetU64(buf[n:])
+	n += 8
+	hdr.fttoffset = GetU64(buf[n:])
+	n += 8
+	hdr.fttsize = GetU64(buf[n:])
+	n += 8
+	hdr.datoffset = GetU64(buf[n:])
+	n += 8
+	hdr.datsize = GetU64(buf[n:])
+	n += 8
+	return
+}
+
+// ReadFrom reads header from stream as binary data of constant length.
 func (hdr *Header) ReadFrom(r io.Reader) (n int64, err error) {
-	if err = binary.Read(r, binary.LittleEndian, hdr.signature[:]); err != nil {
+	if _, err = r.Read(hdr.signature[:]); err != nil {
 		return
 	}
 	n += SignSize
-	if err = binary.Read(r, binary.LittleEndian, &hdr.fttcount); err != nil {
+	if hdr.fttcount, err = ReadU64(r); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Read(r, binary.LittleEndian, &hdr.fttoffset); err != nil {
+	if hdr.fttoffset, err = ReadU64(r); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Read(r, binary.LittleEndian, &hdr.fttsize); err != nil {
+	if hdr.fttsize, err = ReadU64(r); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Read(r, binary.LittleEndian, &hdr.datoffset); err != nil {
+	if hdr.datoffset, err = ReadU64(r); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Read(r, binary.LittleEndian, &hdr.datsize); err != nil {
+	if hdr.datsize, err = ReadU64(r); err != nil {
 		return
 	}
 	n += 8
 	return
 }
 
-// WriteTo writes header to stream as binary data of constant length in little endian order.
+// WriteTo writes header to stream as binary data of constant length.
 func (hdr *Header) WriteTo(w io.Writer) (n int64, err error) {
-	if err = binary.Write(w, binary.LittleEndian, hdr.signature[:]); err != nil {
+	if _, err = w.Write(hdr.signature[:]); err != nil {
 		return
 	}
 	n += SignSize
-	if err = binary.Write(w, binary.LittleEndian, &hdr.fttcount); err != nil {
+	if err = WriteU64(w, hdr.fttcount); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Write(w, binary.LittleEndian, &hdr.fttoffset); err != nil {
+	if err = WriteU64(w, hdr.fttoffset); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Write(w, binary.LittleEndian, &hdr.fttsize); err != nil {
+	if err = WriteU64(w, hdr.fttsize); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Write(w, binary.LittleEndian, &hdr.datoffset); err != nil {
+	if err = WriteU64(w, hdr.datoffset); err != nil {
 		return
 	}
 	n += 8
-	if err = binary.Write(w, binary.LittleEndian, &hdr.datsize); err != nil {
+	if err = WriteU64(w, hdr.datsize); err != nil {
 		return
 	}
 	n += 8
@@ -231,8 +251,9 @@ type FTT struct {
 }
 
 // Init performs initialization for given Package structure.
-func (ftt *FTT) Init(c int) {
-	ftt.rwm.Init(c)
+func (ftt *FTT) Init(hdr *Header) {
+	ftt.rwm.Init(int(hdr.fttcount))
+	ftt.datoffset, ftt.datsize = hdr.datoffset, hdr.datsize
 }
 
 // DataSize returns actual package data size from files tags table.
@@ -427,19 +448,21 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-// ReadFTT opens package for reading. At first it checkups file signature,
-// then reads records table, and reads file tagset table. Tags set for each
-// file must contain at least file offset, file size, file ID and file name.
-func (ftt *FTT) ReadFTT(r io.ReadSeeker) (err error) {
+// OpenStream opens package. At first it checkups file signature, then reads
+// records table, and reads file tagset table. Tags set for each file
+// should contain at least file offset, file size, file ID and file name.
+func (ftt *FTT) OpenStream(r io.ReadSeeker) (err error) {
 	// go to file start
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
 		return
 	}
 	// read header
 	var hdr Header
-	if _, err = hdr.ReadFrom(r); err != nil {
+	var hdrbuf [HeaderSize]byte
+	if _, err = r.Read(hdrbuf[:]); err != nil {
 		return
 	}
+	hdr.Parse(hdrbuf[:])
 	if err = hdr.IsReady(); err != nil {
 		return
 	}
@@ -447,15 +470,18 @@ func (ftt *FTT) ReadFTT(r io.ReadSeeker) (err error) {
 		return
 	}
 	// setup empty tags table with reserved map size
-	ftt.Init(int(hdr.fttcount))
-	ftt.datoffset, ftt.datsize = hdr.datoffset, hdr.datsize
+	ftt.Init(&hdr)
 	// go to file tags table start
 	if _, err = r.Seek(int64(hdr.fttoffset), io.SeekStart); err != nil {
 		return
 	}
-	// read file tags table
+	// read file tags
+	var fttbuf = make([]byte, hdr.fttsize)
+	if _, err = r.Read(fttbuf); err != nil {
+		return
+	}
 	var fttsize int64
-	if fttsize, err = ftt.ReadFrom(r); err != nil {
+	if fttsize, err = ftt.Parse(fttbuf); err != nil {
 		return
 	}
 	if fttsize != int64(hdr.fttsize) {
@@ -477,17 +503,17 @@ type Package struct {
 // Tagger should be set later if access to nested files is needed.
 func NewPackage() *Package {
 	var ftt = &FTT{}
-	ftt.Init(0)
+	ftt.Init(&Header{})
 	return &Package{
 		FTT:       ftt,
 		Workspace: ".",
 	}
 }
 
-// OpenPackage creates Package objects and reads package file tags table
+// OpenFile creates Package objects and reads package file tags table
 // from the file with given name.
 // Tagger should be set later if access to nested files is needed.
-func OpenPackage(fpath string) (pkg *Package, err error) {
+func OpenFile(fpath string) (pkg *Package, err error) {
 	var r io.ReadSeekCloser
 	if r, err = os.Open(fpath); err != nil {
 		return
@@ -498,7 +524,7 @@ func OpenPackage(fpath string) (pkg *Package, err error) {
 		FTT:       &FTT{},
 		Workspace: ".",
 	}
-	err = pkg.ReadFTT(r)
+	err = pkg.OpenStream(r)
 	return
 }
 

@@ -1,7 +1,6 @@
 package wpk
 
 import (
-	"encoding/binary"
 	"io"
 	"io/fs"
 	"os"
@@ -56,7 +55,7 @@ func (ftt *FTT) Append(wpt, wpf io.WriteSeeker) (err error) {
 		return
 	}
 	// rewrite prebuild signature
-	if err = binary.Write(wpt, binary.LittleEndian, S2B(SignBuild)); err != nil {
+	if _, err = wpt.Write(S2B(SignBuild)); err != nil {
 		return
 	}
 	// go to tags table start to replace it by new data
