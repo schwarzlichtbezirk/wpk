@@ -236,14 +236,13 @@ func (hdr *Header) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-const (
-	InfoName = "@info" // package info tagset name
-	PackName = "@pack" // package content reference
-)
+// Special name for `Open` calls to get package content reference.
+const PackName = "@pack"
 
 // File tags table.
 type FTT struct {
-	rwm RWMap[string, TagsetRaw] // keys - package filenames (case sensitive), values - tagset slices.
+	info TagsetRaw                // special tagset with package tags
+	rwm  RWMap[string, TagsetRaw] // keys - package filenames (case sensitive), values - tagset slices.
 
 	datoffset uint64 // files data offset
 	datsize   uint64 // files data total size
@@ -253,17 +252,14 @@ type FTT struct {
 
 // Init performs initialization for given Package structure.
 func (ftt *FTT) Init(hdr *Header) {
+	ftt.info = nil
 	ftt.rwm.Init(int(hdr.fttcount))
 	ftt.datoffset, ftt.datsize = hdr.datoffset, hdr.datsize
 }
 
 // TagsetNum returns actual number of entries at files tags table.
-func (ftt *FTT) TagsetNum() (num int) {
-	num = ftt.rwm.Len()
-	if ftt.rwm.Has(InfoName) {
-		num--
-	}
-	return
+func (ftt *FTT) TagsetNum() int {
+	return ftt.rwm.Len()
 }
 
 // DataSize returns actual package data size from files tags table.
@@ -272,14 +268,15 @@ func (ftt *FTT) DataSize() Uint {
 }
 
 // GetInfo returns package information tagset if it present.
-func (ftt *FTT) GetInfo() (TagsetRaw, bool) {
-	return ftt.rwm.Get(InfoName)
+func (ftt *FTT) GetInfo() TagsetRaw {
+	return ftt.info
 }
 
-// SetInfo puts given tagset as package information tagset with "@info" path tag.
+// SetInfo puts given tagset as package information tagset.
 func (ftt *FTT) SetInfo(ts TagsetRaw) {
-	ts, _ = ts.Set(TIDpath, StrTag(InfoName))
-	ftt.rwm.Set(InfoName, ts)
+	ftt.mux.Lock()
+	defer ftt.mux.Unlock()
+	ftt.info = ts
 }
 
 // IsSplitted returns true if package is splitted on tags and data files.
@@ -319,11 +316,11 @@ func (ftt *FTT) CheckTagset(ts TagsetRaw) (fpath string, err error) {
 		err = &ErrTag{fs.ErrExist, fpath, TIDpath}
 		return
 	}
-	if !isoffset && fpath != InfoName {
+	if !isoffset {
 		err = &ErrTag{ErrNoOffset, fpath, TIDoffset}
 		return
 	}
-	if !issize && fpath != InfoName {
+	if !issize {
 		err = &ErrTag{ErrNoSize, fpath, TIDsize}
 		return
 	}
@@ -344,6 +341,25 @@ func (ftt *FTT) CheckTagset(ts TagsetRaw) (fpath string, err error) {
 // Parse makes table from given byte slice.
 // It's high performance method without extra allocations calls.
 func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
+	{
+		var tsl uint16
+		tsl = GetU16(buf[n : n+PTStssize])
+		n += PTStssize
+
+		var ts = TagsetRaw(buf[n : n+int64(tsl)])
+		n += int64(tsl)
+
+		var tsi = ts.Iterator()
+		for tsi.Next() {
+		}
+		if tsi.Failed() {
+			err = io.ErrUnexpectedEOF
+			return
+		}
+
+		ftt.info = ts
+	}
+
 	for {
 		var tsl uint16
 		tsl = GetU16(buf[n : n+PTStssize])
@@ -368,6 +384,31 @@ func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 
 // ReadFrom reads file tags table whole content from the given stream.
 func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
+	// read tagset with package info at first, can be empty
+	{
+		var tsl uint16
+		if tsl, err = ReadU16(r); err != nil {
+			return
+		}
+		n += PTStssize
+
+		var ts = make(TagsetRaw, tsl)
+		if _, err = r.Read(ts); err != nil {
+			return
+		}
+		n += int64(tsl)
+
+		var tsi = ts.Iterator()
+		for tsi.Next() {
+		}
+		if tsi.Failed() {
+			err = io.ErrUnexpectedEOF
+			return
+		}
+
+		ftt.info = ts
+	}
+
 	for {
 		var tsl uint16
 		if tsl, err = ReadU16(r); err != nil {
@@ -397,9 +438,9 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 
 // WriteTo writes file tags table whole content to the given stream.
 func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
-	// write tagset with package info at first
-	if ts, ok := ftt.GetInfo(); ok {
-		var tsl = len(ts)
+	// write tagset with package info at first, can be empty
+	{
+		var tsl = len(ftt.info)
 		if tsl > tsmaxlen {
 			err = ErrRangeTSSize
 			return
@@ -412,7 +453,7 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 		n += PTStssize
 
 		// write tagset content
-		if _, err = w.Write(ts); err != nil {
+		if _, err = w.Write(ftt.info); err != nil {
 			return
 		}
 		n += int64(tsl)
@@ -420,10 +461,6 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 
 	// write files tags table
 	ftt.rwm.Range(func(fkey string, ts TagsetRaw) bool {
-		if fkey == InfoName {
-			return true
-		}
-
 		var tsl = len(ts)
 		if tsl > tsmaxlen {
 			err = ErrRangeTSSize
@@ -599,9 +636,7 @@ func (pkg *Package) Enum(f func(string, TagsetRaw) bool) {
 		prefix = pkg.Workspace + "/" // make prefix path slash-terminated
 	}
 	pkg.rwm.Range(func(fkey string, ts TagsetRaw) bool {
-		return fkey == InfoName ||
-			!strings.HasPrefix(fkey, prefix) ||
-			f(fkey[len(prefix):], ts)
+		return !strings.HasPrefix(fkey, prefix) || f(fkey[len(prefix):], ts)
 	})
 }
 
@@ -718,14 +753,10 @@ func GetPackageInfo(r io.ReadSeeker) (ts TagsetRaw, err error) {
 		return
 	}
 
-	// read first tagset that can be package info,
-	// or some file tagset if info is absent
+	// read first tagset that should be package info
 	var tsl uint16
 	if tsl, err = ReadU16(r); err != nil {
 		return
-	}
-	if tsl == 0 {
-		return // end marker was reached
 	}
 
 	ts = make(TagsetRaw, tsl)
@@ -738,18 +769,6 @@ func GetPackageInfo(r io.ReadSeeker) (ts TagsetRaw, err error) {
 	}
 	if tsi.Failed() {
 		err = io.ErrUnexpectedEOF
-		return
-	}
-
-	// get file key
-	var ok bool
-	var fpath string
-	if fpath, ok = ts.TagStr(TIDpath); !ok {
-		err = ErrNoPath
-		return
-	}
-	if fpath != InfoName {
-		ts = nil // info is not found, returns (nil, nil)
 		return
 	}
 	return

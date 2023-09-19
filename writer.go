@@ -86,13 +86,6 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 		}
 		fftpos = HeaderSize
 
-		// update package info if it has
-		if ts, ok := ftt.GetInfo(); ok {
-			ts, _ = ts.Set(TIDoffset, UintTag(Uint(datpos)))
-			ts, _ = ts.Set(TIDsize, UintTag(Uint(datend-datpos)))
-			ftt.SetInfo(ts)
-		}
-
 		// write file tags table
 		if _, err = wpt.Seek(fftpos, io.SeekStart); err != nil {
 			return
@@ -111,13 +104,6 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 			return
 		}
 		fftpos = datend
-
-		// update package info if it has
-		if ts, ok := ftt.GetInfo(); ok {
-			ts, _ = ts.Set(TIDoffset, UintTag(Uint(datpos)))
-			ts, _ = ts.Set(TIDsize, UintTag(Uint(datend-datpos)))
-			ftt.SetInfo(ts)
-		}
 
 		// write file tags table
 		if _, err = ftt.WriteTo(wpt); err != nil {

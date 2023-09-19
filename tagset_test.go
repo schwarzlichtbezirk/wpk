@@ -22,8 +22,8 @@ func TestTagset(t *testing.T) {
 	var ts = wpk.TagsetRaw{}.
 		Put(wpk.TIDoffset, wpk.UintTag(offset)).
 		Put(wpk.TIDsize, wpk.UintTag(size)).
-		Put(wpk.TIDfid, wpk.UintTag(fid)).
-		Put(wpk.TIDpath, wpk.StrTag(wpk.ToSlash(kpath1)))
+		Put(wpk.TIDpath, wpk.StrTag(wpk.ToSlash(kpath1))).
+		Put(wpk.TIDfid, wpk.UintTag(fid))
 	var tsi = ts.Iterator()
 
 	var (
@@ -54,7 +54,7 @@ func TestTagset(t *testing.T) {
 			"can not iterate to 'offset'",
 		},
 		{func() bool { return tsi.TID() != wpk.TIDoffset },
-			"tag #2 is not 'offset'",
+			"tag #1 is not 'offset'",
 		},
 		{func() bool { tag = tsi.Tag(); return tag == nil },
 			"can not get 'offset' tag",
@@ -71,7 +71,7 @@ func TestTagset(t *testing.T) {
 			"can not iterate to 'size'",
 		},
 		{func() bool { return tsi.TID() != wpk.TIDsize },
-			"tag #3 is not 'size'",
+			"tag #2 is not 'size'",
 		},
 		{func() bool { tag = tsi.Tag(); return tag == nil },
 			"can not get 'size' tag",
@@ -83,29 +83,12 @@ func TestTagset(t *testing.T) {
 			"'size' tag is not equal to original value",
 		},
 
-		// check up FID
-		{func() bool { return !tsi.Next() },
-			"can not iterate to 'fid'",
-		},
-		{func() bool { return tsi.TID() != wpk.TIDfid },
-			"tag #1 is not 'fid'",
-		},
-		{func() bool { tag = tsi.Tag(); return tag == nil },
-			"can not get 'fid' tag",
-		},
-		{func() bool { fv, ok = tsi.TagUint(wpk.TIDfid); return !ok },
-			"can not convert 'fid' tag to value",
-		},
-		{func() bool { return fv != fid },
-			"'fid' tag is not equal to original value",
-		},
-
 		// check up PATH
 		{func() bool { return !tsi.Next() },
 			"can not iterate to 'path'",
 		},
 		{func() bool { return tsi.TID() != wpk.TIDpath },
-			"tag #4 is not 'path'",
+			"tag #3 is not 'path'",
 		},
 		{func() bool { return tsi.TagLen() != len(fkey) },
 			"length of 'path' tag does not equal to original length",
@@ -118,6 +101,23 @@ func TestTagset(t *testing.T) {
 		},
 		{func() bool { return str != fkey },
 			"'path' tag is not equal to original value",
+		},
+
+		// check up FID
+		{func() bool { return !tsi.Next() },
+			"can not iterate to 'fid'",
+		},
+		{func() bool { return tsi.TID() != wpk.TIDfid },
+			"tag #4 is not 'fid'",
+		},
+		{func() bool { tag = tsi.Tag(); return tag == nil },
+			"can not get 'fid' tag",
+		},
+		{func() bool { fv, ok = tsi.TagUint(wpk.TIDfid); return !ok },
+			"can not convert 'fid' tag to value",
+		},
+		{func() bool { return fv != fid },
+			"'fid' tag is not equal to original value",
 		},
 
 		// check up valid iterations finish

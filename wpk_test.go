@@ -35,11 +35,8 @@ func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 		t.Fatal(err)
 	}
 
-	if ts, ok := pkg.GetInfo(); ok {
-		var offset, size = ts.Pos()
-		var label, _ = ts.TagStr(wpk.TIDlabel)
-		t.Logf("package info: offset %d, size %d, label '%s'", offset, size, label)
-	}
+	var label, _ = pkg.GetInfo().TagStr(wpk.TIDlabel)
+	t.Logf("package info: data size %d, label '%s'", pkg.DataSize(), label)
 
 	var realtagsnum int
 	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {

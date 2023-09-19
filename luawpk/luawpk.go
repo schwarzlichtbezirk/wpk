@@ -159,22 +159,20 @@ func tostringPack(ls *lua.LState) int {
 		fmt.Sprintf("aliases: %d", n-len(m)),
 		fmt.Sprintf("datasize: %d", pkg.DataSize()),
 	}
-	if ts, ok := pkg.GetInfo(); ok {
-		if str, ok := ts.TagStr(wpk.TIDlabel); ok {
-			items = append(items, fmt.Sprintf("label: %s", str))
-		}
-		if str, ok := ts.TagStr(wpk.TIDlink); ok {
-			items = append(items, fmt.Sprintf("link: %s", str))
-		}
-		if str, ok := ts.TagStr(wpk.TIDversion); ok {
-			items = append(items, fmt.Sprintf("version: %s", str))
-		}
-		if str, ok := ts.TagStr(wpk.TIDauthor); ok {
-			items = append(items, fmt.Sprintf("author: %s", str))
-		}
-		if str, ok := ts.TagStr(wpk.TIDcomment); ok {
-			items = append(items, fmt.Sprintf("comment: %s", str))
-		}
+	if str, ok := pkg.GetInfo().TagStr(wpk.TIDlabel); ok {
+		items = append(items, fmt.Sprintf("label: %s", str))
+	}
+	if str, ok := pkg.GetInfo().TagStr(wpk.TIDlink); ok {
+		items = append(items, fmt.Sprintf("link: %s", str))
+	}
+	if str, ok := pkg.GetInfo().TagStr(wpk.TIDversion); ok {
+		items = append(items, fmt.Sprintf("version: %s", str))
+	}
+	if str, ok := pkg.GetInfo().TagStr(wpk.TIDauthor); ok {
+		items = append(items, fmt.Sprintf("author: %s", str))
+	}
+	if str, ok := pkg.GetInfo().TagStr(wpk.TIDcomment); ok {
+		items = append(items, fmt.Sprintf("comment: %s", str))
 	}
 	var s = strings.Join(items, ", ")
 
@@ -240,11 +238,9 @@ var methodsPack = map[string]lua.LGFunction{
 func getlabel(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 
-	if ts, ok := pkg.GetInfo(); ok {
-		if str, ok := ts.TagStr(wpk.TIDlabel); ok {
-			ls.Push(lua.LString(str))
-			return 1
-		}
+	if str, ok := pkg.GetInfo().TagStr(wpk.TIDlabel); ok {
+		ls.Push(lua.LString(str))
+		return 1
 	}
 	ls.Push(lua.LNil)
 	return 1
@@ -254,7 +250,7 @@ func setlabel(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var label = ls.CheckString(2)
 
-	var ts, _ = pkg.GetInfo()
+	var ts = pkg.GetInfo()
 	ts, _ = ts.Set(wpk.TIDlabel, wpk.StrTag(label))
 	pkg.SetInfo(ts)
 	return 0
@@ -1159,27 +1155,24 @@ func wpkgetinfo(ls *lua.LState) int {
 	}()
 	var pkg = CheckPack(ls, 1)
 
-	if ts, ok := pkg.GetInfo(); ok {
-		var tb = ls.CreateTable(0, 0)
-		var tsi = ts.Iterator()
-		for tsi.Next() {
-			var tid, tag = tsi.TID(), tsi.Tag()
-			if tid == wpk.TIDfid || tid == wpk.TIDpath {
-				continue
-			}
-			var ud = ls.NewUserData()
-			ud.Value = &LuaTag{tag}
-			ls.SetMetatable(ud, ls.GetTypeMetatable(TagMT))
-			if name, ok := TidName[tid]; ok {
-				tb.RawSet(lua.LString(name), ud)
-			} else {
-				tb.RawSet(lua.LNumber(tid), ud)
-			}
+	var tb = ls.CreateTable(0, 0)
+	var tsi = pkg.GetInfo().Iterator()
+	for tsi.Next() {
+		var tid, tag = tsi.TID(), tsi.Tag()
+		if tid == wpk.TIDfid || tid == wpk.TIDpath {
+			continue
 		}
-		ls.Push(tb)
-		return 1
+		var ud = ls.NewUserData()
+		ud.Value = &LuaTag{tag}
+		ls.SetMetatable(ud, ls.GetTypeMetatable(TagMT))
+		if name, ok := TidName[tid]; ok {
+			tb.RawSet(lua.LString(name), ud)
+		} else {
+			tb.RawSet(lua.LNumber(tid), ud)
+		}
 	}
-	return 0
+	ls.Push(tb)
+	return 1
 }
 
 func wpksetinfo(ls *lua.LState) int {
