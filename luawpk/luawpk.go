@@ -718,9 +718,10 @@ func wpkputdata(ls *lua.LState) int {
 		return 0
 	}
 
-	if err = pkg.adjusttagset(r, ts); err != nil {
+	if ts, err = pkg.adjusttagset(r, ts); err != nil {
 		return 0
 	}
+	pkg.SetupTagset(ts)
 
 	return 0
 }
@@ -756,9 +757,10 @@ func wpkputfile(ls *lua.LState) int {
 		return 0
 	}
 
-	if err = pkg.adjusttagset(file, ts); err != nil {
+	if ts, err = pkg.adjusttagset(file, ts); err != nil {
 		return 0
 	}
+	pkg.SetupTagset(ts)
 
 	return 0
 }
@@ -1080,7 +1082,7 @@ func wpkaddtags(ls *lua.LState) int {
 	var n = 0
 	for optsi.Next() {
 		var tid = optsi.TID()
-		if ok := ts.Has(tid); !ok {
+		if !ts.Has(tid) {
 			ts = ts.Put(tid, optsi.Tag())
 			n++
 		}
@@ -1127,9 +1129,7 @@ func wpkdeltags(ls *lua.LState) int {
 	optsi.Reset()
 	var n = 0
 	for optsi.Next() {
-		var tid = optsi.TID()
-		if ok := ts.Has(tid); ok {
-			ts.Del(tid)
+		if ts, ok = ts.Del(optsi.TID()); ok {
 			n++
 		}
 	}

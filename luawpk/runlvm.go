@@ -11,6 +11,16 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
+var (
+	// compiled binary version, sets by compiler with command
+	//    go build -ldflags="-X 'github.com/schwarzlichtbezirk/wpk/luawpk.BuildVers=%buildvers%'"
+	BuildVers string
+
+	// compiled binary build date, sets by compiler with command
+	//    go build -ldflags="-X 'github.com/schwarzlichtbezirk/wpk/luawpk.BuildTime=%buildtime%'"
+	BuildTime string
+)
+
 func lualog(ls *lua.LState) int {
 	var s = ls.CheckString(1)
 
@@ -48,6 +58,9 @@ func RunLuaVM(fpath string) (err error) {
 
 	var bindir = path.Dir(wpk.ToSlash(os.Args[0]))
 	var scrdir = path.Dir(wpk.ToSlash(fpath))
+
+	ls.SetGlobal("buildvers", lua.LString(BuildVers))
+	ls.SetGlobal("buildtime", lua.LString(BuildTime))
 	ls.SetGlobal("bindir", lua.LString(bindir))
 	ls.SetGlobal("scrdir", lua.LString(scrdir))
 	ls.SetGlobal("tmpdir", lua.LString(wpk.TempPath(".")))

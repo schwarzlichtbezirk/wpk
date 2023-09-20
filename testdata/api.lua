@@ -7,6 +7,9 @@ to build wpk-packages.
 *global registration*
 	Data and functions defined in global namespace.
 
+	buildvers - compiled binary version, sets by compiler during compilation
+		with git tags value.
+	buildtime - compiled binary build date, sets by compiler during compilation.
 	bindir - string value with directory to this running binary file destination.
 	scrdir - string value with directory to this Lua script.
 	tmpdir - string value with default directory to use for temporary files.
@@ -76,11 +79,11 @@ to build wpk-packages.
 	base64 - get/set base64 encoded representation of binary value
 	string - get/set UTF-8 string value
 	bool   - get/set boolean data, 1 byte
-	uint8  - get/set uint8 data, 1 byte
+	byte   - get/set uint8 data, 1 byte
 	uint16 - get/set uint16 data, 2 bytes
 	uint32 - get/set uint32 data, 4 bytes
 	uint64 - get/set uint64 data, 8 bytes
-	uint   - get unspecified size unsigned int data
+	uint   - get/set unsigned int data with size dependent by value
 	number - get/set float64 data, 8 bytes
 
 
@@ -207,10 +210,10 @@ function wpk.create(fpath)-- additional wpk-constructor
 	log("starts: "..pkg.pkgpath)
 	return pkg
 end
-function wpk:logfile(fkey) -- write record log
+function wpk:logfile(fname) -- write record log
 	logfmt("#%d %s, %d bytes, crc=%s",
-		self:gettag(fkey, "fid").uint, fkey,
-		self:filesize(fkey), self:gettag(fkey, "crc32").hex)
+		self:gettag(fname, "fid").uint, fname,
+		self:filesize(fname), self:gettag(fname, "crc32").hex)
 end
 function wpk:safealias(fname1, fname2) -- make 2 file name aliases to 1 file
 	if self:hasfile(fname1) then
@@ -221,9 +224,10 @@ function wpk:safealias(fname1, fname2) -- make 2 file name aliases to 1 file
 	end
 end
 
-log("binary dir: "..bindir)
-log("script dir: "..scrdir)
-log("temporary dir: "..tmpdir)
+logfmt("version: %s, builton: %s", buildvers, buildtime)
+logfmt("binary dir: %s", bindir)
+logfmt("script dir: %s", scrdir)
+logfmt("temporary dir: %s", tmpdir)
 
 -- starts new package at golang binary directory
 local pkg = wpk.create(path.envfmt"${GOPATH}/bin/api.wpk")
@@ -232,7 +236,7 @@ pkg.secret = "package-private-key" -- private key to sign cryptographic hashes f
 pkg.sha224 = true -- generate SHA224 hash for each file
 
 -- put images with keywords and author addition tags
-for name, tags in pairs{
+for fname, tags in pairs{
 	["bounty.jpg"] = {fid=1, keywords="beach", category="image"},
 	["img1/Qarataşlar.jpg"] = {fid=2, keywords="beach;rock", category="photo"},
 	["img1/claustral.jpg"] = {fid=3, keywords="beach;rock", category="photo"},
@@ -240,9 +244,9 @@ for name, tags in pairs{
 	["img2/Uzuncı.jpg"] = {fid=5, keywords="rock", category="photo"},
 } do
 	tags.author="schwarzlichtbezirk"
-	pkg:putfile(name, path.join(scrdir, "media", name))
-	pkg:addtags(name, tags)
-	pkg:logfile(name)
+	pkg:putfile(fname, path.join(scrdir, "media", fname))
+	pkg:addtags(fname, tags)
+	pkg:logfile(fname)
 end
 -- make alias to file included at list
 pkg:safealias("img1/claustral.jpg", "jasper.jpg")

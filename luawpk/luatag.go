@@ -197,11 +197,11 @@ var propertiesTag = []struct {
 	{"base64", getbase64, setbase64},
 	{"string", getstring, setstring},
 	{"bool", getbool, setbool},
-	{"uint8", getuint8, setuint8},
+	{"byte", getbyte, setbyte},
 	{"uint16", getuint16, setuint16},
 	{"uint32", getuint32, setuint32},
 	{"uint64", getuint64, setuint64},
-	{"uint", getuint, nil},
+	{"uint", getuint, setuint},
 	{"number", getnumber, setnumber},
 }
 
@@ -269,7 +269,7 @@ func setbool(ls *lua.LState) int {
 	return 0
 }
 
-func getuint8(ls *lua.LState) int {
+func getbyte(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	if val, ok := t.TagByte(); ok {
 		ls.Push(lua.LNumber(val))
@@ -278,7 +278,7 @@ func getuint8(ls *lua.LState) int {
 	return 0
 }
 
-func setuint8(ls *lua.LState) int {
+func setbyte(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = uint8(ls.CheckInt(2))
 	t.TagRaw = wpk.ByteTag(val)
@@ -339,6 +339,13 @@ func getuint(ls *lua.LState) int {
 		ls.Push(lua.LNumber(val))
 		return 1
 	}
+	return 0
+}
+
+func setuint(ls *lua.LState) int {
+	var t = CheckTag(ls, 1)
+	var val = wpk.Uint(ls.CheckInt(2))
+	t.TagRaw = wpk.UintTag(val)
 	return 0
 }
 

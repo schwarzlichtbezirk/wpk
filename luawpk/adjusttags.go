@@ -160,49 +160,50 @@ func adjustsha512(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (
 	return ts.Put(wpk.TIDsha512, mac.Sum(nil)), nil
 }
 
-func (pkg *LuaPackage) adjusttagset(r io.ReadSeeker, ts wpk.TagsetRaw) (err error) {
+func (pkg *LuaPackage) adjusttagset(r io.ReadSeeker, ts wpk.TagsetRaw) (wpk.TagsetRaw, error) {
+	var err error
+
 	if ts, err = adjustmime(ts, r, !pkg.automime); err != nil {
-		return err
+		return ts, err
 	}
 
 	if pkg.nolink {
-		ts.Del(wpk.TIDlink)
+		ts, _ = ts.Del(wpk.TIDlink)
 	}
 
 	if ts, err = adjustcrc32c(ts, r, !pkg.crc32); err != nil {
-		return err
+		return ts, err
 	}
 
 	if ts, err = adjustcrc64iso(ts, r, !pkg.crc64); err != nil {
-		return err
+		return ts, err
 	}
 
 	if ts, err = adjustmd5(ts, r, !pkg.md5, pkg.secret); err != nil {
-		return err
+		return ts, err
 	}
 
 	if ts, err = adjustsha1(ts, r, !pkg.sha1, pkg.secret); err != nil {
-		return err
+		return ts, err
 	}
 
 	if ts, err = adjustsha224(ts, r, !pkg.sha224, pkg.secret); err != nil {
-		return err
+		return ts, err
 	}
 
 	if ts, err = adjustsha256(ts, r, !pkg.sha256, pkg.secret); err != nil {
-		return err
+		return ts, err
 	}
 
 	if ts, err = adjustsha384(ts, r, !pkg.sha384, pkg.secret); err != nil {
-		return err
+		return ts, err
 	}
 
 	if ts, err = adjustsha512(ts, r, !pkg.sha512, pkg.secret); err != nil {
-		return err
+		return ts, err
 	}
 
-	pkg.SetupTagset(ts)
-	return err
+	return ts, err
 }
 
 // The End.

@@ -1,0 +1,13 @@
+{
+	"configurations": [
+		{
+			"name": "api.lua",
+			"type": "go",
+			"request": "launch",
+			"mode": "auto",
+			"program": "${workspaceFolder}/util/build",
+			"args": ["testdata/api.lua"],
+			"cwd": "${workspaceFolder}"
+		}
+	]
+}
