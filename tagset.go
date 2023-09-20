@@ -567,17 +567,17 @@ func (tsi *TagsetIterator) Next() (ok bool) {
 }
 
 // Put is the stub to disable any changes to data content of iterator.
-func (tsi *TagsetIterator) Put(tid Uint, tag TagRaw) TagsetRaw {
+func (tsi *TagsetIterator) Put(tid TID, tag TagRaw) TagsetRaw {
 	panic(ErrTsiConst)
 }
 
 // Set is the stub to disable any changes to data content of iterator.
-func (tsi *TagsetIterator) Set(tid Uint, tag TagRaw) (TagsetRaw, bool) {
+func (tsi *TagsetIterator) Set(tid TID, tag TagRaw) (TagsetRaw, bool) {
 	panic(ErrTsiConst)
 }
 
 // Del is the stub to disable any changes to data content of iterator.
-func (tsi *TagsetIterator) Del(tid Uint) (TagsetRaw, bool) {
+func (tsi *TagsetIterator) Del(tid TID) (TagsetRaw, bool) {
 	panic(ErrTsiConst)
 }
 

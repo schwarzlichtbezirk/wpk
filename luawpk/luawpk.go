@@ -146,17 +146,15 @@ func tostringPack(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 
 	var m = map[wpk.Uint]wpk.Void{}
-	var n = 0
 	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
 		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
 			m[offset] = wpk.Void{} // count unique offsets
 		}
-		n++
 		return true
 	})
 	var items = []string{
 		fmt.Sprintf("files: %d", len(m)),
-		fmt.Sprintf("aliases: %d", n-len(m)),
+		fmt.Sprintf("aliases: %d", pkg.TagsetNum()-len(m)),
 		fmt.Sprintf("datasize: %d", pkg.DataSize()),
 	}
 	if str, ok := pkg.GetInfo().TagStr(wpk.TIDlabel); ok {
@@ -291,12 +289,7 @@ func getrecnum(ls *lua.LState) int {
 
 func gettagnum(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
-	var n int
-	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
-		n++
-		return true
-	})
-	ls.Push(lua.LNumber(n))
+	ls.Push(lua.LNumber(pkg.TagsetNum()))
 	return 1
 }
 
@@ -304,7 +297,7 @@ func getfftsize(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var size int
 	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
-		size += len(ts)
+		size += len(ts) + wpk.PTStssize
 		return true
 	})
 	ls.Push(lua.LNumber(size))
@@ -313,7 +306,6 @@ func getfftsize(ls *lua.LState) int {
 
 func getdatasize(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
-
 	ls.Push(lua.LNumber(pkg.DataSize()))
 	return 1
 }

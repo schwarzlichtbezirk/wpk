@@ -33,9 +33,7 @@ func parseargs() {
 	flag.Parse()
 }
 
-func checkargs() int {
-	var ec = 0 // error counter
-
+func checkargs() (ec int) { // returns error counter
 	for i, fpath := range strings.Split(srcpath, ";") {
 		if fpath == "" {
 			continue
@@ -65,7 +63,7 @@ func checkargs() int {
 		ec++
 	}
 
-	return ec
+	return
 }
 
 var num, sum int64

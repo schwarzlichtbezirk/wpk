@@ -25,9 +25,11 @@ func RegTag(ls *lua.LState) {
 	ls.SetField(mt, "newbase64", ls.NewFunction(NewTagBase64))
 	ls.SetField(mt, "newstring", ls.NewFunction(NewTagString))
 	ls.SetField(mt, "newbool", ls.NewFunction(NewTagBool))
+	ls.SetField(mt, "newbyte", ls.NewFunction(NewTagByte))
 	ls.SetField(mt, "newuint16", ls.NewFunction(NewTagUint16))
 	ls.SetField(mt, "newuint32", ls.NewFunction(NewTagUint32))
 	ls.SetField(mt, "newuint64", ls.NewFunction(NewTagUint64))
+	ls.SetField(mt, "newuint", ls.NewFunction(NewTagUint))
 	ls.SetField(mt, "newnumber", ls.NewFunction(NewTagNumber))
 	// methods
 	ls.SetField(mt, "__index", ls.NewFunction(getterTag))
@@ -80,6 +82,13 @@ func NewTagBool(ls *lua.LState) int {
 	return 1
 }
 
+// NewTagByte constructs LuaTag by given 1-byte value.
+func NewTagByte(ls *lua.LState) int {
+	var val = uint8(ls.CheckInt(1))
+	PushTag(ls, &LuaTag{wpk.ByteTag(val)})
+	return 1
+}
+
 // NewTagUint16 constructs LuaTag by given uint16 value.
 func NewTagUint16(ls *lua.LState) int {
 	var val = uint16(ls.CheckInt(1))
@@ -98,6 +107,13 @@ func NewTagUint32(ls *lua.LState) int {
 func NewTagUint64(ls *lua.LState) int {
 	var val = uint64(ls.CheckInt(1))
 	PushTag(ls, &LuaTag{wpk.Uint64Tag(val)})
+	return 1
+}
+
+// NewTagUint constructs LuaTag by given Uint value.
+func NewTagUint(ls *lua.LState) int {
+	var val = wpk.Uint(ls.CheckInt(1))
+	PushTag(ls, &LuaTag{wpk.UintTag(val)})
 	return 1
 }
 

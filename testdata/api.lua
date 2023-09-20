@@ -60,9 +60,11 @@ to build wpk-packages.
 	newbase64(str) - creates tag from base64 encoded binary.
 	newstring(str) - creates tag from string.
 	newbool(val) - creates tag from boolean value.
+	newbyte(val) - convert given number to 1-byte unsigned integer tag.
 	newuint16(val) - convert given number to 2-bytes unsigned integer tag.
 	newuint32(val) - convert given number to 4-bytes unsigned integer tag.
 	newuint64(val) - convert given number to 8-bytes unsigned integer tag.
+	newuint(val) - convert given number to unsigned integer tag with size dependent by value.
 	newnumber(val) - convert given number to 8-bytes tag explicitly.
 
 	operators:

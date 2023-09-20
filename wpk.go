@@ -140,6 +140,21 @@ type Header struct {
 	datsize   uint64 // files data total size
 }
 
+// Count returns package records count from header.
+func (hdr *Header) Count() int {
+	return int(hdr.fttcount)
+}
+
+// FttSize returns package files tagset table size from header.
+func (hdr *Header) FttSize() Uint {
+	return Uint(hdr.fttsize)
+}
+
+// DataSize returns package data size from header.
+func (hdr *Header) DataSize() Uint {
+	return Uint(hdr.datsize)
+}
+
 // IsReady determines that package is ready for read the data.
 func (hdr *Header) IsReady() error {
 	// can not read file tags table for opened on write single-file package.
@@ -254,6 +269,7 @@ type FTT struct {
 func (ftt *FTT) Init(hdr *Header) {
 	ftt.info = nil
 	ftt.rwm.Init(int(hdr.fttcount))
+	// update data offset/pos
 	ftt.datoffset, ftt.datsize = hdr.datoffset, hdr.datsize
 }
 
@@ -262,7 +278,13 @@ func (ftt *FTT) TagsetNum() int {
 	return ftt.rwm.Len()
 }
 
-// DataSize returns actual package data size from files tags table.
+// IsSplitted returns true if package is splitted on tags and data files.
+func (ftt *FTT) IsSplitted() bool {
+	return ftt.datoffset == 0
+}
+
+// DataSize returns package data size from files tags table.
+// This value changed on FTT open or sync operation.
 func (ftt *FTT) DataSize() Uint {
 	return Uint(ftt.datsize)
 }
@@ -277,11 +299,6 @@ func (ftt *FTT) SetInfo(ts TagsetRaw) {
 	ftt.mux.Lock()
 	defer ftt.mux.Unlock()
 	ftt.info = ts
-}
-
-// IsSplitted returns true if package is splitted on tags and data files.
-func (ftt *FTT) IsSplitted() bool {
-	return ftt.datoffset == 0
 }
 
 // CheckTagset tests path & offset & size tags existence
@@ -732,10 +749,9 @@ func (pkg *Package) Open(dir string) (fs.File, error) {
 	return pkg.OpenDir(fullname)
 }
 
-// GetPackageInfo returns tagset with package information.
-// It's a quick function to get info from the file.
-func GetPackageInfo(r io.ReadSeeker) (ts TagsetRaw, err error) {
-	var hdr Header
+// GetPackageInfo returns header and tagset with package information.
+// It's a quick function to get info from the file without reading whole tags table.
+func GetPackageInfo(r io.ReadSeeker) (hdr Header, ts TagsetRaw, err error) {
 	// go to file start
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
 		return

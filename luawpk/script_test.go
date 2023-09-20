@@ -44,7 +44,7 @@ func CheckPackage(t *testing.T, wptname, wpfname string) {
 		var offset, size = ts.Pos()
 		n++
 
-		if ok = ts.Has(wpk.TIDmtime); !ok {
+		if !ts.Has(wpk.TIDmtime) {
 			t.Logf("found packed data #%d '%s'", n, fkey)
 			return true // skip packed data
 		}

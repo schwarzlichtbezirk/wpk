@@ -41,7 +41,7 @@ func (ftt *FTT) Begin(wpt, wpf io.WriteSeeker) (err error) {
 		return
 	}
 	// update data offset/pos
-	ftt.datoffset, ftt.datsize = offset, 0
+	ftt.datoffset, ftt.datsize = hdr.datoffset, hdr.datsize
 	return
 }
 
@@ -131,7 +131,7 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 		return
 	}
 	// update data offset/pos
-	ftt.datoffset, ftt.datsize = uint64(datpos), uint64(datend-datpos)
+	ftt.datoffset, ftt.datsize = hdr.datoffset, hdr.datsize
 	return
 }
 

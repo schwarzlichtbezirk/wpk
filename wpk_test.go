@@ -119,7 +119,7 @@ func TestInfo(t *testing.T) {
 	if err = pkg.Begin(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
-	// put package info somewhere before finalize
+	// put package info somewhere at the code before finalize
 	pkg.SetInfo(wpk.TagsetRaw{}.
 		Put(wpk.TIDlabel, wpk.StrTag(label)).
 		Put(wpk.TIDlink, wpk.StrTag(link)).
@@ -131,11 +131,8 @@ func TestInfo(t *testing.T) {
 
 	// at the end checkup package info
 	var ts wpk.TagsetRaw
-	if ts, err = wpk.GetPackageInfo(fwpk); err != nil {
+	if _, ts, err = wpk.GetPackageInfo(fwpk); err != nil {
 		t.Fatal(err)
-	}
-	if ts == nil {
-		t.Fatal("package info not found")
 	}
 	var ok bool
 	var str string

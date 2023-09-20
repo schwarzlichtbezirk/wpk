@@ -20,7 +20,7 @@ import (
 func adjustmime(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool) (wpk.TagsetRaw, error) {
 	var err error
 	var ok bool
-	if ok = ts.Has(wpk.TIDmime); ok || skip {
+	if skip || ts.Has(wpk.TIDmime) {
 		return ts, err
 	}
 	var ext = strings.ToLower(path.Ext(ts.Path()))
@@ -42,7 +42,7 @@ func adjustmime(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool) (wpk.TagsetRaw, er
 
 func adjustcrc32c(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool) (wpk.TagsetRaw, error) {
 	var err error
-	if ok := ts.Has(wpk.TIDcrc32c); ok || skip {
+	if skip || ts.Has(wpk.TIDcrc32c) {
 		return ts, err
 	}
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
@@ -57,7 +57,7 @@ func adjustcrc32c(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool) (wpk.TagsetRaw, 
 
 func adjustcrc64iso(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool) (wpk.TagsetRaw, error) {
 	var err error
-	if ok := ts.Has(wpk.TIDcrc64iso); ok && skip {
+	if skip || ts.Has(wpk.TIDcrc64iso) {
 		return ts, err
 	}
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
@@ -72,7 +72,7 @@ func adjustcrc64iso(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool) (wpk.TagsetRaw
 
 func adjustmd5(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (wpk.TagsetRaw, error) {
 	var err error
-	if ok := ts.Has(wpk.TIDmd5); ok && skip {
+	if skip || ts.Has(wpk.TIDmd5) {
 		return ts, err
 	}
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
@@ -87,7 +87,7 @@ func adjustmd5(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (wpk
 
 func adjustsha1(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (wpk.TagsetRaw, error) {
 	var err error
-	if ok := ts.Has(wpk.TIDsha1); ok && skip {
+	if skip || ts.Has(wpk.TIDsha1) {
 		return ts, err
 	}
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
@@ -102,7 +102,7 @@ func adjustsha1(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (wp
 
 func adjustsha224(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (wpk.TagsetRaw, error) {
 	var err error
-	if ok := ts.Has(wpk.TIDsha224); ok && skip {
+	if skip || ts.Has(wpk.TIDsha224) {
 		return ts, err
 	}
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
@@ -117,7 +117,7 @@ func adjustsha224(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (
 
 func adjustsha256(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (wpk.TagsetRaw, error) {
 	var err error
-	if ok := ts.Has(wpk.TIDsha256); ok && skip {
+	if skip || ts.Has(wpk.TIDsha256) {
 		return ts, err
 	}
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
@@ -132,7 +132,7 @@ func adjustsha256(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (
 
 func adjustsha384(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (wpk.TagsetRaw, error) {
 	var err error
-	if ok := ts.Has(wpk.TIDsha384); ok && skip {
+	if skip || ts.Has(wpk.TIDsha384) {
 		return ts, err
 	}
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
@@ -147,7 +147,7 @@ func adjustsha384(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (
 
 func adjustsha512(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (wpk.TagsetRaw, error) {
 	var err error
-	if ok := ts.Has(wpk.TIDsha512); ok && skip {
+	if skip || ts.Has(wpk.TIDsha512) {
 		return ts, err
 	}
 	if _, err = r.Seek(0, io.SeekStart); err != nil {
@@ -201,7 +201,7 @@ func (pkg *LuaPackage) adjusttagset(r io.ReadSeeker, ts wpk.TagsetRaw) (err erro
 		return err
 	}
 
-	pkg.SetTagset(ts.Path(), ts)
+	pkg.SetupTagset(ts)
 	return err
 }
 
