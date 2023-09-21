@@ -194,8 +194,8 @@ func (t TagRaw) TagTime() (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// UnixTag is 8-bytes UNIX time in milliseconds tag constructor.
-func UnixTag(val time.Time) TagRaw {
+// UnixmsTag is 8-bytes UNIX time in milliseconds tag constructor.
+func UnixmsTag(val time.Time) TagRaw {
 	var buf [8]byte
 	SetU64(buf[:], uint64(val.UnixMilli()))
 	return buf[:]

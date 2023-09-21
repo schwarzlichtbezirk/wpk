@@ -3,10 +3,13 @@ package luawpk
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"time"
 
 	"github.com/schwarzlichtbezirk/wpk"
 	lua "github.com/yuin/gopher-lua"
 )
+
+const ISO8601 = "2006-01-02T15:04:05.999Z07:00"
 
 // TagMT is "tag" name of Lua metatable.
 const TagMT = "tag"
@@ -203,10 +206,13 @@ var propertiesTag = []struct {
 	{"uint64", getuint64, setuint64},
 	{"uint", getuint, setuint},
 	{"number", getnumber, setnumber},
+	{"time", gettime, settime},
+	{"unixms", getunixms, setunixms},
 }
 
 var methodsTag = map[string]lua.LGFunction{
-	// no methods
+	"gettime": wpkgettime,
+	"settime": wpksettime,
 }
 
 func gethex(ls *lua.LState) int {
@@ -362,6 +368,83 @@ func setnumber(ls *lua.LState) int {
 	var t = CheckTag(ls, 1)
 	var val = float64(ls.CheckNumber(2))
 	t.TagRaw = wpk.NumberTag(val)
+	return 0
+}
+
+func gettime(ls *lua.LState) int {
+	var t = CheckTag(ls, 1)
+	if val, ok := t.TagTime(); ok {
+		var s = val.UTC().Format(ISO8601)
+		ls.Push(lua.LString(s))
+		return 1
+	}
+	return 0
+}
+
+func settime(ls *lua.LState) int {
+	var err error
+	defer func() {
+		if err != nil {
+			ls.RaiseError(err.Error())
+		}
+	}()
+	var t = CheckTag(ls, 1)
+	var val = ls.CheckString(2)
+
+	var tv time.Time
+	if tv, err = time.Parse(ISO8601, val); err != nil {
+		return 0
+	}
+	t.TagRaw = wpk.TimeTag(tv)
+	return 0
+}
+
+func getunixms(ls *lua.LState) int {
+	var t = CheckTag(ls, 1)
+	if val, ok := t.TagTime(); ok {
+		ls.Push(lua.LNumber(val.UnixMilli()))
+		return 1
+	}
+	return 0
+}
+
+func setunixms(ls *lua.LState) int {
+	var t = CheckTag(ls, 1)
+	var milli = int64(ls.CheckNumber(2))
+
+	var tv = time.Unix(milli/1000, (milli%1000)*1000000)
+	t.TagRaw = wpk.UnixmsTag(tv)
+	return 0
+}
+
+func wpkgettime(ls *lua.LState) int {
+	var t = CheckTag(ls, 1)
+	var layout = ls.CheckString(2)
+
+	if val, ok := t.TagTime(); ok {
+		var s = val.UTC().Format(layout)
+		ls.Push(lua.LString(s))
+		return 1
+	}
+	return 0
+}
+
+func wpksettime(ls *lua.LState) int {
+	var err error
+	defer func() {
+		if err != nil {
+			ls.RaiseError(err.Error())
+		}
+	}()
+	var t = CheckTag(ls, 1)
+	var layout = ls.CheckString(2)
+	var value = ls.CheckString(3)
+
+	var tv time.Time
+	if tv, err = time.Parse(layout, value); err != nil {
+		return 0
+	}
+	t.TagRaw = wpk.TimeTag(tv)
 	return 0
 }
 

@@ -75,16 +75,24 @@ to build wpk-packages.
 	__len - returns number of bytes in byte slice.
 
 	properties:
-	hex    - get/set hexadecimal encoded representation of binary value
-	base64 - get/set base64 encoded representation of binary value
-	string - get/set UTF-8 string value
-	bool   - get/set boolean data, 1 byte
-	byte   - get/set uint8 data, 1 byte
-	uint16 - get/set uint16 data, 2 bytes
-	uint32 - get/set uint32 data, 4 bytes
-	uint64 - get/set uint64 data, 8 bytes
-	uint   - get/set unsigned int data with size dependent by value
-	number - get/set float64 data, 8 bytes
+	hex    - get/set hexadecimal encoded representation of binary value.
+	base64 - get/set base64 encoded representation of binary value.
+	string - get/set UTF-8 string value.
+	bool   - get/set boolean data, 1 byte.
+	byte   - get/set uint8 data, 1 byte.
+	uint16 - get/set uint16 data, 2 bytes.
+	uint32 - get/set uint32 data, 4 bytes.
+	uint64 - get/set uint64 data, 8 bytes.
+	uint   - get/set unsigned int data with size dependent by value.
+	number - get/set float64 data, 8 bytes.
+	time   - get/set string representation of time,
+		with layout "2006-01-02T15:04:05.999Z07:00" used at ECMAScript
+		(see https://tc39.es/ecma262/#sec-date-time-string-format).
+	unixms - get/set UNIX time in milliseconds.
+
+	methods:
+	gettime(layout) - returns string representation of time with given layout.
+	settime(layout, value) - set time in string representation with given layout.
 
 
 *wpk* library:
@@ -211,9 +219,12 @@ function wpk.create(fpath)-- additional wpk-constructor
 	return pkg
 end
 function wpk:logfile(fname) -- write record log
-	logfmt("#%d %s, %d bytes, crc=%s",
-		self:gettag(fname, "fid").uint, fname,
-		self:filesize(fname), self:gettag(fname, "crc32").hex)
+	logfmt("#%d %s, %d bytes, %s, crc=%s",
+		assert(self:gettag(fname, "fid")).uint,
+		fname,
+		self:filesize(fname),
+		assert(self:gettag(fname, "mtime")):gettime("2006-01-02 15:04:05"),
+		assert(self:gettag(fname, "crc32")).hex)
 end
 function wpk:safealias(fname1, fname2) -- make 2 file name aliases to 1 file
 	if self:hasfile(fname1) then

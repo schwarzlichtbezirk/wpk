@@ -37,7 +37,7 @@ end
 local n = 0
 local function logfile(fkey) -- write record log
 	logfmt("#%d file %s, crc=%s", n, fkey,
-		tostring(pkg:gettag(fkey, "crc32")))
+		tostring(assert(pkg:gettag(fkey, "crc32"))))
 end
 local function packfile(fkey, keywords) -- pack given file with common preset
 	n = n + 1

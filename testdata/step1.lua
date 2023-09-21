@@ -26,7 +26,7 @@ local function packfile(fkey, keywords)
 	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
 	pkg:addtags(fkey, {fid=n, keywords=keywords, author="schwarzlichtbezirk"})
 	log(string.format("#%d file %s, crc=%s", n, fkey,
-		tostring(pkg:gettag(fkey, "crc32"))))
+		tostring(assert(pkg:gettag(fkey, "crc32")))))
 end
 
 -- open wpk-file for write
