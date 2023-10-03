@@ -351,7 +351,7 @@ func TestPutFiles(t *testing.T) {
 		t.Logf("put alias '%s' to '%s'", newname, oldname)
 	}
 	var delalias = func(name string) {
-		if _, ok := pkg.GetDelTagset(name); !ok {
+		if _, ok := pkg.DelTagset(name); !ok {
 			t.Fatalf("alias '%s' not deleted", name)
 		}
 		tagsnum--

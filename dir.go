@@ -101,23 +101,6 @@ func TempPath(fname string) string {
 	return path.Join(ToSlash(os.TempDir()), fname)
 }
 
-// ToSlash brings filenames to true slashes
-// without superfluous allocations if it possible.
-func ToSlash(s string) string {
-	var b = S2B(s)
-	var bc = b
-	var c bool
-	for i, v := range b {
-		if v == '\\' {
-			if !c {
-				bc, c = []byte(s), true
-			}
-			bc[i] = '/'
-		}
-	}
-	return B2S(bc)
-}
-
 // ReadDirN returns fs.DirEntry array with nested into given package directory presentation.
 // It's core function for ReadDirFile and ReadDirFS structures.
 func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) {
@@ -128,7 +111,7 @@ func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) 
 		prefix = fulldir + "/" // set terminated slash
 	}
 
-	ftt.rwm.Range(func(fkey string, ts TagsetRaw) bool {
+	ftt.tsm.Range(func(fkey string, ts TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			var suffix = fkey[len(prefix):]
 			var sp = strings.IndexByte(suffix, '/')
@@ -173,7 +156,7 @@ func (ftt *FTT) OpenDir(fulldir string) (fs.ReadDirFile, error) {
 		prefix = fulldir + "/" // set terminated slash
 	}
 	var f *PackDirFile
-	ftt.rwm.Range(func(fkey string, ts TagsetRaw) bool {
+	ftt.tsm.Range(func(fkey string, ts TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			var dts = TagsetRaw{}.
 				Put(TIDpath, StrTag(fulldir))

@@ -11,7 +11,6 @@ import (
 	"io"
 	"mime"
 	"path"
-	"strings"
 
 	"github.com/h2non/filetype"
 	"github.com/schwarzlichtbezirk/wpk"
@@ -23,7 +22,7 @@ func adjustmime(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool) (wpk.TagsetRaw, er
 	if skip || ts.Has(wpk.TIDmime) {
 		return ts, err
 	}
-	var ext = strings.ToLower(path.Ext(ts.Path()))
+	var ext = wpk.ToLower(path.Ext(ts.Path()))
 	var ctype string
 	if ctype = mime.TypeByExtension(ext); ctype == "" {
 		if ctype, ok = MimeExt[ext]; !ok {

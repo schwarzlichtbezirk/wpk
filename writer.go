@@ -118,7 +118,7 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 	// rewrite true header
 	var hdr = Header{
 		signature: [SignSize]byte(S2B(SignReady)),
-		fttcount:  uint64(ftt.rwm.Len()),
+		fttcount:  uint64(ftt.tsm.Len()),
 		fttoffset: uint64(fftpos),
 		fttsize:   uint64(fftend - fftpos),
 		datoffset: uint64(datpos),

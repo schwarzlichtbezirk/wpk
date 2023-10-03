@@ -162,7 +162,7 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 			prefix = fulldir + "/" // set terminated slash
 		}
 
-		pkg.rwm.Range(func(fkey string, ts TagsetRaw) bool {
+		pkg.tsm.Range(func(fkey string, ts TagsetRaw) bool {
 			if strings.HasPrefix(fkey, prefix) {
 				var suffix = fkey[len(prefix):]
 				var sp = strings.IndexByte(suffix, '/')

@@ -840,7 +840,7 @@ func wpkdelalias(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var kpath = ls.CheckString(2)
 
-	var _, ok = pkg.GetDelTagset(kpath)
+	var _, ok = pkg.DelTagset(kpath)
 	ls.Push(lua.LBool(ok))
 	return 1
 }
