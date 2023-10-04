@@ -114,7 +114,6 @@ to build wpk-packages.
 	datasize - getter only, returns package data size from current file position.
 	automime - get/set mode to put for each new file tag with its MIME
 		determined by file extension, if it does not issued explicitly.
-	nolink - get/set mode to exclude link from tagset. Exclude on 'true'.
 	secret - get/set private key to sign hash MAC (MD5, SHA1, SHA224, etc).
 	crc32 - get/set mode to put for each new file tag with CRC32 of file.
 		Used Castagnoli's polynomial 0x82f63b78.
@@ -212,26 +211,25 @@ end
 function wpk.create(fpath)-- additional wpk-constructor
 	local pkg = wpk.new()
 	pkg.automime = true -- put MIME type for each file if it is not given explicit
-	pkg.nolink = true -- exclude links
 	pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 	pkg:begin(fpath) -- open wpk-file for write
 	log("starts: "..pkg.pkgpath)
 	return pkg
 end
-function wpk:logfile(fname) -- write record log
+function wpk:logfile(fkey) -- write record log
 	logfmt("#%d %s, %d bytes, %s, crc=%s",
-		assert(self:gettag(fname, "fid")).uint,
-		fname,
-		self:filesize(fname),
-		assert(self:gettag(fname, "mtime")):gettime("2006-01-02 15:04:05"),
-		assert(self:gettag(fname, "crc32")).hex)
+		assert(self:gettag(fkey, "fid")).uint,
+		fkey,
+		self:filesize(fkey),
+		assert(self:gettag(fkey, "mtime")):gettime("2006-01-02 15:04:05"),
+		assert(self:gettag(fkey, "crc32")).hex)
 end
-function wpk:safealias(fname1, fname2) -- make 2 file name aliases to 1 file
-	if self:hasfile(fname1) then
-		self:putalias(fname1, fname2)
-		logfmt("maked alias '%s' to '%s'", fname2, fname1)
+function wpk:safealias(fkey1, fkey2) -- make 2 file name aliases to 1 file
+	if self:hasfile(fkey1) then
+		self:putalias(fkey1, fkey2)
+		logfmt("maked alias '%s' to '%s'", fkey2, fkey1)
 	else
-		logfmt("file '%s' is not found in package", fname1)
+		logfmt("file '%s' is not found in package", fkey1)
 	end
 end
 
@@ -247,17 +245,20 @@ pkg.secret = "package-private-key" -- private key to sign cryptographic hashes f
 pkg.sha224 = true -- generate SHA224 hash for each file
 
 -- put images with keywords and author addition tags
-for fname, tags in pairs{
+for fkey, tags in pairs{
 	["bounty.jpg"] = {fid=1, keywords="beach", category="image"},
 	["img1/Qarataşlar.jpg"] = {fid=2, keywords="beach;rock", category="photo"},
 	["img1/claustral.jpg"] = {fid=3, keywords="beach;rock", category="photo"},
 	["img2/marble.jpg"] = {fid=4, keywords="beach", category="photo"},
 	["img2/Uzuncı.jpg"] = {fid=5, keywords="rock", category="photo"},
 } do
-	tags.author="schwarzlichtbezirk"
-	pkg:putfile(fname, path.join(scrdir, "media", fname))
-	pkg:addtags(fname, tags)
-	pkg:logfile(fname)
+	local fpath = path.join(scrdir, "media", fkey)
+	tags.mime = "image/jpeg"
+	tags.author = "schwarzlichtbezirk"
+	tags.link = fpath
+	pkg:putfile(fkey, fpath)
+	pkg:addtags(fkey, tags)
+	pkg:logfile(fkey)
 end
 -- make alias to file included at list
 pkg:safealias("img1/claustral.jpg", "jasper.jpg")

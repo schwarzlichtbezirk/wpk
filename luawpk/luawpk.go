@@ -36,7 +36,6 @@ const PackMT = "wpk"
 type LuaPackage struct {
 	wpk.Package
 	automime bool
-	nolink   bool
 	secret   []byte
 	crc32    bool
 	crc64    bool
@@ -191,7 +190,6 @@ var propertiesPack = []struct {
 	{"fftsize", getfftsize, nil},
 	{"datasize", getdatasize, nil},
 	{"automime", getautomime, setautomime},
-	{"nolink", getnolink, setnolink},
 	{"secret", getsecret, setsecret},
 	{"crc32", getcrc32, setcrc32},
 	{"crc64", getcrc64, setcrc64},
@@ -321,20 +319,6 @@ func setautomime(ls *lua.LState) int {
 	var val = ls.CheckBool(2)
 
 	pkg.automime = val
-	return 0
-}
-
-func getnolink(ls *lua.LState) int {
-	var pkg = CheckPack(ls, 1)
-	ls.Push(lua.LBool(pkg.nolink))
-	return 1
-}
-
-func setnolink(ls *lua.LState) int {
-	var pkg = CheckPack(ls, 1)
-	var val = ls.CheckBool(2)
-
-	pkg.nolink = val
 	return 0
 }
 

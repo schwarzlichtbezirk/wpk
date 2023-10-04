@@ -21,10 +21,15 @@ log("starts: "..pkgpath)
 -- pack given file, then add keywords and author to tagset
 local function packfile(fkey, fpath, keywords)
 	pkg:putfile(fkey, fpath)
-	pkg:addtags(fkey, {keywords=keywords, author="schwarzlichtbezirk"})
+	pkg:addtags(fkey, {
+		mime = "image/jpeg",
+		link = fpath,
+		keywords = keywords,
+		author = "schwarzlichtbezirk",
+	})
 end
 
--- put images with keywords and author addition tags
+-- put images with keywords, author and link addition tags
 local mediadir = path.join(scrdir, "media").."/"
 packfile("bounty.jpg", mediadir.."bounty.jpg", "beach")
 packfile("Qarataşlar.jpg", mediadir.."img1/Qarataşlar.jpg", "beach;rock")

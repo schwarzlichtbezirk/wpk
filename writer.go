@@ -187,7 +187,6 @@ func (pkg *Package) PackFile(w io.WriteSeeker, file fs.File, fpath string) (ts T
 	if tsp.HasBirthTime() {
 		ts = ts.Put(TIDbtime, TimeTag(tsp.BirthTime()))
 	}
-	ts = ts.Put(TIDlink, StrTag(fpath))
 	pkg.SetTagset(fpath, ts)
 	return
 }

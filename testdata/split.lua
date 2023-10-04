@@ -29,14 +29,12 @@ pkg:begin(pkgpath, datpath)
 log("starts header file: "..pkgpath)
 log("starts data file:   "..datpath)
 
--- pack given file, then add keywords and author to tagset
+-- pack given file, then add keywords, author and link to tagset
 local function packfile(fkey, keywords)
-	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
-	pkg:addtags(fkey, {keywords=keywords, author="schwarzlichtbezirk"})
+	local fpath = path.join(scrdir, "media", fkey)
+	pkg:putfile(fkey, fpath)
+	pkg:addtags(fkey, {link=fpath, keywords=keywords, author="schwarzlichtbezirk"})
 end
-
--- put images with keywords and author addition tags
-local mediadir = path.join(scrdir, "media").."/"
 
 -- workflow part 1
 packfile("bounty.jpg", "beach")

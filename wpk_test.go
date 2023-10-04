@@ -40,19 +40,14 @@ func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 
 	var realtagsnum int
 	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
+		var link, haslink = ts.TagStr(wpk.TIDlink)
 		var offset, size = ts.Pos()
 		var fid, _ = ts.TagUint(wpk.TIDfid)
 		realtagsnum++
 
-		var isfile = ts.Has(wpk.TIDmtime)
-		var link, islink = ts.Get(wpk.TIDlink)
-		if isfile && !islink {
-			t.Fatalf("found file without link #%d '%s'", fid, fkey)
-		}
-
 		var orig []byte
-		if isfile {
-			if orig, err = os.ReadFile(mediadir + wpk.B2S(link)); err != nil {
+		if haslink {
+			if orig, err = os.ReadFile(link); err != nil {
 				t.Fatal(err)
 			}
 		} else {
@@ -83,7 +78,7 @@ func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 			return false
 		}
 
-		if isfile {
+		if haslink {
 			t.Logf("check file #%d '%s' is ok", fid, fkey)
 		} else {
 			t.Logf("check data #%d '%s' is ok", fid, fkey)
@@ -183,7 +178,10 @@ func TestPackDir(t *testing.T) {
 	if err = pkg.PackDir(fwpk, mediadir, "", func(pkg *wpk.Package, r io.ReadSeeker, ts wpk.TagsetRaw) error {
 		tagsnum++
 		fidcount++
-		pkg.SetupTagset(ts.Put(wpk.TIDfid, wpk.UintTag(fidcount)))
+		var fpath = mediadir + ts.Path()
+		pkg.SetupTagset(ts.
+			Put(wpk.TIDfid, wpk.UintTag(fidcount)).
+			Put(wpk.TIDlink, wpk.StrTag(fpath)))
 		t.Logf("put file #%d '%s', %d bytes", fidcount, ts.Path(), ts.Size())
 		return nil
 	}); err != nil {
@@ -285,7 +283,10 @@ func TestPackDirSplit(t *testing.T) {
 	if err = pkg.PackDir(fwpf, mediadir, "", func(pkg *wpk.Package, r io.ReadSeeker, ts wpk.TagsetRaw) error {
 		tagsnum++
 		fidcount++
-		pkg.SetupTagset(ts.Put(wpk.TIDfid, wpk.UintTag(fidcount)))
+		var fpath = mediadir + ts.Path()
+		pkg.SetupTagset(ts.
+			Put(wpk.TIDfid, wpk.UintTag(fidcount)).
+			Put(wpk.TIDlink, wpk.StrTag(fpath)))
 		t.Logf("put file #%d '%s', %d bytes", fidcount, ts.Path(), ts.Size())
 		return nil
 	}); err != nil {
@@ -312,8 +313,9 @@ func TestPutFiles(t *testing.T) {
 
 	// helper functions
 	var putfile = func(name string) {
+		var fpath = mediadir + name
 		var file fs.File
-		if file, err = os.Open(mediadir + name); err != nil {
+		if file, err = os.Open(fpath); err != nil {
 			t.Fatal(err)
 		}
 		defer file.Close()
@@ -325,7 +327,9 @@ func TestPutFiles(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		pkg.SetupTagset(ts.Put(wpk.TIDfid, wpk.UintTag(fidcount)))
+		pkg.SetupTagset(ts.
+			Put(wpk.TIDfid, wpk.UintTag(fidcount)).
+			Put(wpk.TIDlink, wpk.StrTag(fpath)))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -368,6 +372,9 @@ func TestPutFiles(t *testing.T) {
 	if err = pkg.Begin(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
+	// put package info somewhere before finalize
+	pkg.SetInfo(wpk.TagsetRaw{}.
+		Put(wpk.TIDlabel, wpk.StrTag("put-files")))
 	// put content
 	putfile("bounty.jpg")
 	putfile("img1/claustral.jpg")
@@ -426,8 +433,9 @@ func TestAppendContinues(t *testing.T) {
 
 	// helper functions
 	var putfile = func(name string) {
+		var fpath = mediadir + name
 		var file fs.File
-		if file, err = os.Open(mediadir + name); err != nil {
+		if file, err = os.Open(fpath); err != nil {
 			t.Fatal(err)
 		}
 		defer file.Close()
@@ -439,7 +447,9 @@ func TestAppendContinues(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		pkg.SetupTagset(ts.Put(wpk.TIDfid, wpk.UintTag(fidcount)))
+		pkg.SetupTagset(ts.
+			Put(wpk.TIDfid, wpk.UintTag(fidcount)).
+			Put(wpk.TIDlink, wpk.StrTag(fpath)))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -454,6 +464,9 @@ func TestAppendContinues(t *testing.T) {
 	if err = pkg.Begin(fwpk, nil); err != nil {
 		t.Fatal(err)
 	}
+	// put package info somewhere before finalize
+	pkg.SetInfo(wpk.TagsetRaw{}.
+		Put(wpk.TIDlabel, wpk.StrTag("append-continues")))
 	// put content
 	putfile("bounty.jpg")
 	putfile("img1/claustral.jpg")
@@ -500,8 +513,9 @@ func TestAppendDiscrete(t *testing.T) {
 
 	// helper functions
 	var putfile = func(name string) {
+		var fpath = mediadir + name
 		var file fs.File
-		if file, err = os.Open(mediadir + name); err != nil {
+		if file, err = os.Open(fpath); err != nil {
 			t.Fatal(err)
 		}
 		defer file.Close()
@@ -513,7 +527,9 @@ func TestAppendDiscrete(t *testing.T) {
 
 		tagsnum++
 		fidcount++
-		pkg.SetupTagset(ts.Put(wpk.TIDfid, wpk.UintTag(fidcount)))
+		pkg.SetupTagset(ts.
+			Put(wpk.TIDfid, wpk.UintTag(fidcount)).
+			Put(wpk.TIDlink, wpk.StrTag(fpath)))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}
@@ -529,6 +545,10 @@ func TestAppendDiscrete(t *testing.T) {
 		if err = pkg.Begin(fwpk, nil); err != nil {
 			t.Fatal(err)
 		}
+		// put package info somewhere before finalize
+		var ts = pkg.GetInfo()
+		ts, _ = ts.Set(wpk.TIDlabel, wpk.StrTag("discrete-step#1"))
+		pkg.SetInfo(ts)
 		// put content
 		putfile("bounty.jpg")
 		putfile("img1/claustral.jpg")
@@ -565,6 +585,10 @@ func TestAppendDiscrete(t *testing.T) {
 		if err = pkg.Append(fwpk, nil); err != nil {
 			t.Fatal(err)
 		}
+		// put package info somewhere before finalize
+		var ts = pkg.GetInfo()
+		ts, _ = ts.Set(wpk.TIDlabel, wpk.StrTag("discrete-step#2"))
+		pkg.SetInfo(ts)
 		// put content
 		putfile("img2/marble.jpg")
 		putfile("img2/Uzuncı.jpg")

@@ -166,10 +166,6 @@ func (pkg *LuaPackage) adjusttagset(r io.ReadSeeker, ts wpk.TagsetRaw) (wpk.Tags
 		return ts, err
 	}
 
-	if pkg.nolink {
-		ts, _ = ts.Del(wpk.TIDlink)
-	}
-
 	if ts, err = adjustcrc32c(ts, r, !pkg.crc32); err != nil {
 		return ts, err
 	}

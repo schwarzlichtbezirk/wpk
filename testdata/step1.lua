@@ -23,8 +23,14 @@ pkg.md5 = true -- generate MD5 hash for each file
 local n = 0
 local function packfile(fkey, keywords)
 	n = n + 1
-	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
-	pkg:addtags(fkey, {fid=n, keywords=keywords, author="schwarzlichtbezirk"})
+	local fpath = path.join(scrdir, "media", fkey)
+	pkg:putfile(fkey, fpath)
+	pkg:addtags(fkey, {
+		fid = n,
+		link = fpath,
+		keywords = keywords,
+		author = "schwarzlichtbezirk",
+	})
 	log(string.format("#%d file %s, crc=%s", n, fkey,
 		tostring(assert(pkg:gettag(fkey, "crc32")))))
 end

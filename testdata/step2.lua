@@ -41,14 +41,24 @@ local function logfile(fkey) -- write record log
 end
 local function packfile(fkey, keywords) -- pack given file with common preset
 	n = n + 1
-	pkg:putfile(fkey, path.join(scrdir, "media", fkey))
-	pkg:addtags(fkey, {fid=n, keywords=keywords, author="schwarzlichtbezirk"})
+	local fpath = path.join(scrdir, "media", fkey)
+	pkg:putfile(fkey, fpath)
+	pkg:addtags(fkey, {
+		fid = n,
+		link = fpath,
+		keywords = keywords,
+		author = "schwarzlichtbezirk",
+	})
 	logfile(fkey)
 end
 local function packdata(fkey, data, keywords) -- put text file created from given string
 	n = n + 1
 	pkg:putdata(fkey, data)
-	pkg:settags(fkey, {fid=n, keywords=keywords, mime="text/plain;charset=utf-8"})
+	pkg:settags(fkey, {
+		fid = n,
+		mime = "text/plain;charset=utf-8",
+		keywords = keywords,
+	})
 	logfile(fkey)
 end
 local function safealias(fname1, fname2) -- make 2 file name aliases to 1 file

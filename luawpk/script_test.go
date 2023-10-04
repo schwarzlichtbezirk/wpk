@@ -40,22 +40,16 @@ func CheckPackage(t *testing.T, wptname, wpfname string) {
 
 	var n = 0
 	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
-		var ok bool
-		var offset, size = ts.Pos()
 		n++
-
-		if !ts.Has(wpk.TIDmtime) {
+		var link, haslink = ts.TagStr(wpk.TIDlink)
+		if !haslink {
 			t.Logf("found packed data #%d '%s'", n, fkey)
 			return true // skip packed data
 		}
-
-		var link wpk.TagRaw
-		if link, ok = ts.Get(wpk.TIDlink); !ok {
-			t.Fatalf("found file without link #%d '%s'", n, fkey)
-		}
+		var offset, size = ts.Pos()
 
 		var orig []byte
-		if orig, err = os.ReadFile(mediadir + wpk.B2S(link)); err != nil {
+		if orig, err = os.ReadFile(link); err != nil {
 			t.Fatal(err)
 		}
 

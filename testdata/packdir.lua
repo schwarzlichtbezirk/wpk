@@ -71,8 +71,11 @@ local function packdir(prefix, dir)
 			else
 				n = n + 1
 				pkg:putfile(fkey, fpath)
-				pkg:settag(fkey, "fid", n)
-				pkg:settag(fkey, "author", "schwarzlichtbezirk")
+				pkg:settags(fkey, {
+					fid = n,
+					link = fpath,
+					author = "schwarzlichtbezirk",
+				})
 				logfmt("#%d %s, %d bytes, %s", n, fkey,
 					pkg:filesize(fkey), assert(pkg:gettag(fkey, "mime")).string)
 			end
