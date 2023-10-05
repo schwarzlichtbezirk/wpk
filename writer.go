@@ -136,10 +136,10 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 }
 
 // PackData puts data streamed by given reader into package as a file
-// and associate keyname "kpath" with it.
-func (pkg *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts TagsetRaw, err error) {
-	if _, ok := pkg.GetTagset(fpath); ok {
-		err = &fs.PathError{Op: "packdata", Path: fpath, Err: fs.ErrExist}
+// and associate keyname "fkey" with it.
+func (pkg *Package) PackData(w io.WriteSeeker, r io.Reader, fkey string) (ts TagsetRaw, err error) {
+	if _, ok := pkg.GetTagset(fkey); ok {
+		err = &fs.PathError{Op: "packdata", Path: fkey, Err: fs.ErrExist}
 		return
 	}
 
@@ -162,18 +162,18 @@ func (pkg *Package) PackData(w io.WriteSeeker, r io.Reader, fpath string) (ts Ta
 	}
 
 	// insert new entry to tags table
-	ts = pkg.BaseTagset(Uint(offset), Uint(size), fpath)
-	pkg.SetTagset(fpath, ts)
+	ts = pkg.BaseTagset(Uint(offset), Uint(size), fkey)
+	pkg.SetTagset(fkey, ts)
 	return
 }
 
-// PackFile puts file with given file handle into package and associate keyname "fpath" with it.
-func (pkg *Package) PackFile(w io.WriteSeeker, file fs.File, fpath string) (ts TagsetRaw, err error) {
+// PackFile puts file with given file handle into package and associate keyname "fkey" with it.
+func (pkg *Package) PackFile(w io.WriteSeeker, file fs.File, fkey string) (ts TagsetRaw, err error) {
 	var fi os.FileInfo
 	if fi, err = file.Stat(); err != nil {
 		return
 	}
-	if ts, err = pkg.PackData(w, file, fpath); err != nil {
+	if ts, err = pkg.PackData(w, file, fkey); err != nil {
 		return
 	}
 
@@ -187,7 +187,7 @@ func (pkg *Package) PackFile(w io.WriteSeeker, file fs.File, fpath string) (ts T
 	if tsp.HasBirthTime() {
 		ts = ts.Put(TIDbtime, TimeTag(tsp.BirthTime()))
 	}
-	pkg.SetTagset(fpath, ts)
+	pkg.SetTagset(fkey, ts)
 	return
 }
 
@@ -214,10 +214,10 @@ func (pkg *Package) PackDir(w io.WriteSeeker, dirname, prefix string, logger Pac
 	}
 	for _, fi := range fis {
 		if fi != nil {
-			var kpath = prefix + fi.Name()
+			var fkey = prefix + fi.Name()
 			var fpath = dirname + fi.Name()
 			if fi.IsDir() {
-				if err = pkg.PackDir(w, fpath+"/", kpath+"/", logger); err != nil {
+				if err = pkg.PackDir(w, fpath+"/", fkey+"/", logger); err != nil {
 					return
 				}
 			} else if func() {
@@ -228,7 +228,7 @@ func (pkg *Package) PackDir(w io.WriteSeeker, dirname, prefix string, logger Pac
 				}
 				defer file.Close()
 
-				if ts, err = pkg.PackFile(w, file, kpath); err != nil {
+				if ts, err = pkg.PackFile(w, file, fkey); err != nil {
 					return
 				}
 				if err = logger(pkg, file, ts); err != nil {
@@ -242,20 +242,20 @@ func (pkg *Package) PackDir(w io.WriteSeeker, dirname, prefix string, logger Pac
 	return
 }
 
-// Rename tagset with file name 'oldname' to 'newname'.
+// Rename tagset with file name 'fkey1' to 'fkey2'.
 // Keeps link to original file name.
-func (pkg *Package) Rename(oldname, newname string) error {
-	var ts, ok = pkg.GetTagset(oldname)
+func (pkg *Package) Rename(fkey1, fkey2 string) error {
+	var ts, ok = pkg.GetTagset(fkey1)
 	if !ok {
-		return &fs.PathError{Op: "rename", Path: oldname, Err: fs.ErrNotExist}
+		return &fs.PathError{Op: "rename", Path: fkey1, Err: fs.ErrNotExist}
 	}
-	if _, ok = pkg.GetTagset(newname); ok {
-		return &fs.PathError{Op: "rename", Path: newname, Err: fs.ErrExist}
+	if _, ok = pkg.GetTagset(fkey2); ok {
+		return &fs.PathError{Op: "rename", Path: fkey2, Err: fs.ErrExist}
 	}
 
-	ts, _ = ts.Set(TIDpath, StrTag(pkg.FullPath(ToSlash(newname))))
-	pkg.DelTagset(oldname)
-	pkg.SetTagset(newname, ts)
+	ts, _ = ts.Set(TIDpath, StrTag(pkg.FullPath(ToSlash(fkey2))))
+	pkg.DelTagset(fkey1)
+	pkg.SetTagset(fkey2, ts)
 	return nil
 }
 
@@ -287,20 +287,20 @@ func (pkg *Package) RenameDir(olddir, newdir string, skipexist bool) (count int,
 	return
 }
 
-// PutAlias makes clone tagset with file name 'oldname' and replace name tag
-// in it to 'newname'. Keeps link to original file name.
-func (pkg *Package) PutAlias(oldname, newname string) error {
-	var ts, ok = pkg.GetTagset(oldname)
+// PutAlias makes clone tagset with file name 'fkey1' and replace name tag
+// in it to 'fkey2'. Keeps link to original file name.
+func (pkg *Package) PutAlias(fkey1, fkey2 string) error {
+	var ts, ok = pkg.GetTagset(fkey1)
 	if !ok {
-		return &fs.PathError{Op: "putalias", Path: oldname, Err: fs.ErrNotExist}
+		return &fs.PathError{Op: "putalias", Path: fkey1, Err: fs.ErrNotExist}
 	}
-	if _, ok = pkg.GetTagset(newname); ok {
-		return &fs.PathError{Op: "putalias", Path: newname, Err: fs.ErrExist}
+	if _, ok = pkg.GetTagset(fkey2); ok {
+		return &fs.PathError{Op: "putalias", Path: fkey2, Err: fs.ErrExist}
 	}
 
 	ts = append([]byte{}, ts...) // make a copy
-	ts, _ = ts.Set(TIDpath, StrTag(pkg.FullPath(ToSlash(newname))))
-	pkg.SetTagset(newname, ts)
+	ts, _ = ts.Set(TIDpath, StrTag(pkg.FullPath(ToSlash(fkey2))))
+	pkg.SetTagset(fkey2, ts)
 	return nil
 }
 

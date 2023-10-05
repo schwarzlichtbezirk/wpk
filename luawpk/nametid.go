@@ -1,6 +1,7 @@
 package luawpk
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -20,6 +21,8 @@ const (
 	TTtime
 )
 
+const ISO8601 = "2006-01-02T15:04:05.999Z07:00"
+
 // TidType helps to convert raw tags to Lua values.
 var TidType = map[wpk.TID]int{
 	wpk.TIDoffset: TTuint,
@@ -33,10 +36,10 @@ var TidType = map[wpk.TID]int{
 	wpk.TIDattr:   TTuint,
 	wpk.TIDmime:   TTstr,
 
-	wpk.TIDcrc32ieee: TTuint,
-	wpk.TIDcrc32c:    TTuint,
-	wpk.TIDcrc32k:    TTuint,
-	wpk.TIDcrc64iso:  TTuint,
+	wpk.TIDcrc32ieee: TTbin,
+	wpk.TIDcrc32c:    TTbin,
+	wpk.TIDcrc32k:    TTbin,
+	wpk.TIDcrc64iso:  TTbin,
 
 	wpk.TIDmd5:    TTbin,
 	wpk.TIDsha1:   TTbin,
@@ -142,17 +145,16 @@ func ValueToTID(k lua.LValue) (tid wpk.TID, err error) {
 // boolen converts to 1 byte slice with 1 for 'true' and 0 for 'false'.
 // Otherwise if it is not 'tag' uservalue with TagRaw, returns error.
 func ValueToTag(tid wpk.TID, v lua.LValue) (tag wpk.TagRaw, err error) {
-	if ud, ok := v.(*lua.LUserData); ok {
-		if val, ok := ud.Value.(*LuaTag); ok {
-			tag = val.TagRaw
+	switch TidType[tid] {
+	case TTbin:
+		if val, ok := v.(lua.LNumber); ok {
+			tag = wpk.UintTag(wpk.Uint(val))
+		} else if val, ok := v.(lua.LString); ok {
+			tag, err = hex.DecodeString(string(val))
 		} else {
 			err = ErrBadTagVal
 			return
 		}
-		return
-	}
-
-	switch TidType[tid] {
 	case TTstr:
 		if val, ok := v.(lua.LNumber); ok {
 			tag = wpk.StrTag(val.String())
@@ -248,13 +250,11 @@ func ValueToTag(tid wpk.TID, v lua.LValue) (tag wpk.TagRaw, err error) {
 
 func TagToValue(tid wpk.TID, tag wpk.TagRaw) (v lua.LValue, err error) {
 	switch TidType[tid] {
-	default: // TTany, TTbin, TTstr
-		var val, ok = tag.TagStr()
-		if !ok {
-			err = ErrBadTagVal
-			return
-		}
+	default: // TTany, TTstr
+		var val, _ = tag.TagStr()
 		v = lua.LString(val)
+	case TTbin:
+		v = lua.LString(hex.EncodeToString(tag))
 	case TTbool:
 		var val, ok = tag.TagUint()
 		if !ok {

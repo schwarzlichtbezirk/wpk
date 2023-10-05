@@ -15,14 +15,14 @@ func TestTagset(t *testing.T) {
 		offset = 0xDEADBEEF
 		size   = 1234
 		fkey   = `Dir/FileName.ext`
-		kpath1 = `Dir/FileName.ext`
-		kpath2 = `Dir\FileName.ext`
+		fkey1  = `Dir/FileName.ext`
+		fkey2  = `Dir\FileName.ext`
 		mime   = "image/jpeg"
 	)
 	var ts = wpk.TagsetRaw{}.
 		Put(wpk.TIDoffset, wpk.UintTag(offset)).
 		Put(wpk.TIDsize, wpk.UintTag(size)).
-		Put(wpk.TIDpath, wpk.StrTag(wpk.ToSlash(kpath1))).
+		Put(wpk.TIDpath, wpk.StrTag(wpk.ToSlash(fkey1))).
 		Put(wpk.TIDfid, wpk.UintTag(fid))
 	var tsi = ts.Iterator()
 
@@ -39,7 +39,7 @@ func TestTagset(t *testing.T) {
 		cond func() bool
 		msg  string
 	}{
-		{func() bool { return wpk.ToSlash(kpath1) != fkey || wpk.ToSlash(kpath2) != fkey },
+		{func() bool { return wpk.ToSlash(fkey1) != fkey || wpk.ToSlash(fkey2) != fkey },
 			"toslash test failed",
 		},
 		{func() bool { return tsi.TID() != wpk.TIDnone },
@@ -180,7 +180,7 @@ func TestTagset(t *testing.T) {
 		{func() bool { return ts.Num() != 4 },
 			"number of tags after replace 'path' must not be changed",
 		},
-		{func() bool { return ts.Path() != wpk.ToSlash(kpath2) },
+		{func() bool { return ts.Path() != wpk.ToSlash(fkey2) },
 			"'Set' function does not work correctly",
 		},
 		{func() (ok bool) {

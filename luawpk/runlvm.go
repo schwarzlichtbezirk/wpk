@@ -53,7 +53,6 @@ func RunLuaVM(fpath string) (err error) {
 	defer ls.Close()
 
 	OpenPath(ls)
-	RegTag(ls)
 	RegPack(ls)
 
 	var bindir = path.Dir(wpk.ToSlash(os.Args[0]))

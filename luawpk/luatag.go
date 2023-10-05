@@ -9,8 +9,6 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-const ISO8601 = "2006-01-02T15:04:05.999Z07:00"
-
 // TagMT is "tag" name of Lua metatable.
 const TagMT = "tag"
 

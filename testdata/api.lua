@@ -164,14 +164,14 @@ to build wpk-packages.
 		expected and must be unique for package. File id (tag ID = 0) and current
 		time as creation time tag will be inserted to tagset. After file writing
 		there is tagset adjust by add marked tags with hashes (MD5, SHA1, SHA224, etc).
-	rename(kpath1, kpath2) - rename file name with kpath1 to kpath2. Rename is
+	rename(fkey1, fkey2) - rename file name with fkey1 to fkey2. Rename is
 		carried out by replace name tag in file tagset from one name to another.
 		Keeps link to original file name.
-	renamedir(kpath1, kpath2, skipexist) - renames all files in package with
-		'kpath1' path to 'kpath2' path. Carried out by replace name tag in each
+	renamedir(dir1, dir2, skipexist) - renames all files in package with
+		'dir1' path to 'dir2' path. Carried out by replace name tag in each
 		file tagset from one directory prefix to another.
-	putalias(kpath1, kpath2) - clone tagset with file name kpath1 and replace
-		name tag in it to kpath2. So, there will be two tagset referenced to
+	putalias(fkey1, fkey2) - clone tagset with file name fkey1 and replace
+		name tag in it to fkey2. So, there will be two tagset referenced to
 		one data block. Keeps link to original file name.
 	delalias(fkey) - delete tagset with specified file name. Data block is
 		still remains.

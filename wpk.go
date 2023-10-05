@@ -34,10 +34,10 @@ const (
 	TIDattr   = 9  // uint32
 	TIDmime   = 10 // string
 
-	TIDcrc32ieee = 11 // uint32, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
-	TIDcrc32c    = 12 // uint32, (Castagnoli), poly = 0x1EDC6F41, init = -1
-	TIDcrc32k    = 13 // uint32, (Koopman), poly = 0x741B8CD7, init = -1
-	TIDcrc64iso  = 14 // uint64, poly = 0xD800000000000000, init = -1
+	TIDcrc32ieee = 11 // [4]byte, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
+	TIDcrc32c    = 12 // [4]byte, (Castagnoli), poly = 0x1EDC6F41, init = -1
+	TIDcrc32k    = 13 // [4]byte, (Koopman), poly = 0x741B8CD7, init = -1
+	TIDcrc64iso  = 14 // [8]byte, poly = 0xD800000000000000, init = -1
 
 	TIDmd5    = 20 // [16]byte
 	TIDsha1   = 21 // [20]byte
@@ -303,7 +303,7 @@ func (ftt *FTT) SetInfo(ts TagsetRaw) {
 
 // CheckTagset tests path & offset & size tags existence
 // and checks that size & offset is are in the bounds.
-func (ftt *FTT) CheckTagset(ts TagsetRaw) (fpath string, err error) {
+func (ftt *FTT) CheckTagset(ts TagsetRaw) (fkey string, err error) {
 	var offset, size Uint
 	var ispath, isoffset, issize bool
 
@@ -316,7 +316,7 @@ func (ftt *FTT) CheckTagset(ts TagsetRaw) (fpath string, err error) {
 		case TIDsize:
 			size, issize = TagRaw(tsi.TagsetRaw[tsi.tag:tsi.pos]).TagUint()
 		case TIDpath:
-			fpath, ispath = TagRaw(tsi.TagsetRaw[tsi.tag:tsi.pos]).TagStr()
+			fkey, ispath = TagRaw(tsi.TagsetRaw[tsi.tag:tsi.pos]).TagStr()
 		}
 	}
 	if tsi.Failed() {
@@ -329,26 +329,26 @@ func (ftt *FTT) CheckTagset(ts TagsetRaw) (fpath string, err error) {
 		err = &ErrTag{ErrNoPath, "", TIDpath}
 		return
 	}
-	if ftt.tsm.Has(fpath) { // prevent same file from repeating
-		err = &ErrTag{fs.ErrExist, fpath, TIDpath}
+	if ftt.tsm.Has(fkey) { // prevent same file from repeating
+		err = &ErrTag{fs.ErrExist, fkey, TIDpath}
 		return
 	}
 	if !isoffset {
-		err = &ErrTag{ErrNoOffset, fpath, TIDoffset}
+		err = &ErrTag{ErrNoOffset, fkey, TIDoffset}
 		return
 	}
 	if !issize {
-		err = &ErrTag{ErrNoSize, fpath, TIDsize}
+		err = &ErrTag{ErrNoSize, fkey, TIDsize}
 		return
 	}
 
 	// check up offset and size
 	if uint64(offset) < ftt.datoffset || uint64(offset) > ftt.datoffset+ftt.datsize {
-		err = &ErrTag{ErrOutOff, fpath, TIDoffset}
+		err = &ErrTag{ErrOutOff, fkey, TIDoffset}
 		return
 	}
 	if uint64(offset+size) > ftt.datoffset+ftt.datsize {
-		err = &ErrTag{ErrOutSize, fpath, TIDsize}
+		err = &ErrTag{ErrOutSize, fkey, TIDsize}
 		return
 	}
 
@@ -389,12 +389,12 @@ func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 		var ts = TagsetRaw(buf[n : n+int64(tsl)])
 		n += int64(tsl)
 
-		var fpath string
-		if fpath, err = ftt.CheckTagset(ts); err != nil {
+		var fkey string
+		if fkey, err = ftt.CheckTagset(ts); err != nil {
 			return
 		}
 
-		ftt.tsm.Poke(ToSlash(fpath), ts)
+		ftt.tsm.Poke(ToSlash(fkey), ts)
 	}
 	return
 }
@@ -443,12 +443,12 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 		n += int64(tsl)
 
-		var fpath string
-		if fpath, err = ftt.CheckTagset(ts); err != nil {
+		var fkey string
+		if fkey, err = ftt.CheckTagset(ts); err != nil {
 			return
 		}
 
-		ftt.tsm.Poke(ToSlash(fpath), ts)
+		ftt.tsm.Poke(ToSlash(fkey), ts)
 	}
 	return
 }
@@ -585,35 +585,35 @@ func NewPackage() *Package {
 }
 
 // FullPath returns concatenation of workspace and relative path.
-func (pkg *Package) FullPath(fpath string) string {
-	return path.Join(pkg.Workspace, fpath)
+func (pkg *Package) FullPath(fkey string) string {
+	return path.Join(pkg.Workspace, fkey)
 }
 
 // TrimPath returns trimmed path without workspace prefix.
-func (pkg *Package) TrimPath(fpath string) string {
+func (pkg *Package) TrimPath(fkey string) string {
 	if pkg.Workspace == "." || pkg.Workspace == "" {
-		return fpath
+		return fkey
 	}
-	if !strings.HasPrefix(fpath, pkg.Workspace) {
+	if !strings.HasPrefix(fkey, pkg.Workspace) {
 		return ""
 	}
-	fpath = fpath[len(pkg.Workspace):]
-	if fpath == "" || fpath == "/" {
+	fkey = fkey[len(pkg.Workspace):]
+	if fkey == "" || fkey == "/" {
 		return "."
 	}
-	if fpath[0] != '/' {
+	if fkey[0] != '/' {
 		return ""
 	}
-	return fpath[1:]
+	return fkey[1:]
 }
 
 // BaseTagset returns new tagset based on predefined TID type size and tag size type,
 // and puts file offset and file size into tagset with predefined sizes.
-func (pkg *Package) BaseTagset(offset, size Uint, fpath string) TagsetRaw {
+func (pkg *Package) BaseTagset(offset, size Uint, fkey string) TagsetRaw {
 	return TagsetRaw{}.
 		Put(TIDoffset, UintTag(offset)).
 		Put(TIDsize, UintTag(size)).
-		Put(TIDpath, StrTag(pkg.FullPath(ToSlash(fpath))))
+		Put(TIDpath, StrTag(pkg.FullPath(ToSlash(fkey))))
 }
 
 // HasTagset check up that tagset with given filename key is present.
@@ -678,11 +678,11 @@ func (pkg *Package) Sub(dir string) (sub fs.FS, err error) {
 
 // Stat returns a fs.FileInfo describing the file.
 // fs.StatFS interface implementation.
-func (pkg *Package) Stat(fpath string) (fs.FileInfo, error) {
-	if ts, is := pkg.GetTagset(fpath); is {
+func (pkg *Package) Stat(fkey string) (fs.FileInfo, error) {
+	if ts, is := pkg.GetTagset(fkey); is {
 		return ts, nil
 	}
-	return nil, &fs.PathError{Op: "stat", Path: fpath, Err: fs.ErrNotExist}
+	return nil, &fs.PathError{Op: "stat", Path: fkey, Err: fs.ErrNotExist}
 }
 
 // Glob returns the names of all files in package matching pattern or nil
@@ -713,8 +713,8 @@ func (pkg *Package) ReadDir(dir string) ([]fs.DirEntry, error) {
 // ReadFile returns slice with nested into package file content.
 // Makes content copy to prevent ambiguous access to closed mapped memory block.
 // fs.ReadFileFS implementation.
-func (pkg *Package) ReadFile(fpath string) ([]byte, error) {
-	if ts, is := pkg.GetTagset(fpath); is {
+func (pkg *Package) ReadFile(fkey string) ([]byte, error) {
+	if ts, is := pkg.GetTagset(fkey); is {
 		var f, err = pkg.Tagger.OpenTagset(ts)
 		if err != nil {
 			return nil, err
@@ -726,7 +726,7 @@ func (pkg *Package) ReadFile(fpath string) ([]byte, error) {
 		_, err = f.Read(buf)
 		return buf, err
 	}
-	return nil, &fs.PathError{Op: "readfile", Path: fpath, Err: fs.ErrNotExist}
+	return nil, &fs.PathError{Op: "readfile", Path: fkey, Err: fs.ErrNotExist}
 }
 
 // Open implements access to nested into package file or directory by filename.
