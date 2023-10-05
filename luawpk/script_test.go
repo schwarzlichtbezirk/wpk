@@ -38,15 +38,14 @@ func CheckPackage(t *testing.T, wptname, wpfname string) {
 	var label, _ = pkg.GetInfo().TagStr(wpk.TIDlabel)
 	t.Logf("package info: data size %d, label '%s'", pkg.DataSize(), label)
 
-	var n = 0
 	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
-		n++
 		var link, haslink = ts.TagStr(wpk.TIDlink)
+		var offset, size = ts.Pos()
+		var fid, _ = ts.TagUint(wpk.TIDfid)
 		if !haslink {
-			t.Logf("found packed data #%d '%s'", n, fkey)
+			t.Logf("found packed data #%d '%s'", fid, fkey)
 			return true // skip packed data
 		}
-		var offset, size = ts.Pos()
 
 		var orig []byte
 		if orig, err = os.ReadFile(link); err != nil {
@@ -74,7 +73,7 @@ func CheckPackage(t *testing.T, wptname, wpfname string) {
 			return false
 		}
 
-		t.Logf("checkup #%d '%s' is ok", n, fkey)
+		t.Logf("checkup #%d '%s' is ok", fid, fkey)
 		return true
 	})
 }

@@ -34,7 +34,7 @@ end
 local function logfmt(...) -- write to log formatted string
 	log(string.format(...))
 end
-local n = 0
+local n = pkg.tagnum
 local function logfile(fkey) -- write record log
 	logfmt("#%d file %s, crc=%s", n, fkey,
 		tostring(assert(pkg:gettag(fkey, "crc32"))))

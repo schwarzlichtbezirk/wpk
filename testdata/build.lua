@@ -48,6 +48,13 @@ log(string.format("'Qarataşlar' file size: %d bytes", pkg:filesize("Qarataşlar
 log(string.format("total files size sum: %d bytes", pkg:sumsize()))
 log(string.format("packaged: %d files to %d aliases", pkg.recnum, pkg.tagnum))
 
+-- get and print all tags from alias to file
+local tags = pkg:gettags("jasper.jpg")
+log("tags of 'jasper.jpg' file:")
+for tid, tag in pairs(tags) do
+	log(string.format("tagID: '%s', value: '%s', type: %s", tostring(tid), tostring(tag), type(tag)))
+end
+
 -- write records table, tags table and finalize wpk-file
 pkg:finalize()
 

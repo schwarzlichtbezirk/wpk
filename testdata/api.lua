@@ -218,11 +218,11 @@ function wpk.create(fpath)-- additional wpk-constructor
 end
 function wpk:logfile(fkey) -- write record log
 	logfmt("#%d %s, %d bytes, %s, crc=%s",
-		assert(self:gettag(fkey, "fid")).uint,
+		assert(self:gettag(fkey, "fid")),
 		fkey,
 		self:filesize(fkey),
-		assert(self:gettag(fkey, "mtime")):gettime("2006-01-02 15:04:05"),
-		assert(self:gettag(fkey, "crc32")).hex)
+		assert(self:gettag(fkey, "mtime")),
+		assert(self:gettag(fkey, "crc32")))
 end
 function wpk:safealias(fkey1, fkey2) -- make 2 file name aliases to 1 file
 	if self:hasfile(fkey1) then

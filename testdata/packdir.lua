@@ -77,7 +77,7 @@ local function packdir(prefix, dir)
 					author = "schwarzlichtbezirk",
 				})
 				logfmt("#%d %s, %d bytes, %s", n, fkey,
-					pkg:filesize(fkey), assert(pkg:gettag(fkey, "mime")).string)
+					pkg:filesize(fkey), assert(pkg:gettag(fkey, "mime")))
 			end
 		end
 	end

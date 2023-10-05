@@ -30,10 +30,26 @@ log("starts header file: "..pkgpath)
 log("starts data file:   "..datpath)
 
 -- pack given file, then add keywords, author and link to tagset
+local n = 0
 local function packfile(fkey, keywords)
+	n = n + 1
 	local fpath = path.join(scrdir, "media", fkey)
 	pkg:putfile(fkey, fpath)
-	pkg:addtags(fkey, {link=fpath, keywords=keywords, author="schwarzlichtbezirk"})
+	pkg:addtags(fkey, {
+		fid=n,
+		link=fpath,
+		keywords=keywords,
+		author="schwarzlichtbezirk",
+	})
+end
+local function packdata(fkey, data, keywords) -- put text file created from given string
+	n = n + 1
+	pkg:putdata(fkey, data)
+	pkg:settags(fkey, {
+		fid = n,
+		mime = "text/plain;charset=utf-8",
+		keywords = keywords,
+	})
 end
 
 -- workflow part 1
@@ -48,8 +64,7 @@ packfile("img2/Uzuncı.jpg", "rock")
 pkg:flush() -- after this point process can be broken, and files above will remains.
 
 -- workflow part 3
-pkg:putdata("sample.txt", "The quick brown fox jumps over the lazy dog")
-pkg:settags("sample.txt", {mime="text/plain;charset=utf-8", keywords="fox;dog"})
+packdata("sample.txt", "The quick brown fox jumps over the lazy dog", "fox;dog")
 pkg:putalias("img1/claustral.jpg", "jasper.jpg") -- make 2 file name aliases to 1 file
 
 log(string.format("'Qarataşlar' file size: %d bytes", pkg:filesize("img1/Qarataşlar.jpg")))

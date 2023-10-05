@@ -3,10 +3,58 @@ package luawpk
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/schwarzlichtbezirk/wpk"
 	lua "github.com/yuin/gopher-lua"
 )
+
+const (
+	TTany = iota
+	TTbin
+	TTstr
+	TTbool
+	TTuint
+	TTnum
+	TTtime
+)
+
+// TidType helps to convert raw tags to Lua values.
+var TidType = map[wpk.TID]int{
+	wpk.TIDoffset: TTuint,
+	wpk.TIDsize:   TTuint,
+	wpk.TIDpath:   TTstr,
+	wpk.TIDfid:    TTuint,
+	wpk.TIDmtime:  TTtime,
+	wpk.TIDatime:  TTtime,
+	wpk.TIDctime:  TTtime,
+	wpk.TIDbtime:  TTtime,
+	wpk.TIDattr:   TTuint,
+	wpk.TIDmime:   TTstr,
+
+	wpk.TIDcrc32ieee: TTuint,
+	wpk.TIDcrc32c:    TTuint,
+	wpk.TIDcrc32k:    TTuint,
+	wpk.TIDcrc64iso:  TTuint,
+
+	wpk.TIDmd5:    TTbin,
+	wpk.TIDsha1:   TTbin,
+	wpk.TIDsha224: TTbin,
+	wpk.TIDsha256: TTbin,
+	wpk.TIDsha384: TTbin,
+	wpk.TIDsha512: TTbin,
+
+	wpk.TIDtmbjpeg:  TTbin,
+	wpk.TIDtmbwebp:  TTbin,
+	wpk.TIDlabel:    TTstr,
+	wpk.TIDlink:     TTstr,
+	wpk.TIDkeywords: TTstr,
+	wpk.TIDcategory: TTstr,
+	wpk.TIDversion:  TTstr,
+	wpk.TIDauthor:   TTstr,
+	wpk.TIDcomment:  TTstr,
+}
 
 // NameTid helps convert Lua-table string keys to associated TID values.
 var NameTid = map[string]wpk.TID{
@@ -93,28 +141,148 @@ func ValueToTID(k lua.LValue) (tid wpk.TID, err error) {
 // ValueToTag converts LValue to TagRaw. Strings converts explicitly to byte sequence,
 // boolen converts to 1 byte slice with 1 for 'true' and 0 for 'false'.
 // Otherwise if it is not 'tag' uservalue with TagRaw, returns error.
-func ValueToTag(v lua.LValue) (tag wpk.TagRaw, err error) {
-	if val, ok := v.(lua.LNumber); ok {
-		var u = wpk.Uint(val)
-		if val < 0 || val > lua.LNumber(wpk.Uint(1<<64-1)) || val-lua.LNumber(u) != 0 {
-			tag = wpk.NumberTag(float64(val))
-		} else {
-			tag = wpk.UintTag(u)
-		}
-	} else if val, ok := v.(lua.LString); ok {
-		tag = wpk.StrTag(string(val))
-	} else if val, ok := v.(lua.LBool); ok {
-		tag = wpk.BoolTag(bool(val))
-	} else if ud, ok := v.(*lua.LUserData); ok {
+func ValueToTag(tid wpk.TID, v lua.LValue) (tag wpk.TagRaw, err error) {
+	if ud, ok := v.(*lua.LUserData); ok {
 		if val, ok := ud.Value.(*LuaTag); ok {
 			tag = val.TagRaw
 		} else {
 			err = ErrBadTagVal
 			return
 		}
-	} else {
-		err = ErrBadTagVal
 		return
+	}
+
+	switch TidType[tid] {
+	case TTstr:
+		if val, ok := v.(lua.LNumber); ok {
+			tag = wpk.StrTag(val.String())
+		} else if val, ok := v.(lua.LString); ok {
+			tag = wpk.StrTag(val.String())
+		} else if val, ok := v.(lua.LBool); ok {
+			tag = wpk.StrTag(val.String())
+		} else {
+			err = ErrBadTagVal
+			return
+		}
+	case TTbool:
+		if val, ok := v.(lua.LNumber); ok {
+			tag = wpk.BoolTag(val != 0)
+		} else if val, ok := v.(lua.LString); ok {
+			tag = wpk.BoolTag(len(val) > 0 && val != "false")
+		} else if val, ok := v.(lua.LBool); ok {
+			tag = wpk.BoolTag(bool(val))
+		} else {
+			err = ErrBadTagVal
+		}
+	case TTuint:
+		if val, ok := v.(lua.LNumber); ok {
+			tag = wpk.UintTag(wpk.Uint(val))
+		} else if val, ok := v.(lua.LString); ok {
+			var i int
+			if i, err = strconv.Atoi(string(val)); err != nil {
+				return
+			}
+			tag = wpk.UintTag(wpk.Uint(i))
+		} else if val, ok := v.(lua.LBool); ok {
+			if val {
+				tag = wpk.UintTag(1)
+			} else {
+				tag = wpk.UintTag(0)
+			}
+		} else {
+			err = ErrBadTagVal
+			return
+		}
+	case TTnum:
+		if val, ok := v.(lua.LNumber); ok {
+			tag = wpk.NumberTag(float64(val))
+		} else if val, ok := v.(lua.LString); ok {
+			var f float64
+			if f, err = strconv.ParseFloat(string(val), 64); err != nil {
+				return
+			}
+			tag = wpk.NumberTag(f)
+		} else if val, ok := v.(lua.LBool); ok {
+			if val {
+				tag = wpk.NumberTag(1)
+			} else {
+				tag = wpk.NumberTag(0)
+			}
+		} else {
+			err = ErrBadTagVal
+			return
+		}
+	case TTtime:
+		if val, ok := v.(lua.LNumber); ok {
+			var milli = int64(val)
+			var t = time.Unix(milli/1000, (milli%1000)*1000000)
+			tag = wpk.UnixmsTag(t)
+		} else if val, ok := v.(lua.LString); ok {
+			var t time.Time
+			if t, err = time.Parse(ISO8601, string(val)); err != nil {
+				return
+			}
+			tag = wpk.TimeTag(t)
+		} else {
+			err = ErrBadTagVal
+			return
+		}
+	default:
+		if val, ok := v.(lua.LNumber); ok {
+			if val < 0 || float64(val) != float64(int64(val)) {
+				tag = wpk.NumberTag(float64(val))
+			} else {
+				tag = wpk.UintTag(wpk.Uint(val))
+			}
+		} else if val, ok := v.(lua.LString); ok {
+			tag = wpk.StrTag(string(val))
+		} else if val, ok := v.(lua.LBool); ok {
+			tag = wpk.BoolTag(bool(val))
+		} else {
+			err = ErrBadTagVal
+			return
+		}
+	}
+	return
+}
+
+func TagToValue(tid wpk.TID, tag wpk.TagRaw) (v lua.LValue, err error) {
+	switch TidType[tid] {
+	default: // TTany, TTbin, TTstr
+		var val, ok = tag.TagStr()
+		if !ok {
+			err = ErrBadTagVal
+			return
+		}
+		v = lua.LString(val)
+	case TTbool:
+		var val, ok = tag.TagUint()
+		if !ok {
+			err = ErrBadTagVal
+			return
+		}
+		v = lua.LBool(val != 0)
+	case TTuint:
+		var val, ok = tag.TagUint()
+		if !ok {
+			err = ErrBadTagVal
+			return
+		}
+		v = lua.LNumber(val)
+	case TTnum:
+		var val, ok = tag.TagNumber()
+		if !ok {
+			err = ErrBadTagVal
+			return
+		}
+		v = lua.LNumber(val)
+	case TTtime:
+		var val, ok = tag.TagTime()
+		if !ok {
+			err = ErrBadTagVal
+			return
+		}
+		v = lua.LString(val.UTC().Format(ISO8601))
 	}
 	return
 }
@@ -134,7 +302,7 @@ func TableToTagset(lt *lua.LTable, ts wpk.TagsetRaw) (wpk.TagsetRaw, error) {
 		if tid, err = ValueToTID(k); err != nil {
 			return
 		}
-		if tag, err = ValueToTag(v); err != nil {
+		if tag, err = ValueToTag(tid, v); err != nil {
 			return
 		}
 

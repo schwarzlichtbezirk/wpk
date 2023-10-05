@@ -861,15 +861,17 @@ func wpkhastag(ls *lua.LState) int {
 
 // Returns single tag with specified identifier from tagset of given file.
 func wpkgettag(ls *lua.LState) int {
-	var err error
-	defer func() {
-		if err != nil {
-			ls.RaiseError(err.Error())
-		}
-	}()
 	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
+
+	var err error
+	defer func() {
+		if err != nil {
+			err = &fs.PathError{Op: "gettag", Path: fkey, Err: err}
+			ls.RaiseError(err.Error())
+		}
+	}()
 
 	var tid wpk.TID
 	if tid, err = ValueToTID(k); err != nil {
@@ -879,7 +881,7 @@ func wpkgettag(ls *lua.LState) int {
 	var ts wpk.TagsetRaw
 	var ok bool
 	if ts, ok = pkg.GetTagset(fkey); !ok {
-		err = &fs.PathError{Op: "gettag", Path: fkey, Err: fs.ErrNotExist}
+		err = fs.ErrNotExist
 		return 0
 	}
 
@@ -888,22 +890,28 @@ func wpkgettag(ls *lua.LState) int {
 		return 0
 	}
 
-	PushTag(ls, &LuaTag{tag})
+	var val lua.LValue
+	if val, err = TagToValue(tid, tag); err != nil {
+		return 0
+	}
+	ls.Push(val)
 	return 1
 }
 
 // Set tag with given identifier to tagset of specified file.
 func wpksettag(ls *lua.LState) int {
-	var err error
-	defer func() {
-		if err != nil {
-			ls.RaiseError(err.Error())
-		}
-	}()
 	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 	var k = ls.Get(3)
 	var v = ls.Get(4)
+
+	var err error
+	defer func() {
+		if err != nil {
+			err = &fs.PathError{Op: "settag", Path: fkey, Err: err}
+			ls.RaiseError(err.Error())
+		}
+	}()
 
 	var tid wpk.TID
 	if tid, err = ValueToTID(k); err != nil {
@@ -915,13 +923,13 @@ func wpksettag(ls *lua.LState) int {
 	}
 
 	var tag wpk.TagRaw
-	if tag, err = ValueToTag(v); err != nil {
+	if tag, err = ValueToTag(tid, v); err != nil {
 		return 0
 	}
 
 	var ts, ok = pkg.GetTagset(fkey)
 	if !ok {
-		err = &fs.PathError{Op: "settag", Path: fkey, Err: fs.ErrNotExist}
+		err = fs.ErrNotExist
 		return 0
 	}
 	ts, ok = ts.Set(tid, tag)
@@ -965,18 +973,20 @@ func wpkdeltag(ls *lua.LState) int {
 }
 
 func wpkgettags(ls *lua.LState) int {
-	var err error
-	defer func() {
-		if err != nil {
-			ls.RaiseError(err.Error())
-		}
-	}()
 	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 
+	var err error
+	defer func() {
+		if err != nil {
+			err = &fs.PathError{Op: "gettags", Path: fkey, Err: err}
+			ls.RaiseError(err.Error())
+		}
+	}()
+
 	var ts, ok = pkg.GetTagset(fkey)
 	if !ok {
-		err = &fs.PathError{Op: "gettags", Path: fkey, Err: fs.ErrNotExist}
+		err = fs.ErrNotExist
 		return 0
 	}
 
@@ -984,13 +994,14 @@ func wpkgettags(ls *lua.LState) int {
 	var tsi = ts.Iterator()
 	for tsi.Next() {
 		var tid, tag = tsi.TID(), tsi.Tag()
-		var ud = ls.NewUserData()
-		ud.Value = &LuaTag{tag}
-		ls.SetMetatable(ud, ls.GetTypeMetatable(TagMT))
+		var val lua.LValue
+		if val, err = TagToValue(tid, tag); err != nil {
+			return 0
+		}
 		if name, ok := TidName[tid]; ok {
-			tb.RawSet(lua.LString(name), ud)
+			tb.RawSet(lua.LString(name), val)
 		} else {
-			tb.RawSet(lua.LNumber(tid), ud)
+			tb.RawSet(lua.LNumber(tid), val)
 		}
 	}
 	ls.Push(tb)
