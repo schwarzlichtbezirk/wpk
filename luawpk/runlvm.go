@@ -1,11 +1,13 @@
 package luawpk
 
 import (
+	"encoding/hex"
 	"errors"
 	"io/fs"
 	"log"
 	"os"
 	"path"
+	"time"
 
 	"github.com/schwarzlichtbezirk/wpk"
 	lua "github.com/yuin/gopher-lua"
@@ -47,6 +49,55 @@ func luacheckfile(ls *lua.LState) int {
 	return 2
 }
 
+func luabin2hex(ls *lua.LState) int {
+	var arg = ls.CheckString(1)
+	ls.Push(lua.LString(hex.EncodeToString(wpk.S2B(arg))))
+	return 1
+}
+
+func luahex2bin(ls *lua.LState) int {
+	var err error
+	defer func() {
+		if err != nil {
+			ls.RaiseError(err.Error())
+		}
+	}()
+	var arg = ls.CheckString(1)
+	var b []byte
+	if b, err = hex.DecodeString(arg); err != nil {
+		return 0
+	}
+	ls.Push(lua.LString(wpk.B2S(b)))
+	return 1
+}
+
+func luamilli2time(ls *lua.LState) int {
+	var milli = ls.CheckInt64(1)
+	var layout = ls.OptString(2, ISO8601)
+
+	var t = time.Unix(milli/1000, (milli%1000)*1000000)
+	ls.Push(lua.LString(t.Format(layout)))
+	return 1
+}
+
+func luatime2milli(ls *lua.LState) int {
+	var err error
+	defer func() {
+		if err != nil {
+			ls.RaiseError(err.Error())
+		}
+	}()
+	var arg = ls.CheckString(1)
+	var layout = ls.OptString(2, ISO8601)
+
+	var t time.Time
+	if t, err = time.Parse(layout, string(arg)); err != nil {
+		return 0
+	}
+	ls.Push(lua.LNumber(t.UnixMilli()))
+	return 1
+}
+
 // RunLuaVM runs specified Lua-script with Lua WPK API.
 func RunLuaVM(fpath string) (err error) {
 	var ls = lua.NewState()
@@ -58,13 +109,19 @@ func RunLuaVM(fpath string) (err error) {
 	var bindir = path.Dir(wpk.ToSlash(os.Args[0]))
 	var scrdir = path.Dir(wpk.ToSlash(fpath))
 
+	// global variables
 	ls.SetGlobal("buildvers", lua.LString(BuildVers))
 	ls.SetGlobal("buildtime", lua.LString(BuildTime))
 	ls.SetGlobal("bindir", lua.LString(bindir))
 	ls.SetGlobal("scrdir", lua.LString(scrdir))
 	ls.SetGlobal("tmpdir", lua.LString(wpk.TempPath(".")))
+	// global functions
 	ls.SetGlobal("log", ls.NewFunction(lualog))
 	ls.SetGlobal("checkfile", ls.NewFunction(luacheckfile))
+	ls.SetGlobal("bin2hex", ls.NewFunction(luabin2hex))
+	ls.SetGlobal("hex2bin", ls.NewFunction(luahex2bin))
+	ls.SetGlobal("milli2time", ls.NewFunction(luamilli2time))
+	ls.SetGlobal("time2milli", ls.NewFunction(luatime2milli))
 
 	if err = ls.DoFile(fpath); err != nil {
 		return

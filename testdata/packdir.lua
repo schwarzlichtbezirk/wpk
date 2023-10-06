@@ -59,6 +59,7 @@ local function checkname(name)
 	return true
 end
 -- pack given directory and add to each file name given prefix
+local ansic = "Mon Jan _2 15:04:05 2006" -- time reformat layout
 local n = 0
 local function packdir(prefix, dir)
 	for i, name in ipairs(path.enum(dir)) do
@@ -76,8 +77,11 @@ local function packdir(prefix, dir)
 					link = fpath,
 					author = "schwarzlichtbezirk",
 				})
-				logfmt("#%d %s, %d bytes, %s", n, fkey,
-					pkg:filesize(fkey), assert(pkg:gettag(fkey, "mime")))
+				logfmt("#%d %s, %d bytes, %s, %s", n, fkey,
+					pkg:filesize(fkey),
+					milli2time(time2milli(pkg:gettag(fkey, "mtime")), ansic),
+					assert(pkg:gettag(fkey, "mime"))
+				)
 			end
 		end
 	end

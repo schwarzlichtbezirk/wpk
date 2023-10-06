@@ -7,18 +7,32 @@ to build wpk-packages.
 *global registration*
 	Data and functions defined in global namespace.
 
+	variables:
 	buildvers - compiled binary version, sets by compiler during compilation
 		with git tags value.
 	buildtime - compiled binary build date, sets by compiler during compilation.
 	bindir - string value with directory to this running binary file destination.
 	scrdir - string value with directory to this Lua script.
 	tmpdir - string value with default directory to use for temporary files.
+
+	functions:
 	log(str) - writes to log given string with current date.
 	checkfile(fpath) - checks up file existence with given full path to it.
 		Returns 2 values: first - boolean file existence. If first is true,
 		second value indicates whether given path is directory. If first is false,
 		second value can be string message of occurred error. Also, first value
 		can be false if file is exist but access to file is denied.
+	bin2hex(bin) - converts 'bin' argument given as string with raw binary data
+		to string with data in hexadecimal representation.
+	hex2bin(hex) - converts string 'hex' argument with data in hexadecimal
+		representation to string with raw binary data.
+	milli2time(milli, layout) - converts time given in UNIX milliseconds to
+		formatted time string with optional 'layout', by default layout ISO 8601,
+		used at ECMAScript.
+	time2milli(arg, layout) - converts time given as string 'arg' to UNIX
+		milliseconds. Time argument can be formatted with given 'layout',
+		by default layout ISO 8601, used at ECMAScript.
+
 
 *path* library:
 	Implements utility routines for manipulating filename paths. Brings back slashes
@@ -56,46 +70,8 @@ to build wpk-packages.
 		in path, where 'envname' is an environment variable, to it's value.
 
 
-*tag* userdata:
-
-	constructors:
-	newhex(str) - creates tag from hexadecimal string.
-	newbase64(str) - creates tag from base64 encoded binary.
-	newstring(str) - creates tag from string.
-	newbool(val) - creates tag from boolean value.
-	newbyte(val) - convert given number to 1-byte unsigned integer tag.
-	newuint16(val) - convert given number to 2-bytes unsigned integer tag.
-	newuint32(val) - convert given number to 4-bytes unsigned integer tag.
-	newuint64(val) - convert given number to 8-bytes unsigned integer tag.
-	newuint(val) - convert given number to unsigned integer tag with size dependent by value.
-	newnumber(val) - convert given number to 8-bytes tag explicitly.
-
-	operators:
-	__tostring - returns hexadecimal encoded representation of byte slice.
-	__len - returns number of bytes in byte slice.
-
-	properties:
-	hex    - get/set hexadecimal encoded representation of binary value.
-	base64 - get/set base64 encoded representation of binary value.
-	string - get/set UTF-8 string value.
-	bool   - get/set boolean data, 1 byte.
-	byte   - get/set uint8 data, 1 byte.
-	uint16 - get/set uint16 data, 2 bytes.
-	uint32 - get/set uint32 data, 4 bytes.
-	uint64 - get/set uint64 data, 8 bytes.
-	uint   - get/set unsigned int data with size dependent by value.
-	number - get/set float64 data, 8 bytes.
-	time   - get/set string representation of time,
-		with layout "2006-01-02T15:04:05.999Z07:00" used at ECMAScript
-		(see https://tc39.es/ecma262/#sec-date-time-string-format).
-	unixms - get/set UNIX time in milliseconds.
-
-	methods:
-	gettime(layout) - returns string representation of time with given layout.
-	settime(layout, value) - set time in string representation with given layout.
-
-
-*wpk* library:
+*wpk* userdata:
+	Implements access at script to Package golang object.
 
 	constructor:
 	new() - creates new empty package object.
@@ -208,6 +184,7 @@ to build wpk-packages.
 local function logfmt(...) -- write to log formatted string
 	log(string.format(...))
 end
+local rfc822 = "02 Jan 06 15:04 MST" -- time reformat layout
 function wpk.create(fpath)-- additional wpk-constructor
 	local pkg = wpk.new()
 	pkg.automime = true -- put MIME type for each file if it is not given explicit
@@ -221,7 +198,7 @@ function wpk:logfile(fkey) -- write record log
 		assert(self:gettag(fkey, "fid")),
 		fkey,
 		self:filesize(fkey),
-		assert(self:gettag(fkey, "mtime")),
+		milli2time(time2milli(self:gettag(fkey, "btime")), rfc822),
 		assert(self:gettag(fkey, "crc32")))
 end
 function wpk:safealias(fkey1, fkey2) -- make 2 file name aliases to 1 file

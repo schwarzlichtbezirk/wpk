@@ -246,7 +246,7 @@ func setlabel(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var label = ls.CheckString(2)
 
-	var ts = pkg.GetInfo()
+	var ts = append(wpk.TagsetRaw{}, pkg.GetInfo()...) // append prevents rewriting data at solid slice with FTT
 	ts, _ = ts.Set(wpk.TIDlabel, wpk.StrTag(label))
 	pkg.SetInfo(ts)
 	return 0
