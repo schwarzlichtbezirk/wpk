@@ -267,9 +267,35 @@ func (ts TagsetRaw) Put(tid TID, tag TagRaw) TagsetRaw {
 	return ts
 }
 
+// AddOk appends tag with given ID only if tagset does not have same yet.
+// Signature helps to build the call chain.
+func (ts TagsetRaw) Add(tid TID, tag TagRaw) TagsetRaw {
+	ts, _ = ts.AddOk(tid, tag)
+	return ts
+}
+
+// AddOk appends tag with given ID only if tagset does not have same yet.
+// Returns true if it added.
+func (ts TagsetRaw) AddOk(tid TID, tag TagRaw) (TagsetRaw, bool) {
+	var tsi = ts.Iterator()
+	for tsi.Next() && tsi.tid != tid {
+	}
+	if tsi.tid == tid {
+		return ts, false
+	}
+	return ts.Put(tid, tag), true
+}
+
 // Set replaces tag with given ID and equal size, or
+// appends it to tagset. Signature helps to build the call chain.
+func (ts TagsetRaw) Set(tid TID, tag TagRaw) TagsetRaw {
+	ts, _ = ts.SetOk(tid, tag)
+	return ts
+}
+
+// SetOk replaces tag with given ID and equal size, or
 // appends it to tagset. Returns true if new one added.
-func (ts TagsetRaw) Set(tid TID, tag TagRaw) (TagsetRaw, bool) {
+func (ts TagsetRaw) SetOk(tid TID, tag TagRaw) (TagsetRaw, bool) {
 	var tsi = ts.Iterator()
 	for tsi.Next() && tsi.tid != tid {
 	}
@@ -289,8 +315,14 @@ func (ts TagsetRaw) Set(tid TID, tag TagRaw) (TagsetRaw, bool) {
 	return ts, false
 }
 
-// Del deletes tag with given ID.
-func (ts TagsetRaw) Del(tid TID) (TagsetRaw, bool) {
+// Del deletes tag with given ID. Signature helps to build the call chain.
+func (ts TagsetRaw) Del(tid TID) TagsetRaw {
+	ts, _ = ts.DelOk(tid)
+	return ts
+}
+
+// DelOk deletes tag with given ID. Returns true if tagset was modified.
+func (ts TagsetRaw) DelOk(tid TID) (TagsetRaw, bool) {
 	var tsi = ts.Iterator()
 	for tsi.Next() && tsi.tid != tid {
 	}
@@ -580,12 +612,32 @@ func (tsi *TagsetIterator) Put(tid TID, tag TagRaw) TagsetRaw {
 }
 
 // Set is the stub to disable any changes to data content of iterator.
-func (tsi *TagsetIterator) Set(tid TID, tag TagRaw) (TagsetRaw, bool) {
+func (tsi *TagsetIterator) Add(tid TID, tag TagRaw) TagsetRaw {
+	panic(ErrTsiConst)
+}
+
+// Set is the stub to disable any changes to data content of iterator.
+func (tsi *TagsetIterator) AddOk(tid TID, tag TagRaw) (TagsetRaw, bool) {
+	panic(ErrTsiConst)
+}
+
+// Set is the stub to disable any changes to data content of iterator.
+func (tsi *TagsetIterator) Set(tid TID, tag TagRaw) TagsetRaw {
+	panic(ErrTsiConst)
+}
+
+// Set is the stub to disable any changes to data content of iterator.
+func (tsi *TagsetIterator) SetOk(tid TID, tag TagRaw) (TagsetRaw, bool) {
 	panic(ErrTsiConst)
 }
 
 // Del is the stub to disable any changes to data content of iterator.
-func (tsi *TagsetIterator) Del(tid TID) (TagsetRaw, bool) {
+func (tsi *TagsetIterator) Del(tid TID) TagsetRaw {
+	panic(ErrTsiConst)
+}
+
+// DelOk is the stub to disable any changes to data content of iterator.
+func (tsi *TagsetIterator) DelOk(tid TID) (TagsetRaw, bool) {
 	panic(ErrTsiConst)
 }
 

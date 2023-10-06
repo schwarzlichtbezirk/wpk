@@ -249,11 +249,11 @@ func (pkg *Package) Rename(fkey1, fkey2 string) error {
 	if !ok {
 		return &fs.PathError{Op: "rename", Path: fkey1, Err: fs.ErrNotExist}
 	}
-	if _, ok = pkg.GetTagset(fkey2); ok {
+	if pkg.HasTagset(fkey2) {
 		return &fs.PathError{Op: "rename", Path: fkey2, Err: fs.ErrExist}
 	}
 
-	ts, _ = ts.Set(TIDpath, StrTag(pkg.FullPath(ToSlash(fkey2))))
+	ts = CopyTagset(ts).Set(TIDpath, StrTag(pkg.FullPath(ToSlash(fkey2))))
 	pkg.DelTagset(fkey1)
 	pkg.SetTagset(fkey2, ts)
 	return nil
@@ -274,7 +274,7 @@ func (pkg *Package) RenameDir(olddir, newdir string, skipexist bool) (count int,
 				err = &fs.PathError{Op: "renamedir", Path: newkey, Err: fs.ErrExist}
 				return skipexist
 			}
-			ts, _ = ts.Set(TIDpath, StrTag(pkg.FullPath(ToSlash(newkey))))
+			ts = CopyTagset(ts).Set(TIDpath, StrTag(pkg.FullPath(ToSlash(newkey))))
 			pkg.DelTagset(fkey)
 			pkg.SetTagset(newkey, ts)
 			count++
@@ -298,8 +298,7 @@ func (pkg *Package) PutAlias(fkey1, fkey2 string) error {
 		return &fs.PathError{Op: "putalias", Path: fkey2, Err: fs.ErrExist}
 	}
 
-	ts = append([]byte{}, ts...) // make a copy
-	ts, _ = ts.Set(TIDpath, StrTag(pkg.FullPath(ToSlash(fkey2))))
+	ts = CopyTagset(ts).Set(TIDpath, StrTag(pkg.FullPath(ToSlash(fkey2))))
 	pkg.SetTagset(fkey2, ts)
 	return nil
 }

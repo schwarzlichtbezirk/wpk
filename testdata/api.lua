@@ -163,6 +163,9 @@ to build wpk-packages.
 	settag(fkey, tid, tag) - set tag with given ID to tagset of specified file.
 		'tid' can be numeric ID or string representation of tag ID. 'tag' can be
 		of type described below.
+	addtag(fkey, tid, tag) - add tag with given ID to tagset of specified file
+		only if tagset does not have same yet. 'tid' can be numeric ID or string
+		representation of tag ID. 'tag' can be of type described below.
 	deltag(fkey, tid) - delete tag with given ID from tagset of specified file.
 		'tid' can be numeric ID or string representation of tag ID.
 	gettags(fkey) - returns table with tagset of specified file. There is keys -

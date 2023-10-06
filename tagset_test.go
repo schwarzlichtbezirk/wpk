@@ -172,7 +172,7 @@ func TestTagset(t *testing.T) {
 
 		// check up 'Set' and 'Del'
 		{func() (ok bool) {
-			ts, ok = ts.Set(wpk.TIDpath, wpk.StrTag(fkey))
+			ts, ok = ts.SetOk(wpk.TIDpath, wpk.StrTag(fkey))
 			return ok
 		},
 			"content of 'path' tag should be replaced by 'Set'",
@@ -184,7 +184,7 @@ func TestTagset(t *testing.T) {
 			"'Set' function does not work correctly",
 		},
 		{func() (ok bool) {
-			ts, ok = ts.Set(wpk.TIDmime, wpk.StrTag(mime))
+			ts, ok = ts.SetOk(wpk.TIDmime, wpk.StrTag(mime))
 			return !ok
 		},
 			"content of 'mime' tag should be added by 'Set'",
@@ -199,7 +199,7 @@ func TestTagset(t *testing.T) {
 			"'mime' tag is not equal to original value",
 		},
 		{func() (ok bool) {
-			ts, ok = ts.Del(wpk.TIDmime)
+			ts, ok = ts.DelOk(wpk.TIDmime)
 			return !ok
 		},
 			"'mime' tag is not deleted",
@@ -211,7 +211,7 @@ func TestTagset(t *testing.T) {
 			"number of tags after delete 'mime' must be restored",
 		},
 		{func() (ok bool) {
-			ts, ok = ts.Del(wpk.TIDmime)
+			ts, ok = ts.DelOk(wpk.TIDmime)
 			return ok
 		},
 			"'mime' tag can not be deleted again",

@@ -546,9 +546,8 @@ func TestAppendDiscrete(t *testing.T) {
 			t.Fatal(err)
 		}
 		// put package info somewhere before finalize
-		var ts = wpk.CopyTagset(pkg.GetInfo())
-		ts, _ = ts.Set(wpk.TIDlabel, wpk.StrTag("discrete-step#1"))
-		pkg.SetInfo(ts)
+		pkg.SetInfo(wpk.CopyTagset(pkg.GetInfo()).
+			Set(wpk.TIDlabel, wpk.StrTag("discrete-step#1")))
 		// put content
 		putfile("bounty.jpg")
 		putfile("img1/claustral.jpg")
@@ -586,9 +585,8 @@ func TestAppendDiscrete(t *testing.T) {
 			t.Fatal(err)
 		}
 		// put package info somewhere before finalize
-		var ts = wpk.CopyTagset(pkg.GetInfo())
-		ts, _ = ts.Set(wpk.TIDlabel, wpk.StrTag("discrete-step#2"))
-		pkg.SetInfo(ts)
+		pkg.SetInfo(wpk.CopyTagset(pkg.GetInfo()).
+			Set(wpk.TIDlabel, wpk.StrTag("discrete-step#2")))
 		// put content
 		putfile("img2/marble.jpg")
 		putfile("img2/Uzuncı.jpg")

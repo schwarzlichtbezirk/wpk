@@ -220,6 +220,7 @@ var methodsPack = map[string]lua.LGFunction{
 	"hastag":    wpkhastag,
 	"gettag":    wpkgettag,
 	"settag":    wpksettag,
+	"addtag":    wpkaddtag,
 	"deltag":    wpkdeltag,
 	"gettags":   wpkgettags,
 	"settags":   wpksettags,
@@ -246,9 +247,8 @@ func setlabel(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var label = ls.CheckString(2)
 
-	var ts = wpk.CopyTagset(pkg.GetInfo())
-	ts, _ = ts.Set(wpk.TIDlabel, wpk.StrTag(label))
-	pkg.SetInfo(ts)
+	pkg.SetInfo(wpk.CopyTagset(pkg.GetInfo()).
+		Set(wpk.TIDlabel, wpk.StrTag(label)))
 	return 0
 }
 
@@ -727,7 +727,7 @@ func wpkputdata(ls *lua.LState) int {
 			return
 		}
 
-		ts, _ = ts.Set(tid, tag)
+		ts = ts.Set(tid, tag)
 	}); err != nil {
 		return 0
 	}
@@ -793,7 +793,7 @@ func wpkputfile(ls *lua.LState) int {
 			return
 		}
 
-		ts, _ = ts.Set(tid, tag)
+		ts = ts.Set(tid, tag)
 	}); err != nil {
 		return 0
 	}
@@ -983,8 +983,49 @@ func wpksettag(ls *lua.LState) int {
 		return 0
 	}
 	ts = wpk.CopyTagset(ts)
-	ts, ok = ts.Set(tid, tag)
+	ts, ok = ts.SetOk(tid, tag)
 	pkg.SetupTagset(ts)
+
+	ls.Push(lua.LBool(ok))
+	return 1
+}
+
+// Add tag with given identifier to tagset of specified file.
+func wpkaddtag(ls *lua.LState) int {
+	var err error
+	defer func() {
+		if err != nil {
+			ls.RaiseError(err.Error())
+		}
+	}()
+	var pkg = CheckPack(ls, 1)
+	var fkey = ls.CheckString(2)
+	var k = ls.Get(3)
+	var v = ls.Get(4)
+
+	var tid wpk.TID
+	if tid, err = ValueToTID(k); err != nil {
+		return 0
+	}
+	if tid == wpk.TIDoffset || tid == wpk.TIDsize || tid == wpk.TIDpath {
+		err = &ErrProtected{fkey, tid}
+		return 0
+	}
+
+	var tag wpk.TagRaw
+	if tag, err = ValueToTag(tid, v); err != nil {
+		return 0
+	}
+
+	var ts, ok = pkg.GetTagset(fkey)
+	if !ok {
+		err = &fs.PathError{Op: "addtag", Path: fkey, Err: fs.ErrNotExist}
+		return 0
+	}
+	ts = wpk.CopyTagset(ts)
+	if ts, ok = ts.AddOk(tid, tag); ok {
+		pkg.SetupTagset(ts)
+	}
 
 	ls.Push(lua.LBool(ok))
 	return 1
@@ -1017,8 +1058,9 @@ func wpkdeltag(ls *lua.LState) int {
 		return 0
 	}
 	ts = wpk.CopyTagset(ts)
-	ts, ok = ts.Del(tid)
-	pkg.SetupTagset(ts)
+	if ts, ok = ts.DelOk(tid); ok {
+		pkg.SetupTagset(ts)
+	}
 
 	ls.Push(lua.LBool(ok))
 	return 1
@@ -1093,7 +1135,7 @@ func wpksettags(ls *lua.LState) int {
 	ts = wpk.CopyTagset(ts)
 	optsi.Reset()
 	for optsi.Next() {
-		ts, _ = ts.Set(optsi.TID(), optsi.Tag())
+		ts = ts.Set(optsi.TID(), optsi.Tag())
 	}
 	pkg.SetupTagset(ts)
 
@@ -1128,13 +1170,13 @@ func wpkaddtags(ls *lua.LState) int {
 	var optsi = opts.Iterator()
 	var n = 0
 	for optsi.Next() {
-		var tid = optsi.TID()
-		if !ts.Has(tid) {
-			ts = ts.Put(tid, optsi.Tag())
+		if ts, ok = ts.AddOk(optsi.TID(), optsi.Tag()); ok {
 			n++
 		}
 	}
-	pkg.SetupTagset(ts)
+	if n > 0 {
+		pkg.SetupTagset(ts)
+	}
 
 	ls.Push(lua.LNumber(n))
 	return 1
@@ -1177,11 +1219,13 @@ func wpkdeltags(ls *lua.LState) int {
 	optsi.Reset()
 	var n = 0
 	for optsi.Next() {
-		if ts, ok = ts.Del(optsi.TID()); ok {
+		if ts, ok = ts.DelOk(optsi.TID()); ok {
 			n++
 		}
 	}
-	pkg.SetupTagset(ts)
+	if n > 0 {
+		pkg.SetupTagset(ts)
+	}
 
 	ls.Push(lua.LNumber(n))
 	return 1
