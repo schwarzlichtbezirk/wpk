@@ -24,8 +24,7 @@ local n = pkg.tagnum
 local function packfile(fkey, keywords)
 	n = n + 1
 	local fpath = path.join(scrdir, "media", fkey)
-	pkg:putfile(fkey, fpath)
-	pkg:addtags(fkey, {
+	pkg:putfile(fkey, fpath, {
 		fid = n,
 		link = fpath,
 		keywords = keywords,

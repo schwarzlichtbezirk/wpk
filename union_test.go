@@ -25,8 +25,9 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 
 	// helper functions
 	var putfile = func(name string) {
+		var fpath = mediadir + name
 		var file fs.File
-		if file, err = os.Open(mediadir + name); err != nil {
+		if file, err = os.Open(fpath); err != nil {
 			t.Fatal(err)
 		}
 		defer file.Close()
@@ -38,7 +39,9 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 
 		tagsnum++
 		fidcount++
-		pkg.SetupTagset(ts.Put(wpk.TIDfid, wpk.UintTag(fidcount)))
+		pkg.SetupTagset(ts.
+			Put(wpk.TIDfid, wpk.UintTag(fidcount)).
+			Put(wpk.TIDlink, wpk.StrTag(fpath)))
 		var size = ts.Size()
 		t.Logf("put file #%d '%s', %d bytes", fidcount, name, size)
 	}

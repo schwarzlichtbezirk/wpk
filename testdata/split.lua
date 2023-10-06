@@ -16,7 +16,7 @@ pkg.automime = true -- put MIME type for each file if it is not given explicit
 pkg.secret = "package-private-key" -- private key to sign cryptographic hashes for each file
 pkg.crc64 = true -- generate CRC64 ISO code for each file
 pkg.sha384 = true -- generate SHA-384 hash for each file
-pkg:setinfo{ -- setup package info
+pkg:setupinfo{ -- setup package info
 	label="splitted-package",
 	link="github.com/schwarzlichtbezirk/wpk",
 	keywords="thumb;thumbnail;photo",
@@ -34,18 +34,16 @@ local n = 0
 local function packfile(fkey, keywords)
 	n = n + 1
 	local fpath = path.join(scrdir, "media", fkey)
-	pkg:putfile(fkey, fpath)
-	pkg:addtags(fkey, {
-		fid=n,
-		link=fpath,
-		keywords=keywords,
-		author="schwarzlichtbezirk",
+	pkg:putfile(fkey, fpath, {
+		fid = n,
+		link = fpath,
+		keywords = keywords,
+		author = "schwarzlichtbezirk",
 	})
 end
 local function packdata(fkey, data, keywords) -- put text file created from given string
 	n = n + 1
-	pkg:putdata(fkey, data)
-	pkg:settags(fkey, {
+	pkg:putdata(fkey, data, {
 		fid = n,
 		mime = "text/plain;charset=utf-8",
 		keywords = keywords,

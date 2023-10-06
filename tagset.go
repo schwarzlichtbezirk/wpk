@@ -213,6 +213,14 @@ func TimeTag(val time.Time) TagRaw {
 // fs.FileInfo interface implementation.
 type TagsetRaw []byte
 
+// CopyTagset makes copy of given tagset to new space.
+// It prevents rewriting data at solid slice with FTT when tagset modify.
+func CopyTagset(ts TagsetRaw) TagsetRaw {
+	var b = make(TagsetRaw, len(ts))
+	copy(b, ts)
+	return b
+}
+
 // Num returns number of tags in tagset.
 func (ts TagsetRaw) Num() (n int) {
 	var tsi = ts.Iterator()

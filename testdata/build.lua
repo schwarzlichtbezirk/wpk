@@ -20,8 +20,7 @@ log("starts: "..pkgpath)
 
 -- pack given file, then add keywords and author to tagset
 local function packfile(fkey, fpath, keywords)
-	pkg:putfile(fkey, fpath)
-	pkg:addtags(fkey, {
+	pkg:putfile(fkey, fpath, {
 		mime = "image/jpeg",
 		link = fpath,
 		keywords = keywords,
@@ -38,8 +37,11 @@ packfile("marble.jpg", mediadir.."img2/marble.jpg", "beach")
 packfile("Uzuncı.jpg", mediadir.."img2/Uzuncı.jpg", "rock")
 
 -- put file created from given string
-pkg:putdata("sample.txt", "The quick brown fox jumps over the lazy dog")
-pkg:settags("sample.txt", {mime="text/plain;charset=utf-8", keywords="fox;dog"})
+pkg:putdata("sample.txt", "The quick brown fox jumps over the lazy dog", {
+	mime = "text/plain;charset=utf-8",
+	keywords = "fox;dog",
+	author = "schwarzlichtbezirk",
+})
 
 -- make 2 file name aliases to 1 file
 pkg:putalias("claustral.jpg", "jasper.jpg")

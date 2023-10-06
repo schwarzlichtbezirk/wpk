@@ -546,7 +546,7 @@ func TestAppendDiscrete(t *testing.T) {
 			t.Fatal(err)
 		}
 		// put package info somewhere before finalize
-		var ts = append(wpk.TagsetRaw{}, pkg.GetInfo()...) // append prevents rewriting data at solid slice with FTT
+		var ts = wpk.CopyTagset(pkg.GetInfo())
 		ts, _ = ts.Set(wpk.TIDlabel, wpk.StrTag("discrete-step#1"))
 		pkg.SetInfo(ts)
 		// put content
@@ -586,7 +586,7 @@ func TestAppendDiscrete(t *testing.T) {
 			t.Fatal(err)
 		}
 		// put package info somewhere before finalize
-		var ts = append(wpk.TagsetRaw{}, pkg.GetInfo()...) // append prevents rewriting data at solid slice with FTT
+		var ts = wpk.CopyTagset(pkg.GetInfo())
 		ts, _ = ts.Set(wpk.TIDlabel, wpk.StrTag("discrete-step#2"))
 		pkg.SetInfo(ts)
 		// put content

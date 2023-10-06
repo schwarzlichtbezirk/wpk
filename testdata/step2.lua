@@ -42,8 +42,7 @@ end
 local function packfile(fkey, keywords) -- pack given file with common preset
 	n = n + 1
 	local fpath = path.join(scrdir, "media", fkey)
-	pkg:putfile(fkey, fpath)
-	pkg:addtags(fkey, {
+	pkg:putfile(fkey, fpath, {
 		fid = n,
 		link = fpath,
 		keywords = keywords,
@@ -53,8 +52,7 @@ local function packfile(fkey, keywords) -- pack given file with common preset
 end
 local function packdata(fkey, data, keywords) -- put text file created from given string
 	n = n + 1
-	pkg:putdata(fkey, data)
-	pkg:settags(fkey, {
+	pkg:putdata(fkey, data, {
 		fid = n,
 		mime = "text/plain;charset=utf-8",
 		keywords = keywords,

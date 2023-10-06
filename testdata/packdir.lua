@@ -12,7 +12,7 @@ pkg.automime = true -- put MIME type for each file if it is not given explicit
 pkg.secret = "package-private-key" -- private key to sign cryptographic hashes for each file
 pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 pkg.sha256 = true -- generate SHA256 hash for each file
-pkg:setinfo{ -- setup package info
+pkg:setupinfo{ -- setup package info
 	label="packed-directory",
 	link="github.com/schwarzlichtbezirk/wpk",
 	author="schwarzlichtbezirk"
@@ -71,8 +71,7 @@ local function packdir(prefix, dir)
 				packdir(fkey.."/", fpath.."/")
 			else
 				n = n + 1
-				pkg:putfile(fkey, fpath)
-				pkg:settags(fkey, {
+				pkg:putfile(fkey, fpath, {
 					fid = n,
 					link = fpath,
 					author = "schwarzlichtbezirk",

@@ -226,7 +226,7 @@ var methodsPack = map[string]lua.LGFunction{
 	"addtags":   wpkaddtags,
 	"deltags":   wpkdeltags,
 	"getinfo":   wpkgetinfo,
-	"setinfo":   wpksetinfo,
+	"setupinfo": wpksetupinfo,
 }
 
 // properties section
@@ -246,7 +246,7 @@ func setlabel(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var label = ls.CheckString(2)
 
-	var ts = append(wpk.TagsetRaw{}, pkg.GetInfo()...) // append prevents rewriting data at solid slice with FTT
+	var ts = wpk.CopyTagset(pkg.GetInfo())
 	ts, _ = ts.Set(wpk.TIDlabel, wpk.StrTag(label))
 	pkg.SetInfo(ts)
 	return 0
@@ -685,6 +685,7 @@ func wpkputdata(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 	var data = ls.CheckString(3)
+	var tags = ls.OptTable(4, ls.CreateTable(0, 0))
 
 	if pkg.wpt == nil {
 		err = ErrPackClosed
@@ -705,6 +706,32 @@ func wpkputdata(ls *lua.LState) int {
 	if ts, err = pkg.adjusttagset(r, ts); err != nil {
 		return 0
 	}
+
+	if tags.ForEach(func(k lua.LValue, v lua.LValue) {
+		var (
+			ert error
+			tid wpk.TID
+			tag wpk.TagRaw
+		)
+
+		if tid, ert = ValueToTID(k); ert != nil {
+			err = ert
+			return
+		}
+		if tid == wpk.TIDoffset || tid == wpk.TIDsize || tid == wpk.TIDpath {
+			err = &ErrProtected{fkey, tid}
+			return
+		}
+		if tag, ert = ValueToTag(tid, v); err != nil {
+			err = ert
+			return
+		}
+
+		ts, _ = ts.Set(tid, tag)
+	}); err != nil {
+		return 0
+	}
+
 	pkg.SetupTagset(ts)
 
 	return 0
@@ -720,6 +747,7 @@ func wpkputfile(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 	var fkey = ls.CheckString(2)
 	var fpath = ls.CheckString(3)
+	var tags = ls.OptTable(4, ls.CreateTable(0, 0))
 
 	if pkg.wpt == nil {
 		err = ErrPackClosed
@@ -744,6 +772,32 @@ func wpkputfile(ls *lua.LState) int {
 	if ts, err = pkg.adjusttagset(file, ts); err != nil {
 		return 0
 	}
+
+	if tags.ForEach(func(k lua.LValue, v lua.LValue) {
+		var (
+			ert error
+			tid wpk.TID
+			tag wpk.TagRaw
+		)
+
+		if tid, ert = ValueToTID(k); ert != nil {
+			err = ert
+			return
+		}
+		if tid == wpk.TIDoffset || tid == wpk.TIDsize || tid == wpk.TIDpath {
+			err = &ErrProtected{fkey, tid}
+			return
+		}
+		if tag, ert = ValueToTag(tid, v); err != nil {
+			err = ert
+			return
+		}
+
+		ts, _ = ts.Set(tid, tag)
+	}); err != nil {
+		return 0
+	}
+
 	pkg.SetupTagset(ts)
 
 	return 0
@@ -928,6 +982,7 @@ func wpksettag(ls *lua.LState) int {
 		err = &fs.PathError{Op: "settag", Path: fkey, Err: fs.ErrNotExist}
 		return 0
 	}
+	ts = wpk.CopyTagset(ts)
 	ts, ok = ts.Set(tid, tag)
 	pkg.SetupTagset(ts)
 
@@ -961,6 +1016,7 @@ func wpkdeltag(ls *lua.LState) int {
 		err = &fs.PathError{Op: "deltag", Path: fkey, Err: fs.ErrNotExist}
 		return 0
 	}
+	ts = wpk.CopyTagset(ts)
 	ts, ok = ts.Del(tid)
 	pkg.SetupTagset(ts)
 
@@ -1034,6 +1090,7 @@ func wpksettags(ls *lua.LState) int {
 		return 0
 	}
 
+	ts = wpk.CopyTagset(ts)
 	optsi.Reset()
 	for optsi.Next() {
 		ts, _ = ts.Set(optsi.TID(), optsi.Tag())
@@ -1067,6 +1124,7 @@ func wpkaddtags(ls *lua.LState) int {
 		return 0
 	}
 
+	ts = wpk.CopyTagset(ts)
 	var optsi = opts.Iterator()
 	var n = 0
 	for optsi.Next() {
@@ -1115,6 +1173,7 @@ func wpkdeltags(ls *lua.LState) int {
 		return 0
 	}
 
+	ts = wpk.CopyTagset(ts)
 	optsi.Reset()
 	var n = 0
 	for optsi.Next() {
@@ -1122,6 +1181,7 @@ func wpkdeltags(ls *lua.LState) int {
 			n++
 		}
 	}
+	pkg.SetupTagset(ts)
 
 	ls.Push(lua.LNumber(n))
 	return 1
@@ -1157,7 +1217,7 @@ func wpkgetinfo(ls *lua.LState) int {
 	return 1
 }
 
-func wpksetinfo(ls *lua.LState) int {
+func wpksetupinfo(ls *lua.LState) int {
 	var err error
 	defer func() {
 		if err != nil {

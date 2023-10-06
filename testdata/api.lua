@@ -130,53 +130,102 @@ to build wpk-packages.
 		if there is no matching file.
 	hasfile(fkey) - check up file name existence in tags table.
 	filesize(fkey) - return record size of specified file name.
-	putfile(fkey, fpath) - write file with specified full path (fpath) to package,
-		and insert tagset with specified fkey to tags table. Key file name (fkey)
-		expected and must be unique for package. File id (tag ID = 0) and file
-		creation time tag will be inserted to tagset. After file writing there is
-		tagset adjust by add marked tags with hashes (MD5, SHA1, SHA224, etc).
-	putdata(fkey, data) - write file with specified as string 'data' content,
-		and insert tagset with specified fkey to tags table. Key file name (fkey)
-		expected and must be unique for package. File id (tag ID = 0) and current
-		time as creation time tag will be inserted to tagset. After file writing
-		there is tagset adjust by add marked tags with hashes (MD5, SHA1, SHA224, etc).
-	rename(fkey1, fkey2) - rename file name with fkey1 to fkey2. Rename is
+	putdata(fkey, data, tags) - write file with specified as string 'data' content,
+		and insert tagset with specified fkey to tags table. Data writes as is, and
+		can be in binary format. Key file name 'fkey' expected and should be unique
+		for package. File creation/birth/modify times tags will be inserted to tagset.
+		After file writing there is tagset adjust by add marked tags with hashes
+		(MD5, SHA1, SHA224, etc). Optional table at 'tags' argument with addition tags
+		will be concatenated to file tagset.
+	putfile(fkey, fpath, tags) - write file with specified full path 'fpath' to package,
+		and insert tagset with specified fkey to tags table. Key file name 'fkey'
+		expected and must be unique for package. File creation/birth/modify times tags
+		will be inserted to tagset. After file writing there is tagset adjust by add
+		marked tags with hashes (MD5, SHA1, SHA224, etc). Optional table at 'tags'
+		argument with addition tags will be concatenated to file tagset.
+	rename(fkey1, fkey2) - rename file name with 'fkey1' to 'fkey2'. Rename is
 		carried out by replace name tag in file tagset from one name to another.
 		Keeps link to original file name.
 	renamedir(dir1, dir2, skipexist) - renames all files in package with
 		'dir1' path to 'dir2' path. Carried out by replace name tag in each
 		file tagset from one directory prefix to another.
-	putalias(fkey1, fkey2) - clone tagset with file name fkey1 and replace
-		name tag in it to fkey2. So, there will be two tagset referenced to
+	putalias(fkey1, fkey2) - clone tagset with file name 'fkey1' and replace
+		name tag in it to 'fkey2'. So, there will be two tagset referenced to
 		one data block. Keeps link to original file name.
 	delalias(fkey) - delete tagset with specified file name. Data block is
 		still remains.
 	hastag(fkey, tid) - check up tag existence in tagset for specified file,
 		returns boolean value. 'tid' can be numeric ID or string representation
 		of tag ID.
-	gettag(fkey, tid) - returns tag with given ID as userdata object for
-		specified file. Returns nothing if tagset of specified file
-		has no that tag. 'tid' can be numeric ID or string representation of tag ID.
+	gettag(fkey, tid) - returns tag with given ID for specified file.
+		Returns nothing if tagset of specified file has no that tag.
+		'tid' can be numeric ID or string representation of tag ID.
 	settag(fkey, tid, tag) - set tag with given ID to tagset of specified file.
 		'tid' can be numeric ID or string representation of tag ID. 'tag' can be
-		constructed userdata object, or string, or boolean. Numeric values cannot
-		be given as tag to prevent ambiguous data size interpretation.
+		of type described below.
 	deltag(fkey, tid) - delete tag with given ID from tagset of specified file.
 		'tid' can be numeric ID or string representation of tag ID.
 	gettags(fkey) - returns table with tagset of specified file. There is keys -
-		numeric tags identifiers, values - 'tag' userdata.
+		numeric tags identifiers, values - tags of types described below.
 	settags(fkey, tags) - receive table with tags that will be replaced at tags
 		set of specified file, or added if new. Keys of table can be numeric IDs
-		or string representation of tags ID. Values - can be 'tag' userdata objects,
-		or strings, or boolean.
+		or string representation of tags ID. Values - tags of types described below.
 	addtags(fkey, tags) - receive table with tags that will be added to tagset
 		of specified file. If file tagset already has given tags, those tags will
 		be skipped. Keys of table can be numeric IDs or string representation of
-		tags ID. Values - can be 'tag' userdata objects, or strings, or boolean.
+		tags ID. Values - tags of types described below.
 	deltags(fkey, tags) - receive table with numeric tags IDs or string
 		representation of tags ID, which should be removed. Values of table does
 		not matter.
 	getinfo() - returns table with package info, if it present.
+	setupinfo(tags) - setup given table with tags as package info.
+
+
+*tags types*
+	Any tags can be some of the followed types: binary data, string, boolean,
+	unsigned integer, float number, time. Tag binary data represented as hexadecimal
+	Lua-string, in some cases binary can be represented as integer in Lua-number.
+	Tags unsigned integers can be variable length: 1, 2, 4 or 8 bytes, and can be
+	represented by Lua-numbers or string with integer content. Numberic tags used
+	only with 8 bytes length, and represented by Lua-numbers or strings with number
+	content. Boolean tags represented by Lua-booleans, also all non-zero numbers
+	interpreted as 'true', zeros interpreted as 'false'. Empty strings and strings
+	with "false" content also interpreted as 'false', and all other strings
+	interpreted as 'true'. Lua-userdata and tables does not converted to tag-values.
+
+	available named tags:
+	name    	ID	Lua-type
+	offset  	1	number
+	size    	2	number
+	path    	3	string
+	fid     	4	number
+	mtime   	5	string time
+	atime   	6	string time
+	ctime   	7	string time
+	btime   	8	string time
+	attr    	9	number
+	mime    	10	string
+	crc32   	12	hex string, 4 bytes
+	crc32ieee	11	hex string, 4 bytes
+	crc32c  	12	hex string, 4 bytes
+	crc32k  	13	hex string, 4 bytes
+	crc64   	14	hex string, 8 bytes
+	crc64iso	14	hex string, 8 bytes
+	md5     	20	hex string, 16 bytes
+	sha1    	21	hex string, 20 bytes
+	sha224  	22	hex string, 28 bytes
+	sha256  	23	hex string, 32 bytes
+	sha384  	24	hex string, 48 bytes
+	sha512  	25	hex string, 64 bytes
+	tmbjpeg 	100	hex string
+	tmbwebp 	101	hex string
+	label   	110	string
+	link    	111	string
+	keywords	112	string
+	category	113	string
+	version 	114	string
+	author  	115	string
+	comment 	116	string
 
 ]]
 
@@ -233,8 +282,7 @@ for fkey, tags in pairs{
 	tags.mime = "image/jpeg"
 	tags.author = "schwarzlichtbezirk"
 	tags.link = fpath
-	pkg:putfile(fkey, fpath)
-	pkg:addtags(fkey, tags)
+	pkg:putfile(fkey, fpath, tags)
 	pkg:logfile(fkey)
 end
 -- make alias to file included at list
