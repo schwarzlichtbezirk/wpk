@@ -162,6 +162,11 @@ func adjustsha512(ts wpk.TagsetRaw, r io.ReadSeeker, skip bool, secret []byte) (
 func (pkg *LuaPackage) adjusttagset(r io.ReadSeeker, ts wpk.TagsetRaw) (wpk.TagsetRaw, error) {
 	var err error
 
+	if pkg.autofid && !ts.Has(wpk.TIDfid) {
+		pkg.fidcount++
+		ts = ts.Put(wpk.TIDfid, wpk.UintTag(wpk.Uint(pkg.fidcount)))
+	}
+
 	if ts, err = adjustmime(ts, r, !pkg.automime); err != nil {
 		return ts, err
 	}

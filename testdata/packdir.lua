@@ -8,6 +8,7 @@ extension "tmp", "bak", "log" and so on.
 
 -- inits new package
 local pkg = wpk.new()
+pkg.autofid = true -- put auto generated file ID for each file
 pkg.automime = true -- put MIME type for each file if it is not given explicit
 pkg.secret = "package-private-key" -- private key to sign cryptographic hashes for each file
 pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
@@ -60,7 +61,6 @@ local function checkname(name)
 end
 -- pack given directory and add to each file name given prefix
 local ansic = "Mon Jan _2 15:04:05 2006" -- time reformat layout
-local n = 0
 local function packdir(prefix, dir)
 	for i, name in ipairs(path.enum(dir)) do
 		local fkey = prefix..name
@@ -70,13 +70,12 @@ local function packdir(prefix, dir)
 			if isdir then
 				packdir(fkey.."/", fpath.."/")
 			else
-				n = n + 1
 				pkg:putfile(fkey, fpath, {
-					fid = n,
 					link = fpath,
 					author = "schwarzlichtbezirk",
 				})
-				logfmt("#%d %s, %d bytes, %s, %s", n, fkey,
+				logfmt("#%d %s, %d bytes, %s, %s",
+					assert(pkg:gettag(fkey, "fid")), fkey,
 					pkg:filesize(fkey),
 					milli2time(time2milli(pkg:gettag(fkey, "mtime")), ansic),
 					assert(pkg:gettag(fkey, "mime"))

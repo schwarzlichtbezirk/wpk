@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/schwarzlichtbezirk/wpk"
 	lua "github.com/yuin/gopher-lua"
 )
@@ -113,6 +114,15 @@ type ErrKeyUndef struct {
 
 func (e *ErrKeyUndef) Error() string {
 	return fmt.Sprintf("tag key '%s' is undefined", e.TagKey)
+}
+
+// ErrProtected is "protected tag" error.
+type ErrProtected struct {
+	tid wpk.TID
+}
+
+func (e *ErrProtected) Error() string {
+	return fmt.Sprintf("tries to change protected tag '%s'", TidName[e.tid])
 }
 
 // Tags identifiers conversion errors.
@@ -288,25 +298,30 @@ func TagToValue(tid wpk.TID, tag wpk.TagRaw) (v lua.LValue, err error) {
 }
 
 // TableToTagset converts Lua-table to TagsetRaw. Lua-table keys can be number identifiers
-// or string names associated ID values. Lua-table values can be strings,
-// boolean or "tag" userdata values. Numbers can not be passed to table
-// to prevent ambiguous type representation.
+// or string names associated ID values. Lua-table values can be strings, numbers,
+// or boolean values.
 func TableToTagset(lt *lua.LTable, ts wpk.TagsetRaw) (wpk.TagsetRaw, error) {
 	var err error
 	lt.ForEach(func(k lua.LValue, v lua.LValue) {
 		var (
+			erk error
+			erv error
 			tid wpk.TID
 			tag wpk.TagRaw
 		)
 
-		if tid, err = ValueToTID(k); err != nil {
-			return
+		if tid, erk = ValueToTID(k); erk != nil {
+			err = multierror.Append(err, erk)
+		} else if tid == wpk.TIDoffset || tid == wpk.TIDsize || tid == wpk.TIDpath {
+			err = multierror.Append(err, &ErrProtected{tid})
 		}
-		if tag, err = ValueToTag(tid, v); err != nil {
-			return
+		if tag, erv = ValueToTag(tid, v); err != nil {
+			err = multierror.Append(err, erv)
 		}
 
-		ts = ts.Put(tid, tag)
+		if erk == nil && erv == nil {
+			ts = ts.Set(tid, tag)
+		}
 	})
 	return ts, err
 }

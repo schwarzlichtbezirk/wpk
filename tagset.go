@@ -194,6 +194,19 @@ func (t TagRaw) TagTime() (time.Time, bool) {
 	return time.Time{}, false
 }
 
+// TagUnixms is 8/12-bytes tag converter to UNIX time in milliseconds.
+func (t TagRaw) TagUnixms() (int64, bool) {
+	switch len(t) {
+	case 8:
+		return int64(GetU64(t)), true
+	case 12:
+		var sec = int64(GetU64(t[:8]))
+		var nsec = int64(GetU32(t[8:]))
+		return time.Unix(sec, nsec).UnixMilli(), true
+	}
+	return 0, false
+}
+
 // UnixmsTag is 8-bytes UNIX time in milliseconds tag constructor.
 func UnixmsTag(val time.Time) TagRaw {
 	var buf [8]byte
@@ -216,9 +229,7 @@ type TagsetRaw []byte
 // CopyTagset makes copy of given tagset to new space.
 // It prevents rewriting data at solid slice with FTT when tagset modify.
 func CopyTagset(ts TagsetRaw) TagsetRaw {
-	var b = make(TagsetRaw, len(ts))
-	copy(b, ts)
-	return b
+	return append(TagsetRaw{}, ts...) // make copy with some extra space
 }
 
 // Num returns number of tags in tagset.
@@ -406,6 +417,14 @@ func (ts TagsetRaw) TagTime(tid TID) (time.Time, bool) {
 		return data.TagTime()
 	}
 	return time.Time{}, false
+}
+
+// TagUnixms is UNIX time in milliseconds tag getter.
+func (ts TagsetRaw) TagUnixms(tid TID) (int64, bool) {
+	if data, ok := ts.Get(tid); ok {
+		return data.TagUnixms()
+	}
+	return 0, false
 }
 
 // Pos returns file offset and file size in package.

@@ -88,6 +88,7 @@ to build wpk-packages.
 	tagnum - getter only, counts number of records in tags table, i.e. all aliases.
 	fftsize - getter only, calculates size of file tags table.
 	datasize - getter only, returns package data size from current file position.
+	autofid - get/set mode to put for each new file tag with unique file ID (FID).
 	automime - get/set mode to put for each new file tag with its MIME
 		determined by file extension, if it does not issued explicitly.
 	secret - get/set private key to sign hash MAC (MD5, SHA1, SHA224, etc).
@@ -239,6 +240,7 @@ end
 local rfc822 = "02 Jan 06 15:04 MST" -- time reformat layout
 function wpk.create(fpath)-- additional wpk-constructor
 	local pkg = wpk.new()
+	pkg.autofid = true -- put auto generated file ID for each file
 	pkg.automime = true -- put MIME type for each file if it is not given explicit
 	pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 	pkg:begin(fpath) -- open wpk-file for write
@@ -275,14 +277,13 @@ pkg.sha224 = true -- generate SHA224 hash for each file
 
 -- put images with keywords and author addition tags
 for fkey, tags in pairs{
-	["bounty.jpg"] = {fid=1, keywords="beach", category="image"},
-	["img1/Qarataşlar.jpg"] = {fid=2, keywords="beach;rock", category="photo"},
-	["img1/claustral.jpg"] = {fid=3, keywords="beach;rock", category="photo"},
-	["img2/marble.jpg"] = {fid=4, keywords="beach", category="photo"},
-	["img2/Uzuncı.jpg"] = {fid=5, keywords="rock", category="photo"},
+	["bounty.jpg"] = {keywords="beach", category="image"},
+	["img1/Qarataşlar.jpg"] = {keywords="beach;rock", category="photo"},
+	["img1/claustral.jpg"] = {keywords="beach;rock", category="photo"},
+	["img2/marble.jpg"] = {keywords="beach", category="photo"},
+	["img2/Uzuncı.jpg"] = {keywords="rock", category="photo"},
 } do
 	local fpath = path.join(scrdir, "media", fkey)
-	tags.mime = "image/jpeg"
 	tags.author = "schwarzlichtbezirk"
 	tags.link = fpath
 	pkg:putfile(fkey, fpath, tags)

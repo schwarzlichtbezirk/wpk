@@ -20,7 +20,7 @@ pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
 pkg.md5 = true -- generate MD5 hash for each file
 
 -- pack given file with common preset
-local n = pkg.tagnum
+local n = pkg.recnum
 local function packfile(fkey, keywords)
 	n = n + 1
 	local fpath = path.join(scrdir, "media", fkey)

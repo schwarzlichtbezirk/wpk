@@ -42,9 +42,7 @@ local function packfile(fkey, keywords)
 	})
 end
 local function packdata(fkey, data, keywords) -- put text file created from given string
-	n = n + 1
 	pkg:putdata(fkey, data, {
-		fid = n,
 		mime = "text/plain;charset=utf-8",
 		keywords = keywords,
 	})
