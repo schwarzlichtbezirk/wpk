@@ -24,6 +24,27 @@ func MakeDataPath(fpath string) string {
 	return fpath[:len(fpath)-len(ext)] + ".wpf"
 }
 
+// JoinFast performs fast join of two path chunks.
+func JoinFast(dir, base string) string {
+	if dir == "" || dir == "." {
+		return base
+	}
+	if base == "" || base == "." {
+		return dir
+	}
+	if dir[len(dir)-1] == '/' {
+		if base[0] == '/' {
+			return dir + base[1:]
+		} else {
+			return dir + base
+		}
+	}
+	if base[0] == '/' {
+		return dir + base
+	}
+	return dir + "/" + base
+}
+
 // PackDirFile is a directory file whose entries can be read with the ReadDir method.
 // fs.ReadDirFile interface implementation.
 type PackDirFile struct {
@@ -98,7 +119,7 @@ func PathExists(path string) (bool, error) {
 
 // TempPath returns filename located at temporary directory.
 func TempPath(fname string) string {
-	return path.Join(ToSlash(os.TempDir()), fname)
+	return JoinFast(ToSlash(os.TempDir()), fname)
 }
 
 // ReadDirN returns fs.DirEntry array with nested into given package directory presentation.
@@ -119,7 +140,7 @@ func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) 
 				found[suffix] = ts
 				n--
 			} else { // dir detected
-				var subdir = path.Join(prefix, suffix[:sp])
+				var subdir = JoinFast(prefix, suffix[:sp])
 				if _, ok := found[subdir]; !ok {
 					var dts = TagsetRaw{}.
 						Put(TIDpath, StrTag(subdir))

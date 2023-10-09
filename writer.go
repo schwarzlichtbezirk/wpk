@@ -191,57 +191,6 @@ func (pkg *Package) PackFile(w io.WriteSeeker, file fs.File, fkey string) (ts Ta
 	return
 }
 
-// PackDirLogger is function called during PackDir processing after each
-// file with OS file object and inserted tagset, that can be modified.
-type PackDirLogger func(pkg *Package, r io.ReadSeeker, ts TagsetRaw) error
-
-// PackDir puts all files of given folder and it's subfolders into package.
-// Logger function can be nil.
-func (pkg *Package) PackDir(w io.WriteSeeker, dirname, prefix string, logger PackDirLogger) (err error) {
-	var fis []os.FileInfo
-	if func() {
-		var dir *os.File
-		if dir, err = os.Open(dirname); err != nil {
-			return
-		}
-		defer dir.Close()
-
-		if fis, err = dir.Readdir(-1); err != nil {
-			return
-		}
-	}(); err != nil {
-		return
-	}
-	for _, fi := range fis {
-		if fi != nil {
-			var fkey = prefix + fi.Name()
-			var fpath = dirname + fi.Name()
-			if fi.IsDir() {
-				if err = pkg.PackDir(w, fpath+"/", fkey+"/", logger); err != nil {
-					return
-				}
-			} else if func() {
-				var file *os.File
-				var ts TagsetRaw
-				if file, err = os.Open(fpath); err != nil {
-					return
-				}
-				defer file.Close()
-
-				if ts, err = pkg.PackFile(w, file, fkey); err != nil {
-					return
-				}
-				if err = logger(pkg, file, ts); err != nil {
-					return
-				}
-			}(); err != nil {
-				return
-			}
-		}
-	}
-	return
-}
-
 // Rename tagset with file name 'fkey1' to 'fkey2'.
 // Keeps link to original file name.
 func (pkg *Package) Rename(fkey1, fkey2 string) error {

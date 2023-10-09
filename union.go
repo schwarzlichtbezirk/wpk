@@ -170,7 +170,7 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 					found[suffix] = ts
 					ni--
 				} else { // dir detected
-					var subdir = path.Join(prefix, suffix[:sp])
+					var subdir = JoinFast(prefix, suffix[:sp])
 					if _, ok := found[subdir]; !ok {
 						var dts = TagsetRaw{}.
 							Put(TIDpath, StrTag(subdir))

@@ -133,7 +133,7 @@ func readpackage() (err error) {
 					next = err == nil
 				}()
 
-				var fullpath = path.Join(DstPath, fkey)
+				var fullpath = wpk.JoinFast(DstPath, fkey)
 				if err = os.MkdirAll(path.Dir(fullpath), os.ModePerm); err != nil {
 					return
 				}

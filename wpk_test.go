@@ -2,7 +2,6 @@ package wpk_test
 
 import (
 	"bytes"
-	"io"
 	"io/fs"
 	"os"
 	"testing"
@@ -151,7 +150,7 @@ func TestInfo(t *testing.T) {
 	}
 }
 
-// Test PackDir function work.
+// Test packing the directory.
 func TestPackDir(t *testing.T) {
 	var err error
 	var fwpk *os.File
@@ -175,18 +174,35 @@ func TestPackDir(t *testing.T) {
 	pkg.SetInfo(wpk.TagsetRaw{}.
 		Put(wpk.TIDlabel, wpk.StrTag("packed-dir")))
 	// put media directory to file
-	if err = pkg.PackDir(fwpk, mediadir, "", func(pkg *wpk.Package, r io.ReadSeeker, ts wpk.TagsetRaw) error {
+	fs.WalkDir(os.DirFS(mediadir), ".", func(fkey string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil // file is directory
+		}
+
+		var fpath = wpk.JoinFast(mediadir, fkey)
+		var file *os.File
+		var ts wpk.TagsetRaw
+		if file, err = os.Open(fpath); err != nil {
+			return err
+		}
+		defer file.Close()
+
+		if ts, err = pkg.PackFile(fwpk, file, fkey); err != nil {
+			return err
+		}
+
+		var size = ts.Size()
 		tagsnum++
 		fidcount++
-		var fpath = mediadir + ts.Path()
 		pkg.SetupTagset(ts.
 			Put(wpk.TIDfid, wpk.UintTag(fidcount)).
 			Put(wpk.TIDlink, wpk.StrTag(fpath)))
-		t.Logf("put file #%d '%s', %d bytes", fidcount, ts.Path(), ts.Size())
+		t.Logf("put file #%d '%s', %d bytes", fidcount, fkey, size)
 		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
+	})
 	// finalize
 	if err = pkg.Sync(fwpk, nil); err != nil {
 		t.Fatal(err)
@@ -280,18 +296,35 @@ func TestPackDirSplit(t *testing.T) {
 	pkg.SetInfo(wpk.TagsetRaw{}.
 		Put(wpk.TIDlabel, wpk.StrTag("splitted-pkg")))
 	// put media directory to file
-	if err = pkg.PackDir(fwpf, mediadir, "", func(pkg *wpk.Package, r io.ReadSeeker, ts wpk.TagsetRaw) error {
+	fs.WalkDir(os.DirFS(mediadir), ".", func(fkey string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil // file is directory
+		}
+
+		var fpath = wpk.JoinFast(mediadir, fkey)
+		var file *os.File
+		var ts wpk.TagsetRaw
+		if file, err = os.Open(fpath); err != nil {
+			return err
+		}
+		defer file.Close()
+
+		if ts, err = pkg.PackFile(fwpf, file, fkey); err != nil {
+			return err
+		}
+
+		var size = ts.Size()
 		tagsnum++
 		fidcount++
-		var fpath = mediadir + ts.Path()
 		pkg.SetupTagset(ts.
 			Put(wpk.TIDfid, wpk.UintTag(fidcount)).
 			Put(wpk.TIDlink, wpk.StrTag(fpath)))
-		t.Logf("put file #%d '%s', %d bytes", fidcount, ts.Path(), ts.Size())
+		t.Logf("put file #%d '%s', %d bytes", fidcount, fkey, size)
 		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
+	})
 	// finalize
 	if err = pkg.Sync(fwpt, fwpf); err != nil {
 		t.Fatal(err)

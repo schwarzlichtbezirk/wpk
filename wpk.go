@@ -586,7 +586,7 @@ func NewPackage() *Package {
 
 // FullPath returns concatenation of workspace and relative path.
 func (pkg *Package) FullPath(fkey string) string {
-	return path.Join(pkg.Workspace, fkey)
+	return JoinFast(pkg.Workspace, fkey)
 }
 
 // TrimPath returns trimmed path without workspace prefix.

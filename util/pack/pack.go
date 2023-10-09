@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"io"
+	"io/fs"
 	"log"
 	"mime"
 	"net/http"
@@ -20,6 +21,7 @@ var (
 	SrcList []string
 	DstFile string
 	PutMIME bool
+	PutLink bool
 	ShowLog bool
 	Split   bool
 )
@@ -27,8 +29,9 @@ var (
 func parseargs() {
 	flag.StringVar(&srcpath, "src", "", "full path to folder with source files to be packaged, or list of folders divided by ';'")
 	flag.StringVar(&DstFile, "dst", "", "full path to output package file")
-	flag.BoolVar(&PutMIME, "mime", false, "put content MIME type defined by file extension")
-	flag.BoolVar(&ShowLog, "sl", true, "show process log for each extracting file")
+	flag.BoolVar(&PutMIME, "mime", false, "put content MIME type defined by file extension to each file tagset")
+	flag.BoolVar(&PutLink, "link", false, "put full path to the original file to each file tagset")
+	flag.BoolVar(&ShowLog, "log", true, "show process log for each extracting file")
 	flag.BoolVar(&Split, "split", false, "write package to splitted files")
 	flag.Parse()
 }
@@ -64,41 +67,6 @@ func checkargs() (ec int) { // returns error counter
 	}
 
 	return
-}
-
-var num, sum int64
-
-func packdirclosure(pkg *wpk.Package, r io.ReadSeeker, ts wpk.TagsetRaw) (err error) {
-	var size = ts.Size()
-	var fpath = ts.Path()
-	num++
-	sum += size
-	if ShowLog {
-		log.Printf("#%-4d %7d bytes   %s", num, size, fpath)
-	}
-
-	// adjust tags
-	if PutMIME {
-		const sniffLen = 512
-		var ctype = mime.TypeByExtension(path.Ext(fpath))
-		if ctype == "" {
-			// rewind to file start
-			if _, err = r.Seek(0, io.SeekStart); err != nil {
-				return err
-			}
-			// read a chunk to decide between utf-8 text and binary
-			var buf [sniffLen]byte
-			var n int64
-			if n, err = io.CopyN(bytes.NewBuffer(buf[:]), r, sniffLen); err != nil && err != io.EOF {
-				return err
-			}
-			ctype = http.DetectContentType(buf[:n])
-		}
-		if ctype != "" {
-			pkg.SetupTagset(ts.Put(wpk.TIDmime, wpk.StrTag(ctype)))
-		}
-	}
-	return nil
 }
 
 func writepackage() (err error) {
@@ -139,12 +107,63 @@ func writepackage() (err error) {
 	}
 
 	// write all source folders
-	for i, fpath := range SrcList {
-		log.Printf("source folder #%d: %s", i+1, fpath)
-		num, sum = 0, 0
-		if err = pkg.PackDir(w, fpath, "", packdirclosure); err != nil {
-			return
-		}
+	for i, srcpath := range SrcList {
+		log.Printf("source folder #%d: %s", i+1, srcpath)
+		var num, sum int64
+		fs.WalkDir(os.DirFS(srcpath), ".", func(fkey string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				return nil // file is directory
+			}
+
+			var fpath = wpk.JoinFast(srcpath, fkey)
+			var file *os.File
+			var ts wpk.TagsetRaw
+			if file, err = os.Open(fpath); err != nil {
+				return err
+			}
+			defer file.Close()
+
+			if ts, err = pkg.PackFile(w, file, fkey); err != nil {
+				return err
+			}
+
+			var size = ts.Size()
+			num++
+			sum += size
+			if ShowLog {
+				log.Printf("#%-4d %7d bytes   %s", num, size, fkey)
+			}
+
+			// adjust tags
+			if PutMIME {
+				const sniffLen = 512
+				var ctype = mime.TypeByExtension(path.Ext(fkey))
+				if ctype == "" {
+					// rewind to file start
+					if _, err = file.Seek(0, io.SeekStart); err != nil {
+						return err
+					}
+					// read a chunk to decide between utf-8 text and binary
+					var buf [sniffLen]byte
+					var n int64
+					if n, err = io.CopyN(bytes.NewBuffer(buf[:]), file, sniffLen); err != nil && err != io.EOF {
+						return err
+					}
+					ctype = http.DetectContentType(buf[:n])
+				}
+				if ctype != "" {
+					ts = ts.Put(wpk.TIDmime, wpk.StrTag(ctype))
+				}
+			}
+			if PutLink {
+				ts = ts.Put(wpk.TIDlink, wpk.StrTag(fpath))
+			}
+			pkg.SetTagset(fkey, ts)
+			return nil
+		})
 		log.Printf("packed: %d files on %d bytes", num, sum)
 	}
 
