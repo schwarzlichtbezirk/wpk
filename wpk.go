@@ -92,23 +92,22 @@ var (
 	ErrOtherSubdir = errors.New("directory refers to other workspace")
 )
 
-// FileReader is interface for nested package files access.
-type FileReader interface {
+// PkgReader is interface with readers for nested package files.
+type PkgReader interface {
 	io.Reader
 	io.ReaderAt
 	io.Seeker
-	Size() int64
 }
 
-// PkgFile is interface for access to nested into package files.
-type PkgFile interface {
+// RFile is interface for acces on reading to nested package files.
+type RFile interface {
 	fs.File
-	FileReader
+	PkgReader
 }
 
 // Tagger provides acces to nested files by given tagset of this package.
 type Tagger interface {
-	OpenTagset(TagsetRaw) (PkgFile, error)
+	OpenTagset(TagsetRaw) (RFile, error)
 	io.Closer
 }
 
@@ -359,8 +358,7 @@ func (ftt *FTT) CheckTagset(ts TagsetRaw) (fkey string, err error) {
 // It's high performance method without extra allocations calls.
 func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 	{
-		var tsl uint16
-		tsl = GetU16(buf[n : n+PTStssize])
+		var tsl = GetU16(buf[n : n+PTStssize])
 		n += PTStssize
 
 		var ts = TagsetRaw(buf[n : n+int64(tsl)])
@@ -378,8 +376,7 @@ func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 	}
 
 	for {
-		var tsl uint16
-		tsl = GetU16(buf[n : n+PTStssize])
+		var tsl = GetU16(buf[n : n+PTStssize])
 		n += PTStssize
 
 		if tsl == 0 {

@@ -15,9 +15,9 @@ import (
 const pagesize = 64 * 1024
 
 // MappedFile structure gives access to nested into package file by memory mapping.
-// wpk.PkgFile interface implementation.
+// wpk.RFile interface implementation.
 type MappedFile struct {
-	wpk.FileReader
+	wpk.PkgReader
 	tags   wpk.TagsetRaw // has fs.FileInfo interface
 	region []byte
 	mm.MMap
@@ -36,10 +36,10 @@ func NewMappedFile(fwpk *os.File, ts wpk.TagsetRaw) (f *MappedFile, err error) {
 		return
 	}
 	f = &MappedFile{
-		FileReader: bytes.NewReader(mmap[pgoff : pgoff+size]),
-		tags:       ts,
-		region:     mmap[pgoff : pgoff+size],
-		MMap:       mmap,
+		PkgReader: bytes.NewReader(mmap[pgoff : pgoff+size]),
+		tags:      ts,
+		region:    mmap[pgoff : pgoff+size],
+		MMap:      mmap,
 	}
 	return
 }
@@ -71,7 +71,7 @@ func MakeTagger(fpath string) (wpk.Tagger, error) {
 }
 
 // OpenTagset creates file object to give access to nested into package file by given tagset.
-func (tgr *Tagger) OpenTagset(ts wpk.TagsetRaw) (wpk.PkgFile, error) {
+func (tgr *Tagger) OpenTagset(ts wpk.TagsetRaw) (wpk.RFile, error) {
 	return NewMappedFile(tgr.fwpk, ts)
 }
 
