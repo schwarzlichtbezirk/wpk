@@ -523,11 +523,11 @@ func (ftt *FTT) OpenStream(r io.ReadSeeker) (err error) {
 	if err = hdr.IsReady(); err != nil {
 		return
 	}
+	// setup empty tags table with reserved map size
+	ftt.Init(&hdr)
 	if hdr.fttcount == 0 || hdr.fttsize == 0 {
 		return
 	}
-	// setup empty tags table with reserved map size
-	ftt.Init(&hdr)
 	// go to file tags table start
 	if _, err = r.Seek(int64(hdr.fttoffset), io.SeekStart); err != nil {
 		return

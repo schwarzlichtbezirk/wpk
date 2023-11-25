@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/schwarzlichtbezirk/wpk"
 	lua "github.com/yuin/gopher-lua"
 )
@@ -302,28 +301,30 @@ func TagToValue(tid wpk.TID, tag wpk.TagRaw) (v lua.LValue, err error) {
 // or boolean values.
 func TableToTagset(lt *lua.LTable, ts wpk.TagsetRaw) (wpk.TagsetRaw, error) {
 	var err error
+	var errs []error
 	lt.ForEach(func(k lua.LValue, v lua.LValue) {
 		var (
-			erk error
-			erv error
-			tid wpk.TID
-			tag wpk.TagRaw
+			errk error
+			errv error
+			tid  wpk.TID
+			tag  wpk.TagRaw
 		)
 
-		if tid, erk = ValueToTID(k); erk != nil {
-			err = multierror.Append(err, erk)
+		if tid, errk = ValueToTID(k); errk != nil {
+			errs = append(errs, errk)
 		} else if tid == wpk.TIDoffset || tid == wpk.TIDsize || tid == wpk.TIDpath {
-			err = multierror.Append(err, &ErrProtected{tid})
+			errk = &ErrProtected{tid}
+			errs = append(errs, errk)
 		}
-		if tag, erv = ValueToTag(tid, v); err != nil {
-			err = multierror.Append(err, erv)
+		if tag, errv = ValueToTag(tid, v); err != nil {
+			errs = append(errs, errv)
 		}
 
-		if erk == nil && erv == nil {
+		if errk == nil && errv == nil {
 			ts = ts.Set(tid, tag)
 		}
 	})
-	return ts, err
+	return ts, errors.Join(errs...)
 }
 
 // The End.

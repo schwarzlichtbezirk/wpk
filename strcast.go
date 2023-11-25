@@ -1,19 +1,13 @@
 package wpk
 
 import (
-	"reflect"
 	"unsafe"
 )
 
 func B2S(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
 
 func S2B(s string) (b []byte) {
-	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	bh.Data = sh.Data
-	bh.Cap = sh.Len
-	bh.Len = sh.Len
-	return b
+	return unsafe.Slice(unsafe.StringData(s), len(s))
 }
