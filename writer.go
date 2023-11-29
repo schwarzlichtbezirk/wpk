@@ -162,7 +162,7 @@ func (pkg *Package) PackData(w io.WriteSeeker, r io.Reader, fkey string) (ts Tag
 	}
 
 	// insert new entry to tags table
-	ts = pkg.BaseTagset(Uint(offset), Uint(size), fkey)
+	ts = pkg.BaseTagset(uint(offset), uint(size), fkey)
 	pkg.SetTagset(fkey, ts)
 	return
 }

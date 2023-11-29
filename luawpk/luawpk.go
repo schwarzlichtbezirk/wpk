@@ -136,7 +136,7 @@ func setterPack(ls *lua.LState) int {
 func tostringPack(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
 
-	var m = map[wpk.Uint]wpk.Void{}
+	var m = map[uint]wpk.Void{}
 	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
 		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
 			m[offset] = wpk.Void{} // count unique offsets
@@ -267,7 +267,7 @@ func getdatpath(ls *lua.LState) int {
 
 func getrecnum(ls *lua.LState) int {
 	var pkg = CheckPack(ls, 1)
-	var m = map[wpk.Uint]wpk.Void{}
+	var m = map[uint]wpk.Void{}
 	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
 		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
 			m[offset] = wpk.Void{}
@@ -740,7 +740,7 @@ func wpkputfile(ls *lua.LState) int {
 		return 0
 	}
 
-	var file *os.File
+	var file wpk.RFile
 	if file, err = os.Open(fpath); err != nil {
 		return 0
 	}

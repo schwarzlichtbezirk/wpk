@@ -164,7 +164,7 @@ func (pkg *LuaPackage) adjusttagset(r io.ReadSeeker, ts wpk.TagsetRaw) (wpk.Tags
 
 	if pkg.autofid && !ts.Has(wpk.TIDfid) {
 		pkg.fidcount++
-		ts = ts.Put(wpk.TIDfid, wpk.UintTag(wpk.Uint(pkg.fidcount)))
+		ts = ts.Put(wpk.TIDfid, wpk.UintTag(pkg.fidcount))
 	}
 
 	if ts, err = adjustmime(ts, r, !pkg.automime); err != nil {

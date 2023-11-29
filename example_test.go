@@ -76,7 +76,7 @@ func ExamplePackage_Enum() {
 	}
 
 	// How many unique records in package
-	var m = map[wpk.Uint]wpk.Void{}
+	var m = map[uint]wpk.Void{}
 	pkg.Enum(func(fkey string, ts wpk.TagsetRaw) bool {
 		if offset, ok := ts.TagUint(wpk.TIDoffset); ok {
 			m[offset] = wpk.Void{} // count unique offsets
@@ -116,7 +116,7 @@ func ExampleGetPackageInfo() {
 			var err error
 
 			// open package file
-			var f *os.File
+			var f wpk.RFile
 			if f, err = os.Open(fname); err != nil {
 				log.Printf("can not open package %s, %s", fname, err.Error())
 				return

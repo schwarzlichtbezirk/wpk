@@ -145,13 +145,13 @@ func (hdr *Header) Count() int {
 }
 
 // FttSize returns package files tagset table size from header.
-func (hdr *Header) FttSize() Uint {
-	return Uint(hdr.fttsize)
+func (hdr *Header) FttSize() uint {
+	return uint(hdr.fttsize)
 }
 
 // DataSize returns package data size from header.
-func (hdr *Header) DataSize() Uint {
-	return Uint(hdr.datsize)
+func (hdr *Header) DataSize() uint {
+	return uint(hdr.datsize)
 }
 
 // IsReady determines that package is ready for read the data.
@@ -284,8 +284,8 @@ func (ftt *FTT) IsSplitted() bool {
 
 // DataSize returns package data size from files tags table.
 // This value changed on FTT open or sync operation.
-func (ftt *FTT) DataSize() Uint {
-	return Uint(ftt.datsize)
+func (ftt *FTT) DataSize() uint {
+	return uint(ftt.datsize)
 }
 
 // GetInfo returns package information tagset if it present.
@@ -303,7 +303,7 @@ func (ftt *FTT) SetInfo(ts TagsetRaw) {
 // CheckTagset tests path & offset & size tags existence
 // and checks that size & offset is are in the bounds.
 func (ftt *FTT) CheckTagset(ts TagsetRaw) (fkey string, err error) {
-	var offset, size Uint
+	var offset, size uint
 	var ispath, isoffset, issize bool
 
 	// find expected tags
@@ -606,7 +606,7 @@ func (pkg *Package) TrimPath(fkey string) string {
 
 // BaseTagset returns new tagset based on predefined TID type size and tag size type,
 // and puts file offset and file size into tagset with predefined sizes.
-func (pkg *Package) BaseTagset(offset, size Uint, fkey string) TagsetRaw {
+func (pkg *Package) BaseTagset(offset, size uint, fkey string) TagsetRaw {
 	return TagsetRaw{}.
 		Put(TIDoffset, UintTag(offset)).
 		Put(TIDsize, UintTag(size)).
@@ -731,7 +731,7 @@ func (pkg *Package) ReadFile(fkey string) ([]byte, error) {
 func (pkg *Package) Open(dir string) (fs.File, error) {
 	var fullname = pkg.FullPath(dir)
 	if fullname == PackName {
-		var ts = pkg.BaseTagset(0, Uint(pkg.datoffset+pkg.datsize), "wpk")
+		var ts = pkg.BaseTagset(0, uint(pkg.datoffset+pkg.datsize), "wpk")
 		return pkg.Tagger.OpenTagset(ts)
 	}
 

@@ -157,7 +157,7 @@ func ValueToTag(tid wpk.TID, v lua.LValue) (tag wpk.TagRaw, err error) {
 	switch TidType[tid] {
 	case TTbin:
 		if val, ok := v.(lua.LNumber); ok {
-			tag = wpk.UintTag(wpk.Uint(val))
+			tag = wpk.UintTag(uint(val))
 		} else if val, ok := v.(lua.LString); ok {
 			tag, err = hex.DecodeString(string(val))
 		} else {
@@ -187,13 +187,13 @@ func ValueToTag(tid wpk.TID, v lua.LValue) (tag wpk.TagRaw, err error) {
 		}
 	case TTuint:
 		if val, ok := v.(lua.LNumber); ok {
-			tag = wpk.UintTag(wpk.Uint(val))
+			tag = wpk.UintTag(uint(val))
 		} else if val, ok := v.(lua.LString); ok {
 			var i int
 			if i, err = strconv.Atoi(string(val)); err != nil {
 				return
 			}
-			tag = wpk.UintTag(wpk.Uint(i))
+			tag = wpk.UintTag(uint(i))
 		} else if val, ok := v.(lua.LBool); ok {
 			if val {
 				tag = wpk.UintTag(1)
@@ -243,7 +243,7 @@ func ValueToTag(tid wpk.TID, v lua.LValue) (tag wpk.TagRaw, err error) {
 			if val < 0 || float64(val) != float64(int64(val)) {
 				tag = wpk.NumberTag(float64(val))
 			} else {
-				tag = wpk.UintTag(wpk.Uint(val))
+				tag = wpk.UintTag(uint(val))
 			}
 		} else if val, ok := v.(lua.LString); ok {
 			tag = wpk.StrTag(string(val))

@@ -119,7 +119,7 @@ func writepackage() (err error) {
 			}
 
 			var fpath = wpk.JoinFast(srcpath, fkey)
-			var file *os.File
+			var file wpk.RFile
 			var ts wpk.TagsetRaw
 			if file, err = os.Open(fpath); err != nil {
 				return err

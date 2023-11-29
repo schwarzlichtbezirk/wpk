@@ -22,7 +22,7 @@ func CheckPackage(t *testing.T, wptname, wpfname string) {
 	}
 
 	// open temporary file for read/write
-	var fwpf *os.File
+	var fwpf wpk.RFile
 	if wpfname != "" && wptname != wpfname {
 		if fwpf, err = os.Open(wpfname); err != nil {
 			t.Fatal(err)
@@ -51,7 +51,7 @@ func CheckPackage(t *testing.T, wptname, wpfname string) {
 			t.Fatal(err)
 		}
 
-		if size != wpk.Uint(len(orig)) {
+		if size != uint(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
 				fkey, size, len(orig))
 		}

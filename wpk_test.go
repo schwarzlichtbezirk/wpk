@@ -56,7 +56,7 @@ func CheckPackage(t *testing.T, fwpt, fwpf *os.File, tagsnum int) {
 			}
 		}
 
-		if size != wpk.Uint(len(orig)) {
+		if size != uint(len(orig)) {
 			t.Errorf("size of file '%s' (%d) in package is defer from original (%d)",
 				fkey, size, len(orig))
 		}
@@ -155,7 +155,7 @@ func TestPackDir(t *testing.T) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount wpk.Uint
+	var fidcount uint
 	var pkg = wpk.NewPackage()
 
 	defer os.Remove(testpack)
@@ -183,7 +183,7 @@ func TestPackDir(t *testing.T) {
 		}
 
 		var fpath = wpk.JoinFast(mediadir, fkey)
-		var file *os.File
+		var file fs.File
 		var ts wpk.TagsetRaw
 		if file, err = os.Open(fpath); err != nil {
 			return err
@@ -270,7 +270,7 @@ func TestPackDirSplit(t *testing.T) {
 	var err error
 	var fwpt, fwpf *os.File
 	var tagsnum = 0
-	var fidcount wpk.Uint
+	var fidcount uint
 	var pkg = wpk.NewPackage()
 
 	defer os.Remove(testpkgt)
@@ -305,7 +305,7 @@ func TestPackDirSplit(t *testing.T) {
 		}
 
 		var fpath = wpk.JoinFast(mediadir, fkey)
-		var file *os.File
+		var file fs.File
 		var ts wpk.TagsetRaw
 		if file, err = os.Open(fpath); err != nil {
 			return err
@@ -339,7 +339,7 @@ func TestPutFiles(t *testing.T) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount wpk.Uint
+	var fidcount uint
 	var pkg = wpk.NewPackage()
 
 	defer os.Remove(testpack)
@@ -459,7 +459,7 @@ func TestAppendContinues(t *testing.T) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount wpk.Uint
+	var fidcount uint
 	var pkg = wpk.NewPackage()
 
 	defer os.Remove(testpack)
@@ -539,7 +539,7 @@ func TestAppendDiscrete(t *testing.T) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount wpk.Uint
+	var fidcount uint
 	var pkg = wpk.NewPackage()
 
 	defer os.Remove(testpack)

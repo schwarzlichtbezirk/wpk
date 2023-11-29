@@ -19,7 +19,7 @@ func PackFiles(t *testing.T, wpkname string, list []string) {
 	var err error
 	var fwpk *os.File
 	var tagsnum = 0
-	var fidcount wpk.Uint
+	var fidcount uint
 	var pkg = wpk.NewPackage()
 
 	// helper functions

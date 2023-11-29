@@ -7,9 +7,6 @@ import (
 	"time"
 )
 
-// Uint can hold unsigned integer of any size.
-type Uint uint64
-
 var (
 	ErrBadIntLen = errors.New("unacceptable integer length")
 	ErrTsiConst  = errors.New("content changes are disabled for iterator")
@@ -105,22 +102,22 @@ func Uint64Tag(val uint64) TagRaw {
 }
 
 // TagUint is unspecified size unsigned int tag converter.
-func (t TagRaw) TagUint() (Uint, bool) {
+func (t TagRaw) TagUint() (uint, bool) {
 	switch len(t) {
 	case 8:
-		return Uint(GetU64(t)), true
+		return uint(GetU64(t)), true
 	case 4:
-		return Uint(GetU32(t)), true
+		return uint(GetU32(t)), true
 	case 2:
-		return Uint(GetU16(t)), true
+		return uint(GetU16(t)), true
 	case 1:
-		return Uint(t[0]), true
+		return uint(t[0]), true
 	}
 	return 0, false
 }
 
 // UintTag is unspecified size unsigned int tag constructor.
-func UintTag(val Uint) TagRaw {
+func UintTag(val uint) TagRaw {
 	switch {
 	case val > 0xffffffff:
 		var buf [8]byte
@@ -142,7 +139,7 @@ func UintTag(val Uint) TagRaw {
 }
 
 // UintLenTag is unsigned int tag constructor with specified length in bytes.
-func UintLenTag(val Uint, l int) TagRaw {
+func UintLenTag(val uint, l int) TagRaw {
 	switch l {
 	case 8:
 		var buf [8]byte
@@ -396,7 +393,7 @@ func (ts TagsetRaw) TagUint64(tid TID) (uint64, bool) {
 }
 
 // TagUint is unspecified size unsigned int tag getter.
-func (ts TagsetRaw) TagUint(tid TID) (Uint, bool) {
+func (ts TagsetRaw) TagUint(tid TID) (uint, bool) {
 	if data, ok := ts.Get(tid); ok {
 		return data.TagUint()
 	}
@@ -429,7 +426,7 @@ func (ts TagsetRaw) TagUnixms(tid TID) (int64, bool) {
 
 // Pos returns file offset and file size in package.
 // Those values required to be present in any tagset.
-func (ts TagsetRaw) Pos() (offset, size Uint) {
+func (ts TagsetRaw) Pos() (offset, size uint) {
 	var tsi, n = ts.Iterator(), 2
 	for tsi.Next() && n > 0 {
 		switch tsi.tid {

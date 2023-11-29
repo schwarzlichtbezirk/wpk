@@ -23,7 +23,7 @@ type ChunkFile struct {
 
 // NewChunkFile creates ChunkFile file structure based on given tags slice.
 func NewChunkFile(fpath string, ts wpk.TagsetRaw) (f *ChunkFile, err error) {
-	var wpkf *os.File
+	var wpkf wpk.RFile
 	if wpkf, err = os.Open(fpath); err != nil {
 		return
 	}
