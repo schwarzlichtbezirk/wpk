@@ -35,195 +35,94 @@ func TestTagset(t *testing.T) {
 		str string
 	)
 
-	for _, check := range []struct {
-		cond func() bool
-		msg  string
-	}{
-		{func() bool { return wpk.ToSlash(fkey1) != fkey || wpk.ToSlash(fkey2) != fkey },
-			"toslash test failed",
-		},
-		{func() bool { return tsi.TID() != wpk.TIDnone },
-			"tag ID in created iterator should be 'none'",
-		},
-		{func() bool { return ts.Num() != 4 },
-			"wrong number of tags",
-		},
-
-		// check up OFFSET
-		{func() bool { return !tsi.Next() },
-			"can not iterate to 'offset'",
-		},
-		{func() bool { return tsi.TID() != wpk.TIDoffset },
-			"tag #1 is not 'offset'",
-		},
-		{func() bool { tag = tsi.Tag(); return tag == nil },
-			"can not get 'offset' tag",
-		},
-		{func() bool { ov, ok = tsi.TagUint(wpk.TIDoffset); return !ok },
-			"can not convert 'offset' tag to value",
-		},
-		{func() bool { return ov != offset },
-			"'offset' tag is not equal to original value",
-		},
-
-		// check up SIZE
-		{func() bool { return !tsi.Next() },
-			"can not iterate to 'size'",
-		},
-		{func() bool { return tsi.TID() != wpk.TIDsize },
-			"tag #2 is not 'size'",
-		},
-		{func() bool { tag = tsi.Tag(); return tag == nil },
-			"can not get 'size' tag",
-		},
-		{func() bool { sv, ok = tsi.TagUint(wpk.TIDsize); return !ok },
-			"can not convert 'size' tag to value",
-		},
-		{func() bool { return sv != size },
-			"'size' tag is not equal to original value",
-		},
-
-		// check up PATH
-		{func() bool { return !tsi.Next() },
-			"can not iterate to 'path'",
-		},
-		{func() bool { return tsi.TID() != wpk.TIDpath },
-			"tag #3 is not 'path'",
-		},
-		{func() bool { return tsi.TagLen() != len(fkey) },
-			"length of 'path' tag does not equal to original length",
-		},
-		{func() bool { tag = tsi.Tag(); return tag == nil },
-			"can not get 'path' tag",
-		},
-		{func() bool { str, ok = tag.TagStr(); return !ok },
-			"can not convert 'path' tag to value",
-		},
-		{func() bool { return str != fkey },
-			"'path' tag is not equal to original value",
-		},
-
-		// check up FID
-		{func() bool { return !tsi.Next() },
-			"can not iterate to 'fid'",
-		},
-		{func() bool { return tsi.TID() != wpk.TIDfid },
-			"tag #4 is not 'fid'",
-		},
-		{func() bool { tag = tsi.Tag(); return tag == nil },
-			"can not get 'fid' tag",
-		},
-		{func() bool { fv, ok = tsi.TagUint(wpk.TIDfid); return !ok },
-			"can not convert 'fid' tag to value",
-		},
-		{func() bool { return fv != fid },
-			"'fid' tag is not equal to original value",
-		},
-
-		// check up valid iterations finish
-		{func() bool { return tsi.Failed() },
-			"content is broken",
-		},
-		{func() bool { return tsi.Next() },
-			"iterator does not finished",
-		},
-		{func() bool { return !tsi.Passed() },
-			"iterations does not reached till the end",
-		},
-		{func() bool { return tsi.TID() != wpk.TIDnone },
-			"tag ID in finished iterator should be 'none'",
-		},
-
-		// check up 'Has'
-		{func() bool {
-			return !(ts.Has(wpk.TIDoffset) && ts.Has(wpk.TIDsize) && ts.Has(wpk.TIDfid) && ts.Has(wpk.TIDpath))
-		},
-			"something does not pointed that should be present",
-		},
-		{func() bool { return ts.Has(wpk.TIDmd5) },
-			"'md5' tag is not set, but it's pointed that it present",
-		},
-
-		// check up helpers functions
-		{func() bool {
-			v, ok := ts.TagUint(wpk.TIDfid)
-			return !ok || v != fid
-		},
-			"FID getter does not work correctly",
-		},
-		{func() bool {
-			v, ok := ts.TagUint(wpk.TIDoffset)
-			return !ok || v != offset
-		},
-			"FOffset getter does not work correctly",
-		},
-		{func() bool {
-			v, ok := ts.TagUint(wpk.TIDsize)
-			return !ok || v != size
-		},
-			"FSize getter does not work correctly",
-		},
-		{func() bool { return ts.Path() != fkey },
-			"'Path' function does not work correctly",
-		},
-		{func() bool { return ts.Name() != path.Base(fkey) },
-			"'Name' function does not work correctly",
-		},
-
-		// check up 'Set' and 'Del'
-		{func() (ok bool) {
-			ts, ok = ts.SetOk(wpk.TIDpath, wpk.StrTag(fkey))
-			return ok
-		},
-			"content of 'path' tag should be replaced by 'Set'",
-		},
-		{func() bool { return ts.Num() != 4 },
-			"number of tags after replace 'path' must not be changed",
-		},
-		{func() bool { return ts.Path() != wpk.ToSlash(fkey2) },
-			"'Set' function does not work correctly",
-		},
-		{func() (ok bool) {
-			ts, ok = ts.SetOk(wpk.TIDmime, wpk.StrTag(mime))
-			return !ok
-		},
-			"content of 'mime' tag should be added by 'Set'",
-		},
-		{func() bool { return ts.Num() != 4+1 },
-			"number of tags after add 'mime' must be added by one",
-		},
-		{func() bool { tag, ok = ts.Get(wpk.TIDmime); return !ok },
-			"can not get 'mime' tag content",
-		},
-		{func() bool { str, _ = tag.TagStr(); return str != mime },
-			"'mime' tag is not equal to original value",
-		},
-		{func() (ok bool) {
-			ts, ok = ts.DelOk(wpk.TIDmime)
-			return !ok
-		},
-			"'mime' tag is not deleted",
-		},
-		{func() bool { return ts.Has(wpk.TIDmime) },
-			"'mime' tag must not be found after deletion",
-		},
-		{func() bool { return ts.Num() != 4 },
-			"number of tags after delete 'mime' must be restored",
-		},
-		{func() (ok bool) {
-			ts, ok = ts.DelOk(wpk.TIDmime)
-			return ok
-		},
-			"'mime' tag can not be deleted again",
-		},
-		{func() bool { return ts.Num() != 4 },
-			"number of tags after repeated delete 'mime' must be unchanged",
-		},
-	} {
-		if check.cond() {
-			t.Fatal(check.msg)
+	var assert = func(cond bool, msg string) {
+		if !cond {
+			t.Error(msg)
 		}
 	}
+
+	assert(wpk.ToSlash(fkey1) == fkey, "toslash test failed")
+	assert(wpk.ToSlash(fkey2) == fkey, "toslash test failed")
+	assert(tsi.TID() == wpk.TIDnone, "tag ID in created iterator should be 'none'")
+	assert(ts.Num() == 4, "wrong number of tags")
+
+	// check up OFFSET
+	assert(tsi.Next(), "can not iterate to 'offset'")
+	assert(tsi.TID() == wpk.TIDoffset, "tag #1 is not 'offset'")
+	tag = tsi.Tag()
+	assert(tag != nil, "can not get 'offset' tag")
+	ov, ok = tsi.TagUint(wpk.TIDoffset)
+	assert(ok, "can not convert 'offset' tag to value")
+	assert(ov == offset, "'offset' tag is not equal to original value")
+
+	// check up SIZE
+	assert(tsi.Next(), "can not iterate to 'size'")
+	assert(tsi.TID() == wpk.TIDsize, "tag #2 is not 'size'")
+	tag = tsi.Tag()
+	assert(tag != nil, "can not get 'size' tag")
+	sv, ok = tsi.TagUint(wpk.TIDsize)
+	assert(ok, "can not convert 'size' tag to value")
+	assert(sv == size, "'size' tag is not equal to original value")
+
+	// check up PATH
+	assert(tsi.Next(), "can not iterate to 'path'")
+	assert(tsi.TID() == wpk.TIDpath, "tag #3 is not 'path'")
+	assert(tsi.TagLen() == len(fkey), "length of 'path' tag does not equal to original length")
+	tag = tsi.Tag()
+	assert(tag != nil, "can not get 'path' tag")
+	str, ok = tag.TagStr()
+	assert(ok, "can not convert 'path' tag to value")
+	assert(str == fkey, "'path' tag is not equal to original value")
+
+	// check up FID
+	assert(tsi.Next(), "can not iterate to 'fid'")
+	assert(tsi.TID() == wpk.TIDfid, "tag #4 is not 'fid'")
+	tag = tsi.Tag()
+	assert(tag != nil, "can not get 'fid' tag")
+	fv, ok = tsi.TagUint(wpk.TIDfid)
+	assert(ok, "can not convert 'fid' tag to value")
+	assert(fv == fid, "'fid' tag is not equal to original value")
+
+	// check up valid iterations finish
+	assert(!tsi.Failed(), "content is broken")
+	assert(!tsi.Next(), "iterator does not finished")
+	assert(tsi.Passed(), "iterations does not reached till the end")
+	assert(tsi.TID() == wpk.TIDnone, "tag ID in finished iterator should be 'none'")
+
+	// check up 'Has'
+	assert(ts.Has(wpk.TIDoffset) && ts.Has(wpk.TIDsize) && ts.Has(wpk.TIDfid) && ts.Has(wpk.TIDpath),
+		"something does not pointed that should be present")
+	assert(!ts.Has(wpk.TIDmd5), "'md5' tag is not set, but it's pointed that it present")
+
+	// check up helpers functions
+	fv, ok = ts.TagUint(wpk.TIDfid)
+	assert(ok && fv == fid, "FID getter does not work correctly")
+	ov, ok = ts.TagUint(wpk.TIDoffset)
+	assert(ok && ov == offset, "FOffset getter does not work correctly")
+	sv, ok = ts.TagUint(wpk.TIDsize)
+	assert(ok && sv == size, "FSize getter does not work correctly")
+	assert(ts.Path() == fkey, "'Path' function does not work correctly")
+	assert(ts.Name() == path.Base(fkey), "'Name' function does not work correctly")
+
+	// check up 'Set' and 'Del'
+	ts, ok = ts.SetOk(wpk.TIDpath, wpk.StrTag(fkey))
+	assert(!ok, "content of 'path' tag should be replaced by 'Set'")
+	assert(ts.Num() == 4, "number of tags after replace 'path' must not be changed")
+	assert(ts.Path() == wpk.ToSlash(fkey2), "'Set' function does not work correctly")
+	ts, ok = ts.SetOk(wpk.TIDmime, wpk.StrTag(mime))
+	assert(ok, "content of 'mime' tag should be added by 'Set'")
+	assert(ts.Num() == 4+1, "number of tags after add 'mime' must be added by one")
+	tag, ok = ts.Get(wpk.TIDmime)
+	assert(ok, "can not get 'mime' tag content")
+	str, _ = tag.TagStr()
+	assert(str == mime, "'mime' tag is not equal to original value")
+	ts, ok = ts.DelOk(wpk.TIDmime)
+	assert(ok, "'mime' tag is not deleted")
+	assert(!ts.Has(wpk.TIDmime), "'mime' tag must not be found after deletion")
+	assert(ts.Num() == 4, "number of tags after delete 'mime' must be restored")
+	ts, ok = ts.DelOk(wpk.TIDmime)
+	assert(!ok, "'mime' tag can not be deleted again")
+	assert(ts.Num() == 4, "number of tags after repeated delete 'mime' must be unchanged")
 }
 
 func ExampleTagsetIterator_Next() {

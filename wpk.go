@@ -19,45 +19,45 @@ const (
 	SignBuild = "Whirlwind 3.4 Prebuild  " // package is in building progress
 )
 
+type TID = uint16
+
 // List of predefined tags IDs.
 const (
-	TIDnone = 0
+	TIDnone TID = 0
 
-	TIDoffset = 1  // required, uint
-	TIDsize   = 2  // required, uint
-	TIDpath   = 3  // required, unique, string
-	TIDfid    = 4  // unique, uint
-	TIDmtime  = 5  // required for files, 8/12 bytes (mod-time)
-	TIDatime  = 6  // 8/12 bytes (access-time)
-	TIDctime  = 7  // 8/12 bytes (change-time)
-	TIDbtime  = 8  // 8/12 bytes (birth-time)
-	TIDattr   = 9  // uint32
-	TIDmime   = 10 // string
+	TIDoffset TID = 1  // required, uint
+	TIDsize   TID = 2  // required, uint
+	TIDpath   TID = 3  // required, unique, string
+	TIDfid    TID = 4  // unique, uint
+	TIDmtime  TID = 5  // required for files, 8/12 bytes (mod-time)
+	TIDatime  TID = 6  // 8/12 bytes (access-time)
+	TIDctime  TID = 7  // 8/12 bytes (change-time)
+	TIDbtime  TID = 8  // 8/12 bytes (birth-time)
+	TIDattr   TID = 9  // uint32
+	TIDmime   TID = 10 // string
 
-	TIDcrc32ieee = 11 // [4]byte, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
-	TIDcrc32c    = 12 // [4]byte, (Castagnoli), poly = 0x1EDC6F41, init = -1
-	TIDcrc32k    = 13 // [4]byte, (Koopman), poly = 0x741B8CD7, init = -1
-	TIDcrc64iso  = 14 // [8]byte, poly = 0xD800000000000000, init = -1
+	TIDcrc32ieee TID = 11 // [4]byte, CRC-32-IEEE 802.3, poly = 0x04C11DB7, init = -1
+	TIDcrc32c    TID = 12 // [4]byte, (Castagnoli), poly = 0x1EDC6F41, init = -1
+	TIDcrc32k    TID = 13 // [4]byte, (Koopman), poly = 0x741B8CD7, init = -1
+	TIDcrc64iso  TID = 14 // [8]byte, poly = 0xD800000000000000, init = -1
 
-	TIDmd5    = 20 // [16]byte
-	TIDsha1   = 21 // [20]byte
-	TIDsha224 = 22 // [28]byte
-	TIDsha256 = 23 // [32]byte
-	TIDsha384 = 24 // [48]byte
-	TIDsha512 = 25 // [64]byte
+	TIDmd5    TID = 20 // [16]byte
+	TIDsha1   TID = 21 // [20]byte
+	TIDsha224 TID = 22 // [28]byte
+	TIDsha256 TID = 23 // [32]byte
+	TIDsha384 TID = 24 // [48]byte
+	TIDsha512 TID = 25 // [64]byte
 
-	TIDtmbjpeg  = 100 // []byte, thumbnail image (icon) in JPEG format
-	TIDtmbwebp  = 101 // []byte, thumbnail image (icon) in WebP format
-	TIDlabel    = 110 // string
-	TIDlink     = 111 // string
-	TIDkeywords = 112 // string
-	TIDcategory = 113 // string
-	TIDversion  = 114 // string
-	TIDauthor   = 115 // string
-	TIDcomment  = 116 // string
+	TIDtmbjpeg  TID = 100 // []byte, thumbnail image (icon) in JPEG format
+	TIDtmbwebp  TID = 101 // []byte, thumbnail image (icon) in WebP format
+	TIDlabel    TID = 110 // string
+	TIDlink     TID = 111 // string
+	TIDkeywords TID = 112 // string
+	TIDcategory TID = 113 // string
+	TIDversion  TID = 114 // string
+	TIDauthor   TID = 115 // string
+	TIDcomment  TID = 116 // string
 )
-
-type TID = uint16
 
 // ErrTag is error on some field of tags set.
 type ErrTag struct {

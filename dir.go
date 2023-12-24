@@ -105,16 +105,28 @@ func Envfmt(p string) string {
 	})
 }
 
-// PathExists check up file or directory existence.
-func PathExists(path string) (bool, error) {
-	var err error
-	if _, err = os.Stat(path); err == nil {
-		return true, nil
+// DirExists check up directory existence.
+func DirExists(path string) (bool, error) {
+	var stat, err = os.Stat(path)
+	if err == nil {
+		return stat.IsDir(), nil
 	}
 	if errors.Is(err, fs.ErrNotExist) {
 		return false, nil
 	}
-	return true, err
+	return false, err
+}
+
+// FileExists check up file existence.
+func FileExists(path string) (bool, error) {
+	var stat, err = os.Stat(path)
+	if err == nil {
+		return !stat.IsDir(), nil
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
 }
 
 // TempPath returns filename located at temporary directory.

@@ -45,7 +45,7 @@ func checkargs() (ec int) { // returns error counter
 		if !strings.HasSuffix(fpath, "/") {
 			fpath += "/"
 		}
-		if ok, _ := wpk.PathExists(fpath); !ok {
+		if ok, _ := wpk.DirExists(fpath); !ok {
 			log.Printf("source path #%d '%s' does not exist", i+1, fpath)
 			ec++
 			continue
@@ -61,7 +61,7 @@ func checkargs() (ec int) { // returns error counter
 	if DstFile == "" {
 		log.Println("destination file does not specified")
 		ec++
-	} else if ok, _ := wpk.PathExists(path.Dir(DstFile)); !ok {
+	} else if ok, _ := wpk.DirExists(path.Dir(DstFile)); !ok {
 		log.Println("destination path does not exist")
 		ec++
 	}

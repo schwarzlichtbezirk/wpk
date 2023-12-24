@@ -50,7 +50,7 @@ func checkargs() int {
 			continue
 		}
 		fpath = wpk.ToSlash(wpk.Envfmt(fpath))
-		if ok, _ := wpk.PathExists(fpath); !ok {
+		if ok, _ := wpk.FileExists(fpath); !ok {
 			log.Printf("source file #%d '%s' does not exist", i+1, fpath)
 			ec++
 			continue
@@ -67,7 +67,7 @@ func checkargs() int {
 		log.Println("destination path does not specified")
 		ec++
 	}
-	if ok, _ := wpk.PathExists(DstPath); !ok {
+	if ok, _ := wpk.DirExists(DstPath); !ok {
 		if MkDst {
 			if err := os.MkdirAll(DstPath, os.ModePerm); err != nil {
 				log.Println(err.Error())

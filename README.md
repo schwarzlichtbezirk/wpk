@@ -2,6 +2,7 @@
 
 Library to build and use data files packages.
 
+[![Go](https://github.com/schwarzlichtbezirk/wpk/actions/workflows/go.yml/badge.svg)](https://github.com/schwarzlichtbezirk/wpk/actions/workflows/go.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/schwarzlichtbezirk/wpk.svg)](https://pkg.go.dev/github.com/schwarzlichtbezirk/wpk)
 [![Go Report Card](https://goreportcard.com/badge/github.com/schwarzlichtbezirk/wpk)](https://goreportcard.com/report/github.com/schwarzlichtbezirk/wpk)
 [![Hits-of-Code](https://hitsofcode.com/github/schwarzlichtbezirk/wpk?branch=master)](https://hitsofcode.com/github/schwarzlichtbezirk/wpk/view?branch=master)
