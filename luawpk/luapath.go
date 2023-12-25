@@ -23,6 +23,7 @@ var pathfuncs = map[string]lua.LGFunction{
 	"volume":  pathvolume,
 	"dir":     pathdir,
 	"base":    pathbase,
+	"name":    pathname,
 	"ext":     pathext,
 	"split":   pathsplit,
 	"match":   pathmatch,
@@ -33,56 +34,64 @@ var pathfuncs = map[string]lua.LGFunction{
 }
 
 func pathtoslash(ls *lua.LState) int {
-	var filename = ls.CheckString(1)
+	var fpath = ls.CheckString(1)
 
-	ls.Push(lua.LString(wpk.ToSlash(filename)))
+	ls.Push(lua.LString(wpk.ToSlash(fpath)))
 	return 1
 }
 
 func pathclean(ls *lua.LState) int {
-	var filename = ls.CheckString(1)
+	var fpath = ls.CheckString(1)
 
-	var path = path.Clean(filename)
+	var path = path.Clean(fpath)
 	ls.Push(lua.LString(path))
 	return 1
 }
 
 func pathvolume(ls *lua.LState) int {
-	var filename = ls.CheckString(1)
+	var fpath = ls.CheckString(1)
 
-	var vol = filepath.VolumeName(filename)
+	var vol = filepath.VolumeName(fpath)
 	ls.Push(lua.LString(vol))
 	return 1
 }
 
 func pathdir(ls *lua.LState) int {
-	var filename = ls.CheckString(1)
+	var fpath = ls.CheckString(1)
 
-	var dir = path.Dir(filename)
+	var dir = path.Dir(fpath)
 	ls.Push(lua.LString(dir))
 	return 1
 }
 
 func pathbase(ls *lua.LState) int {
-	var filename = ls.CheckString(1)
+	var fpath = ls.CheckString(1)
 
-	var base = path.Base(filename)
+	var base = path.Base(fpath)
 	ls.Push(lua.LString(base))
 	return 1
 }
 
-func pathext(ls *lua.LState) int {
-	var filename = ls.CheckString(1)
+func pathname(ls *lua.LState) int {
+	var fpath = ls.CheckString(1)
 
-	var ext = path.Ext(filename)
+	var name = wpk.PathName(fpath)
+	ls.Push(lua.LString(name))
+	return 1
+}
+
+func pathext(ls *lua.LState) int {
+	var fpath = ls.CheckString(1)
+
+	var ext = path.Ext(fpath)
 	ls.Push(lua.LString(ext))
 	return 1
 }
 
 func pathsplit(ls *lua.LState) int {
-	var filename = ls.CheckString(1)
+	var fpath = ls.CheckString(1)
 
-	var dir, file = path.Split(filename)
+	var dir, file = path.Split(fpath)
 	ls.Push(lua.LString(dir))
 	ls.Push(lua.LString(file))
 	return 2
@@ -153,7 +162,7 @@ func pathenum(ls *lua.LState) int {
 
 func pathenvfmt(ls *lua.LState) int {
 	var fpath = ls.CheckString(1)
-	ls.Push(lua.LString(wpk.Envfmt(fpath)))
+	ls.Push(lua.LString(wpk.Envfmt(fpath, nil)))
 	return 1
 }
 

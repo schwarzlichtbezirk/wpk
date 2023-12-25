@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 )
 
@@ -22,27 +21,6 @@ func MakeTagsPath(fpath string) string {
 func MakeDataPath(fpath string) string {
 	var ext = path.Ext(fpath)
 	return fpath[:len(fpath)-len(ext)] + ".wpf"
-}
-
-// JoinFast performs fast join of two path chunks.
-func JoinFast(dir, base string) string {
-	if dir == "" || dir == "." {
-		return base
-	}
-	if base == "" || base == "." {
-		return dir
-	}
-	if dir[len(dir)-1] == '/' {
-		if base[0] == '/' {
-			return dir + base[1:]
-		} else {
-			return dir + base
-		}
-	}
-	if base[0] == '/' {
-		return dir + base
-	}
-	return dir + "/" + base
 }
 
 // PackDirFile is a directory file whose entries can be read with the ReadDir method.
@@ -72,42 +50,9 @@ func (f *PackDirFile) ReadDir(n int) (matches []fs.DirEntry, err error) {
 	return f.ftt.ReadDirN(f.Path(), n)
 }
 
-var (
-	evlre = regexp.MustCompile(`\$\w+`)     // env var with linux-like syntax
-	evure = regexp.MustCompile(`\$\{\w+\}`) // env var with unix-like syntax
-	evwre = regexp.MustCompile(`\%\w+\%`)   // env var with windows-like syntax
-)
-
-// Envfmt replaces environment variables entries in file path to there values.
-// Environment variables must be enclosed as ${...} in string.
-func Envfmt(p string) string {
-	return evwre.ReplaceAllStringFunc(evure.ReplaceAllStringFunc(evlre.ReplaceAllStringFunc(p, func(name string) string {
-		// strip $VAR and replace by environment value
-		if val, ok := os.LookupEnv(name[1:]); ok {
-			return val
-		} else {
-			return name
-		}
-	}), func(name string) string {
-		// strip ${VAR} and replace by environment value
-		if val, ok := os.LookupEnv(name[2 : len(name)-1]); ok {
-			return val
-		} else {
-			return name
-		}
-	}), func(name string) string {
-		// strip %VAR% and replace by environment value
-		if val, ok := os.LookupEnv(name[1 : len(name)-1]); ok {
-			return val
-		} else {
-			return name
-		}
-	})
-}
-
 // DirExists check up directory existence.
-func DirExists(path string) (bool, error) {
-	var stat, err = os.Stat(path)
+func DirExists(fpath string) (bool, error) {
+	var stat, err = os.Stat(fpath)
 	if err == nil {
 		return stat.IsDir(), nil
 	}
@@ -118,8 +63,8 @@ func DirExists(path string) (bool, error) {
 }
 
 // FileExists check up file existence.
-func FileExists(path string) (bool, error) {
-	var stat, err = os.Stat(path)
+func FileExists(fpath string) (bool, error) {
+	var stat, err = os.Stat(fpath)
 	if err == nil {
 		return !stat.IsDir(), nil
 	}
@@ -131,7 +76,7 @@ func FileExists(path string) (bool, error) {
 
 // TempPath returns filename located at temporary directory.
 func TempPath(fname string) string {
-	return JoinFast(ToSlash(os.TempDir()), fname)
+	return JoinPath(ToSlash(os.TempDir()), fname)
 }
 
 // ReadDirN returns fs.DirEntry array with nested into given package directory presentation.
@@ -152,7 +97,7 @@ func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) 
 				found[suffix] = ts
 				n--
 			} else { // dir detected
-				var subdir = JoinFast(prefix, suffix[:sp])
+				var subdir = JoinPath(prefix, suffix[:sp])
 				if _, ok := found[subdir]; !ok {
 					var dts = TagsetRaw{}.
 						Put(TIDpath, StrTag(subdir))

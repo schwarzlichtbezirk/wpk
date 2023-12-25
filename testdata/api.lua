@@ -35,8 +35,7 @@ to build wpk-packages.
 
 
 *path* library:
-	Implements utility routines for manipulating filename paths. Brings back slashes
-	to normal slashes.
+	Implements utility routines for manipulating filename paths.
 
 	toslash(fpath) - returns the result of replacing each separator character
 		in fpath with a slash ('/') character. Multiple separators are replaced
@@ -48,6 +47,7 @@ to build wpk-packages.
 		"\\host\share". On other platforms it returns "".
 	dir(fpath) - returns all but the last element of fpath, typically
 		the path's directory. If the path is empty, Dir returns ".".
+	name(fpath) - returns name of file in given file path without extension.
 	base(fpath) - returns the last element of fpath. Trailing path separators
 		are removed before extracting the last element. If the path is empty,
 		base returns ".". If the path consists entirely of separators,
@@ -66,7 +66,7 @@ to build wpk-packages.
 	enum(dir, n) - enumerates all files of given directory, returns result as table.
 		If n > 0, returns at most n file names. If n <= 0, returns all the
 		file names from the directory. 'n' is optional parameter, -1 by default.
-	envfmt(fpath) - replaces all entries "${envname}" or "$envname" or "%envname%"
+	envfmt(fpath) - replaces all entries "$envname" or "${envname}" or "%envname%"
 		in path, where 'envname' is an environment variable, to it's value.
 
 

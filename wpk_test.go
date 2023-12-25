@@ -182,7 +182,7 @@ func TestPackDir(t *testing.T) {
 			return nil // file is directory
 		}
 
-		var fpath = wpk.JoinFast(mediadir, fkey)
+		var fpath = wpk.JoinPath(mediadir, fkey)
 		var file fs.File
 		var ts wpk.TagsetRaw
 		if file, err = os.Open(fpath); err != nil {
@@ -304,7 +304,7 @@ func TestPackDirSplit(t *testing.T) {
 			return nil // file is directory
 		}
 
-		var fpath = wpk.JoinFast(mediadir, fkey)
+		var fpath = wpk.JoinPath(mediadir, fkey)
 		var file fs.File
 		var ts wpk.TagsetRaw
 		if file, err = os.Open(fpath); err != nil {

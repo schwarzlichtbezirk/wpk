@@ -123,7 +123,7 @@ func TestUnion(t *testing.T) {
 				var delist, _ = df.ReadDir(-1)
 				list = make([]string, len(delist))
 				for i, de := range delist {
-					list[i] = wpk.JoinFast(fpath, de.Name())
+					list[i] = wpk.JoinPath(fpath, de.Name())
 				}
 			} else {
 				t.Fatalf("cannot cast '%s' directory property to fs.ReadDirFile", fpath)
@@ -218,7 +218,7 @@ func TestUnion(t *testing.T) {
 	// ReadFile test
 	//
 
-	var imgfpath = wpk.JoinFast(mediadir, "img1/Qarataşlar.jpg")
+	var imgfpath = wpk.JoinPath(mediadir, "img1/Qarataşlar.jpg")
 	var imgb, pkgb []byte
 	if imgb, err = os.ReadFile(imgfpath); err != nil {
 		t.Fatal(err)

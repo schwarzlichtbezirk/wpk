@@ -10,7 +10,7 @@ import (
 
 func main() {
 	for _, fpath := range os.Args[1:] {
-		if err := lw.RunLuaVM(wpk.Envfmt(fpath)); err != nil {
+		if err := lw.RunLuaVM(wpk.Envfmt(fpath, nil)); err != nil {
 			log.Println(err.Error())
 			return
 		}
