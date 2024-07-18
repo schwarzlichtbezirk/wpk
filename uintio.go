@@ -2,58 +2,57 @@ package wpk
 
 import (
 	"io"
-	"reflect"
 	"unsafe"
 )
 
 func GetU16(b []byte) uint16 {
 	_ = b[1]
-	return *((*uint16)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data)))
+	return *((*uint16)(unsafe.Pointer(unsafe.SliceData(b))))
 }
 
 func GetU32(b []byte) uint32 {
 	_ = b[3]
-	return *((*uint32)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data)))
+	return *((*uint32)(unsafe.Pointer(unsafe.SliceData(b))))
 }
 
 func GetU64(b []byte) uint64 {
 	_ = b[7]
-	return *((*uint64)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data)))
+	return *((*uint64)(unsafe.Pointer(unsafe.SliceData(b))))
 }
 
 func GetF32(b []byte) float32 {
 	_ = b[3]
-	return *((*float32)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data)))
+	return *((*float32)(unsafe.Pointer(unsafe.SliceData(b))))
 }
 
 func GetF64(b []byte) float64 {
 	_ = b[7]
-	return *((*float64)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data)))
+	return *((*float64)(unsafe.Pointer(unsafe.SliceData(b))))
 }
 
 func SetU16(b []byte, u uint16) {
 	_ = b[1]
-	*((*uint16)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data))) = u
+	*((*uint16)(unsafe.Pointer(unsafe.SliceData(b)))) = u
 }
 
 func SetU32(b []byte, u uint32) {
 	_ = b[3]
-	*((*uint32)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data))) = u
+	*((*uint32)(unsafe.Pointer(unsafe.SliceData(b)))) = u
 }
 
 func SetU64(b []byte, u uint64) {
 	_ = b[7]
-	*((*uint64)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data))) = u
+	*((*uint64)(unsafe.Pointer(unsafe.SliceData(b)))) = u
 }
 
 func SetF32(b []byte, f float32) {
 	_ = b[3]
-	*((*float32)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data))) = f
+	*((*float32)(unsafe.Pointer(unsafe.SliceData(b)))) = f
 }
 
 func SetF64(b []byte, f float64) {
 	_ = b[7]
-	*((*float64)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data))) = f
+	*((*float64)(unsafe.Pointer(unsafe.SliceData(b)))) = f
 }
 
 func ReadU16(r io.Reader) (u uint16, err error) {

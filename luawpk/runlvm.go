@@ -37,7 +37,7 @@ func luacheckfile(ls *lua.LState) int {
 	var fi os.FileInfo
 	if fi, err = os.Stat(fpath); err == nil {
 		ls.Push(lua.LBool(true))
-		ls.Push(lua.LBool(fi.IsDir()))
+		ls.Push(lua.LBool(!fi.IsDir()))
 		return 2
 	}
 	if errors.Is(err, fs.ErrNotExist) {
@@ -114,7 +114,7 @@ func RunLuaVM(fpath string) (err error) {
 	ls.SetGlobal("buildtime", lua.LString(BuildTime))
 	ls.SetGlobal("bindir", lua.LString(bindir))
 	ls.SetGlobal("scrdir", lua.LString(scrdir))
-	ls.SetGlobal("tmpdir", lua.LString(wpk.TempPath(".")))
+	ls.SetGlobal("tmpdir", lua.LString(wpk.ToSlash(os.TempDir())))
 	// global functions
 	ls.SetGlobal("log", ls.NewFunction(lualog))
 	ls.SetGlobal("checkfile", ls.NewFunction(luacheckfile))

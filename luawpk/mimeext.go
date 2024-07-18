@@ -54,6 +54,9 @@ var MimeExt = map[string]string{
 	".pls":  "audio/x-scpls",
 	".asx":  "video/x-ms-asf",
 	".xspf": "application/xspf+xml",
+	".gpx":  "application/gpx+xml",
+	".kml":  "application/vnd.google-earth.kml+xml",
+	".kmz":  "application/vnd.google-earth.kmz",
 	// Image types
 	".tga":  "image/targa",
 	".bmp":  "image/bmp",
@@ -128,6 +131,10 @@ var MimeExt = map[string]string{
 	".apk": "application/vnd.android.package-archive",
 	".7z":  "application/x-7z-compressed",
 	".arc": "application/x-freearc",
+	// Disk images
+	".iso":  "application/x-iso9660-image",
+	".vhd":  "application/x-vhd-disk",
+	".vmdk": "application/x-vmdk-disk",
 	// Fonts types
 	".ttf":   "font/ttf",
 	".otf":   "font/otf",

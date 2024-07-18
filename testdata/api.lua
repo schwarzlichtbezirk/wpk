@@ -19,9 +19,10 @@ to build wpk-packages.
 	log(str) - writes to log given string with current date.
 	checkfile(fpath) - checks up file existence with given full path to it.
 		Returns 2 values: first - boolean file existence. If first is true,
-		second value indicates whether given path is directory. If first is false,
-		second value can be string message of occurred error. Also, first value
-		can be false if file is exist but access to file is denied.
+		second value indicates whether given path is file. False second value
+		means directory. If first is false, second value can be string message
+		of occurred error. Also, first value can be false if file is exist but
+		access to file is denied.
 	bin2hex(bin) - converts 'bin' argument given as string with raw binary data
 		to string with data in hexadecimal representation.
 	hex2bin(hex) - converts string 'hex' argument with data in hexadecimal

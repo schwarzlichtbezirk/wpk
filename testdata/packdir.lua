@@ -52,7 +52,7 @@ local function checkname(name)
 	local fc = string.sub(name, 1, 1) -- first char
 	if fc == "." or fc == "~" then return false end
 	name = string.lower(name)
-	for i, pattern in ipairs(skippattern) do
+	for _, pattern in ipairs(skippattern) do
 		if string.match(name, pattern) then return false end
 	end
 	local ext = string.match(name, "%.(%w+)$") -- file extension
@@ -62,14 +62,12 @@ end
 -- pack given directory and add to each file name given prefix
 local ansic = "Mon Jan _2 15:04:05 2006" -- time reformat layout
 local function packdir(prefix, dir)
-	for i, name in ipairs(path.enum(dir)) do
+	for _, name in ipairs(path.enum(dir)) do
 		local fkey = prefix..name
 		local fpath = dir..name
-		local access, isdir = checkfile(fpath)
+		local access, isfile = checkfile(fpath)
 		if access and checkname(name) then
-			if isdir then
-				packdir(fkey.."/", fpath.."/")
-			else
+			if isfile then
 				pkg:putfile(fkey, fpath, {
 					link = fpath,
 					author = "schwarzlichtbezirk",
@@ -80,6 +78,8 @@ local function packdir(prefix, dir)
 					milli2time(time2milli(pkg:gettag(fkey, "mtime")), ansic),
 					assert(pkg:gettag(fkey, "mime"))
 				)
+			else
+				packdir(fkey.."/", fpath.."/")
 			end
 		end
 	end
