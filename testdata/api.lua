@@ -244,7 +244,7 @@ function wpk.create(fpath)-- additional wpk-constructor
 	pkg.autofid = true -- put auto generated file ID for each file
 	pkg.automime = true -- put MIME type for each file if it is not given explicit
 	pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
-	pkg:begin(fpath) -- open wpk-file for write
+	pkg:begin(path.toslash(fpath)) -- open wpk-file for write
 	log("starts: "..pkg.pkgpath)
 	return pkg
 end

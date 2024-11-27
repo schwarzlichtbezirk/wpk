@@ -9,12 +9,10 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-// OpenPath registers "path" namespace into Lua virtual machine.
-func OpenPath(ls *lua.LState) int {
+// RegPath registers "path" namespace into Lua virtual machine.
+func RegPath(ls *lua.LState) {
 	var mod = ls.RegisterModule("path", pathfuncs).(*lua.LTable)
 	mod.RawSetString("sep", lua.LString("/"))
-	ls.Push(mod)
-	return 1
 }
 
 var pathfuncs = map[string]lua.LGFunction{

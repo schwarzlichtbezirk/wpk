@@ -98,22 +98,24 @@ func luatime2milli(ls *lua.LState) int {
 	return 1
 }
 
-// RunLuaVM runs specified Lua-script with Lua WPK API.
-func RunLuaVM(fpath string) (err error) {
-	var ls = lua.NewState()
-	defer ls.Close()
-
-	OpenPath(ls)
+// InitLuaVM performs initial registrations.
+func InitLuaVM(ls *lua.LState) {
+	// set modules
+	RegPath(ls)
 	RegPack(ls)
 
-	var bindir = path.Dir(wpk.ToSlash(os.Args[0]))
-	var scrdir = path.Dir(wpk.ToSlash(fpath))
+	var bindir = func() string {
+		if str, err := os.Executable(); err == nil {
+			return path.Dir(wpk.ToSlash(str))
+		} else {
+			return path.Dir(wpk.ToSlash(os.Args[0]))
+		}
+	}()
 
 	// global variables
 	ls.SetGlobal("buildvers", lua.LString(BuildVers))
 	ls.SetGlobal("buildtime", lua.LString(BuildTime))
 	ls.SetGlobal("bindir", lua.LString(bindir))
-	ls.SetGlobal("scrdir", lua.LString(scrdir))
 	ls.SetGlobal("tmpdir", lua.LString(wpk.ToSlash(os.TempDir())))
 	// global functions
 	ls.SetGlobal("log", ls.NewFunction(lualog))
@@ -122,6 +124,16 @@ func RunLuaVM(fpath string) (err error) {
 	ls.SetGlobal("hex2bin", ls.NewFunction(luahex2bin))
 	ls.SetGlobal("milli2time", ls.NewFunction(luamilli2time))
 	ls.SetGlobal("time2milli", ls.NewFunction(luatime2milli))
+}
+
+// RunLuaVM runs specified Lua-script with Lua WPK API.
+func RunLuaVM(fpath string) (err error) {
+	var ls = lua.NewState()
+	defer ls.Close()
+	InitLuaVM(ls)
+
+	var scrdir = path.Dir(wpk.ToSlash(fpath))
+	ls.SetGlobal("scrdir", lua.LString(scrdir))
 
 	if err = ls.DoFile(fpath); err != nil {
 		return

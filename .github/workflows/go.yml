@@ -14,18 +14,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout
+      uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.20'
 
     - name: Build utilities
       run: |
-        go build -v ./util/build
-        go build -v ./util/extract
-        go build -v ./util/pack
+        go build -v ./cmd/build
+        go build -v ./cmd/extract
+        go build -v ./cmd/pack
 
     - name: Test wpk & luawpk
       run: go test -v . ./luawpk

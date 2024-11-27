@@ -47,13 +47,13 @@ Package writer with package building process scripting using [Lua 5.1]([https://
 * **wpk/testdata**
 Contains some Lua-scripts to test **`wpk/luawpk`** module and learn scripting API opportunities.
 
-* **wpk/util/pack**
+* **wpk/cmd/pack**
 Small simple utility designed to pack a directory, or a list of directories into an package.
 
-* **wpk/util/extract**
+* **wpk/cmd/extract**
 Small simple utility designed to extract all packed files from package, or list of packages to given directory.
 
-* **wpk/util/build**
+* **wpk/cmd/build**
 Utility for the packages programmable building, based on **`wpk/luawpk`** module.
 
 Compiled binaries of utilities can be downloaded in [Releases](https://github.com/schwarzlichtbezirk/wpk/releases) section.
@@ -69,7 +69,7 @@ go get github.com/schwarzlichtbezirk/wpk
 Then you can make simple package with files at [testdata/media](https://github.com/schwarzlichtbezirk/wpk/tree/master/testdata/media) directory by command:
 
 ```batch
-go run github.com/schwarzlichtbezirk/wpk/util/pack --src=${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/media --dst=${GOPATH}/bin/media.wpk
+go run github.com/schwarzlichtbezirk/wpk/cmd/pack --src=${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/media --dst=${GOPATH}/bin/media.wpk
 ```
 
 It's runs utility that receives source directory full path and destination package full path. `${GOPATH}` at command line directory path replaced by `GOPATH` environment variable value. To place any other environment variable `VAR` you can by `${VAR}`. In this sample package placed into `bin` directory with other compiled golang binary files.
@@ -77,7 +77,7 @@ It's runs utility that receives source directory full path and destination packa
 To extract files from this `media.wpk` package run command:
 
 ```batch
-go run github.com/schwarzlichtbezirk/wpk/util/extract --md --src=${GOPATH}/bin/media.wpk --dst=${GOPATH}/bin/media
+go run github.com/schwarzlichtbezirk/wpk/cmd/extract --md --src=${GOPATH}/bin/media.wpk --dst=${GOPATH}/bin/media
 ```
 
 and see files in directory `${GOPATH}/bin/media`.
@@ -85,7 +85,7 @@ and see files in directory `${GOPATH}/bin/media`.
 To build package at development workflow you can by **`build`** utility. It can put files into package from any different paths with given names, and bind addition tags to each file, such as MIME types, keywords, CRC, MD5, SHA256 and others. Run this command to see how its work:
 
 ```batch
-go run github.com/schwarzlichtbezirk/wpk/util/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/build.lua
+go run github.com/schwarzlichtbezirk/wpk/cmd/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/build.lua
 ```
 
 and see `build.wpk` file in binary directory near compiled output.
@@ -111,13 +111,13 @@ Package can be splitted in two files: 1) file with header and tags table, `.wpt`
 [step1.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/testdata/step1.lua) and [step2.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/testdata/step2.lua) scripts shows sample how to create new package at *step1*:
 
 ```batch
-go run github.com/schwarzlichtbezirk/wpk/util/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/step1.lua
+go run github.com/schwarzlichtbezirk/wpk/cmd/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/step1.lua
 ```
 
 and later append to exising package new files at *step2* call:
 
 ```batch
-go run github.com/schwarzlichtbezirk/wpk/util/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/step2.lua
+go run github.com/schwarzlichtbezirk/wpk/cmd/build ${GOPATH}/src/github.com/schwarzlichtbezirk/wpk/testdata/step2.lua
 ```
 
 [packdir.lua](https://github.com/schwarzlichtbezirk/wpk/blob/master/testdata/packdir.lua) script has function that can be used to put to package directory with original tree hierarchy.

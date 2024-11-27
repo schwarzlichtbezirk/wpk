@@ -12,13 +12,13 @@ import (
 func TestS2B(t *testing.T) {
 	var s = "some string"
 	var ps = unsafe.Pointer(unsafe.StringData(s))
-	var b = []byte(s)
+	/*var b = []byte(s)
 	var pb = unsafe.Pointer(unsafe.SliceData(b))
 	if ps == pb {
 		t.Error("string pointer is equal to pointer on new allocated bytes slice")
-	}
-	b = wpk.S2B(s)
-	pb = unsafe.Pointer(unsafe.SliceData(b))
+	}*/
+	var b = wpk.S2B(s)
+	var pb = unsafe.Pointer(unsafe.SliceData(b))
 	if ps != pb {
 		t.Error("string pointer is not equal to pointer on same bytes slice")
 	}
@@ -81,7 +81,7 @@ func ExampleJoinFilePath() {
 	// dir/base.ext
 }
 
-func ExampleBaseName() {
+func ExamplePathName() {
 	fmt.Println(wpk.PathName("C:\\Windows\\system.ini"))
 	fmt.Println(wpk.PathName("/go/bin/wpkbuild_win_x64.exe"))
 	fmt.Println(wpk.PathName("wpkbuild_win_x64.exe"))
