@@ -9,6 +9,7 @@ import (
 	"github.com/schwarzlichtbezirk/wpk"
 	"github.com/schwarzlichtbezirk/wpk/bulk"
 	"github.com/schwarzlichtbezirk/wpk/mmap"
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 var testpack1 = wpk.TempPath("testpack1.wpk")
@@ -123,7 +124,7 @@ func TestUnion(t *testing.T) {
 				var delist, _ = df.ReadDir(-1)
 				list = make([]string, len(delist))
 				for i, de := range delist {
-					list[i] = wpk.JoinPath(fpath, de.Name())
+					list[i] = util.JoinPath(fpath, de.Name())
 				}
 			} else {
 				t.Fatalf("cannot cast '%s' directory property to fs.ReadDirFile", fpath)
@@ -218,7 +219,7 @@ func TestUnion(t *testing.T) {
 	// ReadFile test
 	//
 
-	var imgfpath = wpk.JoinPath(mediadir, "img1/Qarataşlar.jpg")
+	var imgfpath = util.JoinPath(mediadir, "img1/Qarataşlar.jpg")
 	var imgb, pkgb []byte
 	if imgb, err = os.ReadFile(imgfpath); err != nil {
 		t.Fatal(err)

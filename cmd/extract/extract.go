@@ -13,6 +13,7 @@ import (
 	"github.com/schwarzlichtbezirk/wpk/bulk"
 	"github.com/schwarzlichtbezirk/wpk/fsys"
 	"github.com/schwarzlichtbezirk/wpk/mmap"
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 // command line settings
@@ -49,7 +50,7 @@ func checkargs() int {
 		if fpath == "" {
 			continue
 		}
-		fpath = wpk.ToSlash(wpk.Envfmt(fpath, nil))
+		fpath = util.ToSlash(util.Envfmt(fpath, nil))
 		if ok, _ := wpk.FileExists(fpath); !ok {
 			log.Printf("source file #%d '%s' does not exist", i+1, fpath)
 			ec++
@@ -62,7 +63,7 @@ func checkargs() int {
 		ec++
 	}
 
-	DstPath = wpk.ToSlash(wpk.Envfmt(DstPath, nil))
+	DstPath = util.ToSlash(util.Envfmt(DstPath, nil))
 	if DstPath == "" {
 		log.Println("destination path does not specified")
 		ec++
@@ -133,7 +134,7 @@ func readpackage() (err error) {
 					next = err == nil
 				}()
 
-				var fullpath = wpk.JoinPath(DstPath, fkey)
+				var fullpath = util.JoinPath(DstPath, fkey)
 				if err = os.MkdirAll(path.Dir(fullpath), os.ModePerm); err != nil {
 					return
 				}

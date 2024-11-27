@@ -5,6 +5,8 @@ import (
 	"io/fs"
 	"path"
 	"time"
+
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 var (
@@ -17,12 +19,12 @@ type TagRaw []byte
 
 // TagStr tag converter.
 func (t TagRaw) TagStr() (string, bool) {
-	return B2S(t), true
+	return util.B2S(t), true
 }
 
 // StrTag is string tag constructor.
 func StrTag(val string) TagRaw {
-	return S2B(val)
+	return util.S2B(val)
 }
 
 // TagBool is boolean tag converter.
@@ -59,7 +61,7 @@ func ByteTag(val byte) TagRaw {
 // TagUint16 is 16-bit unsigned int tag converter.
 func (t TagRaw) TagUint16() (uint16, bool) {
 	if len(t) == 2 {
-		return GetU16(t), true
+		return util.GetU16(t), true
 	}
 	return 0, false
 }
@@ -67,14 +69,14 @@ func (t TagRaw) TagUint16() (uint16, bool) {
 // Uint16Tag is 16-bit unsigned int tag constructor.
 func Uint16Tag(val uint16) TagRaw {
 	var buf [2]byte
-	SetU16(buf[:], val)
+	util.SetU16(buf[:], val)
 	return buf[:]
 }
 
 // TagUint32 is 32-bit unsigned int tag converter.
 func (t TagRaw) TagUint32() (uint32, bool) {
 	if len(t) == 4 {
-		return GetU32(t), true
+		return util.GetU32(t), true
 	}
 	return 0, false
 }
@@ -82,14 +84,14 @@ func (t TagRaw) TagUint32() (uint32, bool) {
 // Uint32Tag is 32-bit unsigned int tag constructor.
 func Uint32Tag(val uint32) TagRaw {
 	var buf [4]byte
-	SetU32(buf[:], val)
+	util.SetU32(buf[:], val)
 	return buf[:]
 }
 
 // TagUint64 is 64-bit unsigned int tag converter.
 func (t TagRaw) TagUint64() (uint64, bool) {
 	if len(t) == 8 {
-		return GetU64(t), true
+		return util.GetU64(t), true
 	}
 	return 0, false
 }
@@ -97,7 +99,7 @@ func (t TagRaw) TagUint64() (uint64, bool) {
 // Uint64Tag is 64-bit unsigned int tag constructor.
 func Uint64Tag(val uint64) TagRaw {
 	var buf [8]byte
-	SetU64(buf[:], val)
+	util.SetU64(buf[:], val)
 	return buf[:]
 }
 
@@ -105,11 +107,11 @@ func Uint64Tag(val uint64) TagRaw {
 func (t TagRaw) TagUint() (uint, bool) {
 	switch len(t) {
 	case 8:
-		return uint(GetU64(t)), true
+		return uint(util.GetU64(t)), true
 	case 4:
-		return uint(GetU32(t)), true
+		return uint(util.GetU32(t)), true
 	case 2:
-		return uint(GetU16(t)), true
+		return uint(util.GetU16(t)), true
 	case 1:
 		return uint(t[0]), true
 	}
@@ -121,15 +123,15 @@ func UintTag(val uint) TagRaw {
 	switch {
 	case val > 0xffffffff:
 		var buf [8]byte
-		SetU64(buf[:], uint64(val))
+		util.SetU64(buf[:], uint64(val))
 		return buf[:]
 	case val > 0xffff:
 		var buf [4]byte
-		SetU32(buf[:], uint32(val))
+		util.SetU32(buf[:], uint32(val))
 		return buf[:]
 	case val > 0xff:
 		var buf [2]byte
-		SetU16(buf[:], uint16(val))
+		util.SetU16(buf[:], uint16(val))
 		return buf[:]
 	default:
 		var buf [1]byte
@@ -143,15 +145,15 @@ func UintLenTag(val uint, l int) TagRaw {
 	switch l {
 	case 8:
 		var buf [8]byte
-		SetU64(buf[:], uint64(val))
+		util.SetU64(buf[:], uint64(val))
 		return buf[:]
 	case 4:
 		var buf [4]byte
-		SetU32(buf[:], uint32(val))
+		util.SetU32(buf[:], uint32(val))
 		return buf[:]
 	case 2:
 		var buf [2]byte
-		SetU16(buf[:], uint16(val))
+		util.SetU16(buf[:], uint16(val))
 		return buf[:]
 	case 1:
 		var buf [1]byte
@@ -165,7 +167,7 @@ func UintLenTag(val uint, l int) TagRaw {
 // TagNumber is 64-bit float tag converter.
 func (t TagRaw) TagNumber() (float64, bool) {
 	if len(t) == 8 {
-		return GetF64(t), true
+		return util.GetF64(t), true
 	}
 	return 0, false
 }
@@ -173,7 +175,7 @@ func (t TagRaw) TagNumber() (float64, bool) {
 // NumberTag is 64-bit float tag constructor.
 func NumberTag(val float64) TagRaw {
 	var buf [8]byte
-	SetF64(buf[:], val)
+	util.SetF64(buf[:], val)
 	return buf[:]
 }
 
@@ -181,11 +183,11 @@ func NumberTag(val float64) TagRaw {
 func (t TagRaw) TagTime() (time.Time, bool) {
 	switch len(t) {
 	case 8:
-		var milli = int64(GetU64(t))
+		var milli = int64(util.GetU64(t))
 		return time.Unix(milli/1000, (milli%1000)*1000000), true
 	case 12:
-		var sec = int64(GetU64(t[:8]))
-		var nsec = int64(GetU32(t[8:]))
+		var sec = int64(util.GetU64(t[:8]))
+		var nsec = int64(util.GetU32(t[8:]))
 		return time.Unix(sec, nsec), true
 	}
 	return time.Time{}, false
@@ -195,10 +197,10 @@ func (t TagRaw) TagTime() (time.Time, bool) {
 func (t TagRaw) TagUnixms() (int64, bool) {
 	switch len(t) {
 	case 8:
-		return int64(GetU64(t)), true
+		return int64(util.GetU64(t)), true
 	case 12:
-		var sec = int64(GetU64(t[:8]))
-		var nsec = int64(GetU32(t[8:]))
+		var sec = int64(util.GetU64(t[:8]))
+		var nsec = int64(util.GetU32(t[8:]))
 		return time.Unix(sec, nsec).UnixMilli(), true
 	}
 	return 0, false
@@ -207,15 +209,15 @@ func (t TagRaw) TagUnixms() (int64, bool) {
 // UnixmsTag is 8-bytes UNIX time in milliseconds tag constructor.
 func UnixmsTag(val time.Time) TagRaw {
 	var buf [8]byte
-	SetU64(buf[:], uint64(val.UnixMilli()))
+	util.SetU64(buf[:], uint64(val.UnixMilli()))
 	return buf[:]
 }
 
 // TimeTag is 12-bytes UNIX time tag constructor.
 func TimeTag(val time.Time) TagRaw {
 	var buf [12]byte
-	SetU64(buf[:8], uint64(val.Unix()))
-	SetU32(buf[8:], uint32(val.Nanosecond()))
+	util.SetU64(buf[:8], uint64(val.Unix()))
+	util.SetU32(buf[8:], uint32(val.Nanosecond()))
 	return buf[:]
 }
 
@@ -268,8 +270,8 @@ const taghdrsz = PTStidsz + PTStagsz
 // Can be used in chain calls at initialization.
 func (ts TagsetRaw) Put(tid TID, tag TagRaw) TagsetRaw {
 	var buf = make([]byte, taghdrsz+len(tag))
-	SetU16(buf, tid)
-	SetU16(buf[PTStidsz:], uint16(len(tag)))
+	util.SetU16(buf, tid)
+	util.SetU16(buf[PTStidsz:], uint16(len(tag)))
 	copy(buf[taghdrsz:], tag)
 	ts = append(ts, buf...)
 	return ts
@@ -315,7 +317,7 @@ func (ts TagsetRaw) SetOk(tid TID, tag TagRaw) (TagsetRaw, bool) {
 	if tl == uint16(tsi.pos-tsi.tag) {
 		copy(ts[tsi.tag:tsi.pos], tag)
 	} else {
-		SetU16(ts[tsi.tag-PTStagsz:tsi.tag], tl) // set tag length
+		util.SetU16(ts[tsi.tag-PTStagsz:tsi.tag], tl) // set tag length
 		var suff = ts[tsi.pos:]
 		ts = append(ts[:tsi.tag], tag...)
 		ts = append(ts, suff...)
@@ -602,13 +604,13 @@ func (tsi *TagsetIterator) Next() (ok bool) {
 	if tsi.pos += PTStidsz; tsi.pos > tsl {
 		return
 	}
-	var tid = GetU16(tsi.TagsetRaw[tsi.pos-PTStidsz : tsi.pos])
+	var tid = util.GetU16(tsi.TagsetRaw[tsi.pos-PTStidsz : tsi.pos])
 
 	// get tag length
 	if tsi.pos += PTStagsz; tsi.pos > tsl {
 		return
 	}
-	var len = GetU16(tsi.TagsetRaw[tsi.pos-PTStagsz : tsi.pos])
+	var len = util.GetU16(tsi.TagsetRaw[tsi.pos-PTStagsz : tsi.pos])
 	// store tag content position
 	var tag = tsi.pos
 

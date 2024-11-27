@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 // MakeTagsPath receives file path and returns it with ".wpt" extension.
@@ -76,13 +78,13 @@ func FileExists(fpath string) (bool, error) {
 
 // TempPath returns filename located at temporary directory.
 func TempPath(fname string) string {
-	return JoinPath(ToSlash(os.TempDir()), fname)
+	return util.JoinPath(util.ToSlash(os.TempDir()), fname)
 }
 
 // ReadDirN returns fs.DirEntry array with nested into given package directory presentation.
 // It's core function for ReadDirFile and ReadDirFS structures.
 func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) {
-	fulldir = ToSlash(fulldir)
+	fulldir = util.ToSlash(fulldir)
 	var found = map[string]fs.DirEntry{}
 	var prefix string
 	if fulldir != "." && fulldir != "" {
@@ -97,7 +99,7 @@ func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) 
 				found[suffix] = ts
 				n--
 			} else { // dir detected
-				var subdir = JoinPath(prefix, suffix[:sp])
+				var subdir = util.JoinPath(prefix, suffix[:sp])
 				if _, ok := found[subdir]; !ok {
 					var dts = TagsetRaw{}.
 						Put(TIDpath, StrTag(subdir))
@@ -128,7 +130,7 @@ func (ftt *FTT) ReadDirN(fulldir string, n int) (list []fs.DirEntry, err error) 
 // OpenDir returns PackDirFile structure associated with group of files in package
 // pooled with common directory prefix. Usable to implement fs.FileSystem interface.
 func (ftt *FTT) OpenDir(fulldir string) (fs.ReadDirFile, error) {
-	fulldir = ToSlash(fulldir)
+	fulldir = util.ToSlash(fulldir)
 	var prefix string
 	if fulldir != "." && fulldir != "" {
 		prefix = fulldir + "/" // set terminated slash

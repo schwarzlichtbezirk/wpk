@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/schwarzlichtbezirk/wpk"
 	lua "github.com/yuin/gopher-lua"
+
+	"github.com/schwarzlichtbezirk/wpk"
 )
 
 const (

@@ -9,8 +9,9 @@ import (
 	"path"
 	"time"
 
-	"github.com/schwarzlichtbezirk/wpk"
 	lua "github.com/yuin/gopher-lua"
+
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 var (
@@ -51,7 +52,7 @@ func luacheckfile(ls *lua.LState) int {
 
 func luabin2hex(ls *lua.LState) int {
 	var arg = ls.CheckString(1)
-	ls.Push(lua.LString(hex.EncodeToString(wpk.S2B(arg))))
+	ls.Push(lua.LString(hex.EncodeToString(util.S2B(arg))))
 	return 1
 }
 
@@ -67,7 +68,7 @@ func luahex2bin(ls *lua.LState) int {
 	if b, err = hex.DecodeString(arg); err != nil {
 		return 0
 	}
-	ls.Push(lua.LString(wpk.B2S(b)))
+	ls.Push(lua.LString(util.B2S(b)))
 	return 1
 }
 
@@ -106,9 +107,9 @@ func InitLuaVM(ls *lua.LState) {
 
 	var bindir = func() string {
 		if str, err := os.Executable(); err == nil {
-			return path.Dir(wpk.ToSlash(str))
+			return path.Dir(util.ToSlash(str))
 		} else {
-			return path.Dir(wpk.ToSlash(os.Args[0]))
+			return path.Dir(util.ToSlash(os.Args[0]))
 		}
 	}()
 
@@ -116,7 +117,7 @@ func InitLuaVM(ls *lua.LState) {
 	ls.SetGlobal("buildvers", lua.LString(BuildVers))
 	ls.SetGlobal("buildtime", lua.LString(BuildTime))
 	ls.SetGlobal("bindir", lua.LString(bindir))
-	ls.SetGlobal("tmpdir", lua.LString(wpk.ToSlash(os.TempDir())))
+	ls.SetGlobal("tmpdir", lua.LString(util.ToSlash(os.TempDir())))
 	// global functions
 	ls.SetGlobal("log", ls.NewFunction(lualog))
 	ls.SetGlobal("checkfile", ls.NewFunction(luacheckfile))
@@ -132,7 +133,7 @@ func RunLuaVM(fpath string) (err error) {
 	defer ls.Close()
 	InitLuaVM(ls)
 
-	var scrdir = path.Dir(wpk.ToSlash(fpath))
+	var scrdir = path.Dir(util.ToSlash(fpath))
 	ls.SetGlobal("scrdir", lua.LString(scrdir))
 
 	if err = ls.DoFile(fpath); err != nil {

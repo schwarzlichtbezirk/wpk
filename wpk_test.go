@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/schwarzlichtbezirk/wpk"
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 const mediadir = "testdata/media/"
@@ -16,7 +17,7 @@ var testpkgt = wpk.TempPath("testpack.wpt")
 var testpkgf = wpk.TempPath("testpack.wpf")
 
 var memdata = map[string][]byte{
-	"sample.txt": wpk.S2B("The quick brown fox jumps over the lazy dog"),
+	"sample.txt": util.S2B("The quick brown fox jumps over the lazy dog"),
 	"array.dat": {
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 		100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
@@ -182,7 +183,7 @@ func TestPackDir(t *testing.T) {
 			return nil // file is directory
 		}
 
-		var fpath = wpk.JoinPath(mediadir, fkey)
+		var fpath = util.JoinPath(mediadir, fkey)
 		var file fs.File
 		var ts wpk.TagsetRaw
 		if file, err = os.Open(fpath); err != nil {
@@ -304,7 +305,7 @@ func TestPackDirSplit(t *testing.T) {
 			return nil // file is directory
 		}
 
-		var fpath = wpk.JoinPath(mediadir, fkey)
+		var fpath = util.JoinPath(mediadir, fkey)
 		var file fs.File
 		var ts wpk.TagsetRaw
 		if file, err = os.Open(fpath); err != nil {

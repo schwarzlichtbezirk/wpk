@@ -5,8 +5,9 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/schwarzlichtbezirk/wpk"
 	lua "github.com/yuin/gopher-lua"
+
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 // RegPath registers "path" namespace into Lua virtual machine.
@@ -34,7 +35,7 @@ var pathfuncs = map[string]lua.LGFunction{
 func pathtoslash(ls *lua.LState) int {
 	var fpath = ls.CheckString(1)
 
-	ls.Push(lua.LString(wpk.ToSlash(fpath)))
+	ls.Push(lua.LString(util.ToSlash(fpath)))
 	return 1
 }
 
@@ -73,7 +74,7 @@ func pathbase(ls *lua.LState) int {
 func pathname(ls *lua.LState) int {
 	var fpath = ls.CheckString(1)
 
-	var name = wpk.PathName(fpath)
+	var name = util.PathName(fpath)
 	ls.Push(lua.LString(name))
 	return 1
 }
@@ -128,7 +129,7 @@ func pathglob(ls *lua.LState) int {
 		return 0
 	}
 	for _, dir := range matches {
-		ls.Push(lua.LString(wpk.ToSlash(dir)))
+		ls.Push(lua.LString(util.ToSlash(dir)))
 	}
 	return len(matches)
 }
@@ -160,7 +161,7 @@ func pathenum(ls *lua.LState) int {
 
 func pathenvfmt(ls *lua.LState) int {
 	var fpath = ls.CheckString(1)
-	ls.Push(lua.LString(wpk.Envfmt(fpath, nil)))
+	ls.Push(lua.LString(util.Envfmt(fpath, nil)))
 	return 1
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/schwarzlichtbezirk/wpk"
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 func TestTagset(t *testing.T) {
@@ -22,7 +23,7 @@ func TestTagset(t *testing.T) {
 	var ts = wpk.TagsetRaw{}.
 		Put(wpk.TIDoffset, wpk.UintTag(offset)).
 		Put(wpk.TIDsize, wpk.UintTag(size)).
-		Put(wpk.TIDpath, wpk.StrTag(wpk.ToSlash(fkey1))).
+		Put(wpk.TIDpath, wpk.StrTag(util.ToSlash(fkey1))).
 		Put(wpk.TIDfid, wpk.UintTag(fid))
 	var tsi = ts.Iterator()
 
@@ -41,8 +42,8 @@ func TestTagset(t *testing.T) {
 		}
 	}
 
-	assert(wpk.ToSlash(fkey1) == fkey, "toslash test failed")
-	assert(wpk.ToSlash(fkey2) == fkey, "toslash test failed")
+	assert(util.ToSlash(fkey1) == fkey, "toslash test failed")
+	assert(util.ToSlash(fkey2) == fkey, "toslash test failed")
 	assert(tsi.TID() == wpk.TIDnone, "tag ID in created iterator should be 'none'")
 	assert(ts.Num() == 4, "wrong number of tags")
 
@@ -108,7 +109,7 @@ func TestTagset(t *testing.T) {
 	ts, ok = ts.SetOk(wpk.TIDpath, wpk.StrTag(fkey))
 	assert(!ok, "content of 'path' tag should be replaced by 'Set'")
 	assert(ts.Num() == 4, "number of tags after replace 'path' must not be changed")
-	assert(ts.Path() == wpk.ToSlash(fkey2), "'Set' function does not work correctly")
+	assert(ts.Path() == util.ToSlash(fkey2), "'Set' function does not work correctly")
 	ts, ok = ts.SetOk(wpk.TIDmime, wpk.StrTag(mime))
 	assert(ok, "content of 'mime' tag should be added by 'Set'")
 	assert(ts.Num() == 4+1, "number of tags after add 'mime' must be added by one")

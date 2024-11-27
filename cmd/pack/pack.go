@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/schwarzlichtbezirk/wpk"
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 // command line settings
@@ -41,7 +42,7 @@ func checkargs() (ec int) { // returns error counter
 		if fpath == "" {
 			continue
 		}
-		fpath = wpk.ToSlash(wpk.Envfmt(fpath, nil))
+		fpath = util.ToSlash(util.Envfmt(fpath, nil))
 		if !strings.HasSuffix(fpath, "/") {
 			fpath += "/"
 		}
@@ -57,7 +58,7 @@ func checkargs() (ec int) { // returns error counter
 		ec++
 	}
 
-	DstFile = wpk.ToSlash(wpk.Envfmt(DstFile, nil))
+	DstFile = util.ToSlash(util.Envfmt(DstFile, nil))
 	if DstFile == "" {
 		log.Println("destination file does not specified")
 		ec++
@@ -118,7 +119,7 @@ func writepackage() (err error) {
 				return nil // file is directory
 			}
 
-			var fpath = wpk.JoinPath(srcpath, fkey)
+			var fpath = util.JoinPath(srcpath, fkey)
 			var file wpk.RFile
 			var ts wpk.TagsetRaw
 			if file, err = os.Open(fpath); err != nil {

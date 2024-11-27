@@ -244,7 +244,7 @@ function wpk.create(fpath)-- additional wpk-constructor
 	pkg.autofid = true -- put auto generated file ID for each file
 	pkg.automime = true -- put MIME type for each file if it is not given explicit
 	pkg.crc32 = true -- generate CRC32 Castagnoli code for each file
-	pkg:begin(path.toslash(fpath)) -- open wpk-file for write
+	pkg:begin(fpath) -- open wpk-file for write
 	log("starts: "..pkg.pkgpath)
 	return pkg
 end
@@ -271,7 +271,7 @@ logfmt("script dir: %s", scrdir)
 logfmt("temporary dir: %s", tmpdir)
 
 -- starts new package at golang binary directory
-local pkg = wpk.create(path.envfmt"${GOPATH}/bin/api.wpk")
+local pkg = wpk.create(path.toslash(path.envfmt"${GOPATH}/bin/api.wpk"))
 pkg.label = "api-sample" -- image label
 pkg.secret = "package-private-key" -- private key to sign cryptographic hashes for each file
 pkg.sha224 = true -- generate SHA224 hash for each file

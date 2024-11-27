@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"gopkg.in/djherbis/times.v1"
+
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 // WriteSeekCloser is typical useful interface for package writing.
@@ -27,7 +29,7 @@ func (ftt *FTT) Begin(wpt, wpf io.WriteSeeker) (err error) {
 		offset = HeaderSize
 	}
 	var hdr = Header{
-		signature: [SignSize]byte(S2B(SignBuild)),
+		signature: [SignSize]byte(util.S2B(SignBuild)),
 		fttcount:  0,
 		fttoffset: offset,
 		fttsize:   0,
@@ -55,7 +57,7 @@ func (ftt *FTT) Append(wpt, wpf io.WriteSeeker) (err error) {
 		return
 	}
 	// rewrite prebuild signature
-	if _, err = wpt.Write(S2B(SignBuild)); err != nil {
+	if _, err = wpt.Write(util.S2B(SignBuild)); err != nil {
 		return
 	}
 	// go to tags table start to replace it by new data
@@ -117,7 +119,7 @@ func (ftt *FTT) Sync(wpt, wpf io.WriteSeeker) (err error) {
 
 	// rewrite true header
 	var hdr = Header{
-		signature: [SignSize]byte(S2B(SignReady)),
+		signature: [SignSize]byte(util.S2B(SignReady)),
 		fttcount:  uint64(ftt.tsm.Len()),
 		fttoffset: uint64(fftpos),
 		fttsize:   uint64(fftend - fftpos),
@@ -202,7 +204,7 @@ func (pkg *Package) Rename(fkey1, fkey2 string) error {
 		return &fs.PathError{Op: "rename", Path: fkey2, Err: fs.ErrExist}
 	}
 
-	ts = CopyTagset(ts).Set(TIDpath, StrTag(pkg.FullPath(ToSlash(fkey2))))
+	ts = CopyTagset(ts).Set(TIDpath, StrTag(pkg.FullPath(util.ToSlash(fkey2))))
 	pkg.DelTagset(fkey1)
 	pkg.SetTagset(fkey2, ts)
 	return nil
@@ -223,7 +225,7 @@ func (pkg *Package) RenameDir(olddir, newdir string, skipexist bool) (count int,
 				err = &fs.PathError{Op: "renamedir", Path: newkey, Err: fs.ErrExist}
 				return skipexist
 			}
-			ts = CopyTagset(ts).Set(TIDpath, StrTag(pkg.FullPath(ToSlash(newkey))))
+			ts = CopyTagset(ts).Set(TIDpath, StrTag(pkg.FullPath(util.ToSlash(newkey))))
 			pkg.DelTagset(fkey)
 			pkg.SetTagset(newkey, ts)
 			count++
@@ -247,7 +249,7 @@ func (pkg *Package) PutAlias(fkey1, fkey2 string) error {
 		return &fs.PathError{Op: "putalias", Path: fkey2, Err: fs.ErrExist}
 	}
 
-	ts = CopyTagset(ts).Set(TIDpath, StrTag(pkg.FullPath(ToSlash(fkey2))))
+	ts = CopyTagset(ts).Set(TIDpath, StrTag(pkg.FullPath(util.ToSlash(fkey2))))
 	pkg.SetTagset(fkey2, ts)
 	return nil
 }

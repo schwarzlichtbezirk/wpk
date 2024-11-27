@@ -6,6 +6,8 @@ import (
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 // Void is empty structure to release of the set of keys.
@@ -109,7 +111,7 @@ func (u *Union) Stat(fpath string) (fs.FileInfo, error) {
 // Glob returns the names of all files in union matching pattern or nil
 // if there is no matching file.
 func (u *Union) Glob(pattern string) (res []string, err error) {
-	pattern = ToSlash(pattern)
+	pattern = util.ToSlash(pattern)
 	if _, err = path.Match(pattern, ""); err != nil {
 		return
 	}
@@ -152,7 +154,7 @@ func (u *Union) ReadFile(fpath string) ([]byte, error) {
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
 func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
-	dir = ToSlash(dir)
+	dir = util.ToSlash(dir)
 	var found = map[string]fs.DirEntry{}
 	var ni = n
 	for _, pkg := range u.List {
@@ -170,7 +172,7 @@ func (u *Union) ReadDirN(dir string, n int) (list []fs.DirEntry, err error) {
 					found[suffix] = ts
 					ni--
 				} else { // dir detected
-					var subdir = JoinPath(prefix, suffix[:sp])
+					var subdir = util.JoinPath(prefix, suffix[:sp])
 					if _, ok := found[subdir]; !ok {
 						var dts = TagsetRaw{}.
 							Put(TIDpath, StrTag(subdir))
@@ -214,7 +216,7 @@ func (u *Union) ReadDir(dir string) ([]fs.DirEntry, error) {
 // If union have more than one file with the same name, first will be returned.
 // fs.FS implementation.
 func (u *Union) Open(dir string) (fs.File, error) {
-	dir = ToSlash(dir)
+	dir = util.ToSlash(dir)
 	if len(u.List) == 0 {
 		return nil, &fs.PathError{Op: "open", Path: dir, Err: fs.ErrNotExist}
 	}

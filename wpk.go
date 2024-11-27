@@ -9,6 +9,8 @@ import (
 	"path"
 	"strings"
 	"sync"
+
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 const (
@@ -157,14 +159,14 @@ func (hdr *Header) DataSize() uint {
 // IsReady determines that package is ready for read the data.
 func (hdr *Header) IsReady() error {
 	// can not read file tags table for opened on write single-file package.
-	if B2S(hdr.signature[:]) == SignBuild {
+	if util.B2S(hdr.signature[:]) == SignBuild {
 		if hdr.datoffset != 0 {
 			return ErrSignPre
 		}
 		return nil
 	}
 	// can not read file tags table on any incorrect signature
-	if B2S(hdr.signature[:]) != SignReady {
+	if util.B2S(hdr.signature[:]) != SignReady {
 		return ErrSignBad
 	}
 	return nil
@@ -179,15 +181,15 @@ func (hdr *Header) Parse(buf []byte) (n int64, err error) {
 	}
 	copy(hdr.signature[:], buf)
 	n += SignSize
-	hdr.fttcount = GetU64(buf[n:])
+	hdr.fttcount = util.GetU64(buf[n:])
 	n += 8
-	hdr.fttoffset = GetU64(buf[n:])
+	hdr.fttoffset = util.GetU64(buf[n:])
 	n += 8
-	hdr.fttsize = GetU64(buf[n:])
+	hdr.fttsize = util.GetU64(buf[n:])
 	n += 8
-	hdr.datoffset = GetU64(buf[n:])
+	hdr.datoffset = util.GetU64(buf[n:])
 	n += 8
-	hdr.datsize = GetU64(buf[n:])
+	hdr.datsize = util.GetU64(buf[n:])
 	n += 8
 	return
 }
@@ -198,23 +200,23 @@ func (hdr *Header) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 	n += SignSize
-	if hdr.fttcount, err = ReadU64(r); err != nil {
+	if hdr.fttcount, err = util.ReadU64(r); err != nil {
 		return
 	}
 	n += 8
-	if hdr.fttoffset, err = ReadU64(r); err != nil {
+	if hdr.fttoffset, err = util.ReadU64(r); err != nil {
 		return
 	}
 	n += 8
-	if hdr.fttsize, err = ReadU64(r); err != nil {
+	if hdr.fttsize, err = util.ReadU64(r); err != nil {
 		return
 	}
 	n += 8
-	if hdr.datoffset, err = ReadU64(r); err != nil {
+	if hdr.datoffset, err = util.ReadU64(r); err != nil {
 		return
 	}
 	n += 8
-	if hdr.datsize, err = ReadU64(r); err != nil {
+	if hdr.datsize, err = util.ReadU64(r); err != nil {
 		return
 	}
 	n += 8
@@ -227,23 +229,23 @@ func (hdr *Header) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 	n += SignSize
-	if err = WriteU64(w, hdr.fttcount); err != nil {
+	if err = util.WriteU64(w, hdr.fttcount); err != nil {
 		return
 	}
 	n += 8
-	if err = WriteU64(w, hdr.fttoffset); err != nil {
+	if err = util.WriteU64(w, hdr.fttoffset); err != nil {
 		return
 	}
 	n += 8
-	if err = WriteU64(w, hdr.fttsize); err != nil {
+	if err = util.WriteU64(w, hdr.fttsize); err != nil {
 		return
 	}
 	n += 8
-	if err = WriteU64(w, hdr.datoffset); err != nil {
+	if err = util.WriteU64(w, hdr.datoffset); err != nil {
 		return
 	}
 	n += 8
-	if err = WriteU64(w, hdr.datsize); err != nil {
+	if err = util.WriteU64(w, hdr.datsize); err != nil {
 		return
 	}
 	n += 8
@@ -255,8 +257,8 @@ const PackName = "@pack"
 
 // File tags table.
 type FTT struct {
-	info TagsetRaw                 // special tagset with package tags
-	tsm  SeqMap[string, TagsetRaw] // keys - package filenames (case sensitive), values - tagset slices.
+	info TagsetRaw                      // special tagset with package tags
+	tsm  util.SeqMap[string, TagsetRaw] // keys - package filenames (case sensitive), values - tagset slices.
 
 	datoffset uint64 // files data offset
 	datsize   uint64 // files data total size
@@ -358,7 +360,7 @@ func (ftt *FTT) CheckTagset(ts TagsetRaw) (fkey string, err error) {
 // It's high performance method without extra allocations calls.
 func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 	{
-		var tsl = GetU16(buf[n : n+PTStssize])
+		var tsl = util.GetU16(buf[n : n+PTStssize])
 		n += PTStssize
 
 		var ts = TagsetRaw(buf[n : n+int64(tsl)])
@@ -376,7 +378,7 @@ func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 	}
 
 	for {
-		var tsl = GetU16(buf[n : n+PTStssize])
+		var tsl = util.GetU16(buf[n : n+PTStssize])
 		n += PTStssize
 
 		if tsl == 0 {
@@ -391,7 +393,7 @@ func (ftt *FTT) Parse(buf []byte) (n int64, err error) {
 			return
 		}
 
-		ftt.tsm.Poke(ToSlash(fkey), ts)
+		ftt.tsm.Poke(util.ToSlash(fkey), ts)
 	}
 	return
 }
@@ -401,7 +403,7 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 	// read tagset with package info at first, can be empty
 	{
 		var tsl uint16
-		if tsl, err = ReadU16(r); err != nil {
+		if tsl, err = util.ReadU16(r); err != nil {
 			return
 		}
 		n += PTStssize
@@ -425,7 +427,7 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 
 	for {
 		var tsl uint16
-		if tsl, err = ReadU16(r); err != nil {
+		if tsl, err = util.ReadU16(r); err != nil {
 			return
 		}
 		n += PTStssize
@@ -445,7 +447,7 @@ func (ftt *FTT) ReadFrom(r io.Reader) (n int64, err error) {
 			return
 		}
 
-		ftt.tsm.Poke(ToSlash(fkey), ts)
+		ftt.tsm.Poke(util.ToSlash(fkey), ts)
 	}
 	return
 }
@@ -461,7 +463,7 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 		}
 
 		// write tagset length
-		if err = WriteU16(w, uint16(tsl)); err != nil {
+		if err = util.WriteU16(w, uint16(tsl)); err != nil {
 			return
 		}
 		n += PTStssize
@@ -482,7 +484,7 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 		}
 
 		// write tagset length
-		if err = WriteU16(w, uint16(tsl)); err != nil {
+		if err = util.WriteU16(w, uint16(tsl)); err != nil {
 			return false
 		}
 		n += PTStssize
@@ -498,7 +500,7 @@ func (ftt *FTT) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 	// write tags table end marker
-	if err = WriteU16(w, 0); err != nil {
+	if err = util.WriteU16(w, 0); err != nil {
 		return
 	}
 	n += PTStssize
@@ -583,7 +585,7 @@ func NewPackage() *Package {
 
 // FullPath returns concatenation of workspace and relative path.
 func (pkg *Package) FullPath(fkey string) string {
-	return JoinPath(pkg.Workspace, fkey)
+	return util.JoinPath(pkg.Workspace, fkey)
 }
 
 // TrimPath returns trimmed path without workspace prefix.
@@ -610,22 +612,22 @@ func (pkg *Package) BaseTagset(offset, size uint, fkey string) TagsetRaw {
 	return TagsetRaw{}.
 		Put(TIDoffset, UintTag(offset)).
 		Put(TIDsize, UintTag(size)).
-		Put(TIDpath, StrTag(pkg.FullPath(ToSlash(fkey))))
+		Put(TIDpath, StrTag(pkg.FullPath(util.ToSlash(fkey))))
 }
 
 // HasTagset check up that tagset with given filename key is present.
 func (pkg *Package) HasTagset(fkey string) bool {
-	return pkg.tsm.Has(pkg.FullPath(ToSlash(fkey)))
+	return pkg.tsm.Has(pkg.FullPath(util.ToSlash(fkey)))
 }
 
 // GetTagset returns tagset with given filename key, if it found.
 func (pkg *Package) GetTagset(fkey string) (TagsetRaw, bool) {
-	return pkg.tsm.Peek(pkg.FullPath(ToSlash(fkey)))
+	return pkg.tsm.Peek(pkg.FullPath(util.ToSlash(fkey)))
 }
 
 // SetTagset puts tagset with given filename key.
 func (pkg *Package) SetTagset(fkey string, ts TagsetRaw) {
-	pkg.tsm.Poke(pkg.FullPath(ToSlash(fkey)), ts)
+	pkg.tsm.Poke(pkg.FullPath(util.ToSlash(fkey)), ts)
 }
 
 // SetupTagset puts tagset with filename key stored at tagset.
@@ -635,7 +637,7 @@ func (pkg *Package) SetupTagset(ts TagsetRaw) {
 
 // GetDelTagset deletes the tagset for a key, returning the previous tagset if any.
 func (pkg *Package) DelTagset(fkey string) (TagsetRaw, bool) {
-	return pkg.tsm.Delete(pkg.FullPath(ToSlash(fkey)))
+	return pkg.tsm.Delete(pkg.FullPath(util.ToSlash(fkey)))
 }
 
 // Enum calls given closure for each tagset in package. Skips package info.
@@ -654,14 +656,14 @@ func (pkg *Package) Enum(f func(string, TagsetRaw) bool) {
 func (pkg *Package) Sub(dir string) (sub fs.FS, err error) {
 	var prefix string
 	if dir != "." && dir != "" {
-		prefix = ToSlash(dir) + "/" // make prefix slash-terminated
+		prefix = util.ToSlash(dir) + "/" // make prefix slash-terminated
 	}
 	pkg.Enum(func(fkey string, ts TagsetRaw) bool {
 		if strings.HasPrefix(fkey, prefix) {
 			sub = &Package{
 				FTT:       pkg.FTT,
 				Tagger:    pkg.Tagger,
-				Workspace: pkg.FullPath(ToSlash(dir)),
+				Workspace: pkg.FullPath(util.ToSlash(dir)),
 			}
 			return false
 		}
@@ -686,7 +688,7 @@ func (pkg *Package) Stat(fkey string) (fs.FileInfo, error) {
 // if there is no matching file.
 // fs.GlobFS interface implementation.
 func (pkg *Package) Glob(pattern string) (res []string, err error) {
-	pattern = ToSlash(pattern)
+	pattern = util.ToSlash(pattern)
 	if _, err = path.Match(pattern, ""); err != nil {
 		return
 	}
@@ -763,7 +765,7 @@ func GetPackageInfo(r io.ReadSeeker) (hdr Header, ts TagsetRaw, err error) {
 
 	// read first tagset that should be package info
 	var tsl uint16
-	if tsl, err = ReadU16(r); err != nil {
+	if tsl, err = util.ReadU16(r); err != nil {
 		return
 	}
 

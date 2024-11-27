@@ -1,4 +1,4 @@
-package wpk_test
+package util_test
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/schwarzlichtbezirk/wpk"
+	"github.com/schwarzlichtbezirk/wpk/util"
 )
 
 func TestS2B(t *testing.T) {
@@ -17,7 +17,7 @@ func TestS2B(t *testing.T) {
 	if ps == pb {
 		t.Error("string pointer is equal to pointer on new allocated bytes slice")
 	}*/
-	var b = wpk.S2B(s)
+	var b = util.S2B(s)
 	var pb = unsafe.Pointer(unsafe.SliceData(b))
 	if ps != pb {
 		t.Error("string pointer is not equal to pointer on same bytes slice")
@@ -32,7 +32,7 @@ func TestB2S(t *testing.T) {
 	if pb == ps {
 		t.Error("bytes slice pointer is equal to pointer on new allocated string")
 	}
-	s = wpk.B2S(b)
+	s = util.B2S(b)
 	ps = unsafe.Pointer(unsafe.StringData(s))
 	if pb != ps {
 		t.Error("bytes slice pointer is not equal to pointer on same string")
@@ -40,30 +40,30 @@ func TestB2S(t *testing.T) {
 }
 
 func ExampleToSlash() {
-	fmt.Println(wpk.ToSlash("C:\\Windows\\Temp"))
+	fmt.Println(util.ToSlash("C:\\Windows\\Temp"))
 	// Output: C:/Windows/Temp
 }
 
 func ExampleToLower() {
-	fmt.Println(wpk.ToLower("C:\\Windows\\Temp"))
+	fmt.Println(util.ToLower("C:\\Windows\\Temp"))
 	// Output: c:\windows\temp
 }
 
 func ExampleToUpper() {
-	fmt.Println(wpk.ToUpper("C:\\Windows\\Temp"))
+	fmt.Println(util.ToUpper("C:\\Windows\\Temp"))
 	// Output: C:\WINDOWS\TEMP
 }
 
 func ExampleToKey() {
-	fmt.Println(wpk.ToKey("C:\\Windows\\Temp"))
+	fmt.Println(util.ToKey("C:\\Windows\\Temp"))
 	// Output: c:/windows/temp
 }
 
 func ExampleJoinPath() {
-	fmt.Println(wpk.JoinPath("dir", "base.ext"))
-	fmt.Println(wpk.JoinPath("dir/", "base.ext"))
-	fmt.Println(wpk.JoinPath("dir", "/base.ext"))
-	fmt.Println(wpk.JoinPath("dir/", "/base.ext"))
+	fmt.Println(util.JoinPath("dir", "base.ext"))
+	fmt.Println(util.JoinPath("dir/", "base.ext"))
+	fmt.Println(util.JoinPath("dir", "/base.ext"))
+	fmt.Println(util.JoinPath("dir/", "/base.ext"))
 	// Output:
 	// dir/base.ext
 	// dir/base.ext
@@ -72,9 +72,9 @@ func ExampleJoinPath() {
 }
 
 func ExampleJoinFilePath() {
-	fmt.Println(wpk.JoinFilePath("dir/", "base.ext"))
-	fmt.Println(wpk.JoinFilePath("dir", "/base.ext"))
-	fmt.Println(wpk.JoinFilePath("dir/", "/base.ext"))
+	fmt.Println(util.JoinFilePath("dir/", "base.ext"))
+	fmt.Println(util.JoinFilePath("dir", "/base.ext"))
+	fmt.Println(util.JoinFilePath("dir/", "/base.ext"))
 	// Output:
 	// dir/base.ext
 	// dir/base.ext
@@ -82,12 +82,12 @@ func ExampleJoinFilePath() {
 }
 
 func ExamplePathName() {
-	fmt.Println(wpk.PathName("C:\\Windows\\system.ini"))
-	fmt.Println(wpk.PathName("/go/bin/wpkbuild_win_x64.exe"))
-	fmt.Println(wpk.PathName("wpkbuild_win_x64.exe"))
-	fmt.Println(wpk.PathName("/go/bin/wpkbuild_linux_x64"))
-	fmt.Println(wpk.PathName("wpkbuild_linux_x64"))
-	fmt.Printf("'%s'\n", wpk.PathName("/go/bin/"))
+	fmt.Println(util.PathName("C:\\Windows\\system.ini"))
+	fmt.Println(util.PathName("/go/bin/wpkbuild_win_x64.exe"))
+	fmt.Println(util.PathName("wpkbuild_win_x64.exe"))
+	fmt.Println(util.PathName("/go/bin/wpkbuild_linux_x64"))
+	fmt.Println(util.PathName("wpkbuild_linux_x64"))
+	fmt.Printf("'%s'\n", util.PathName("/go/bin/"))
 	// Output:
 	// system
 	// wpkbuild_win_x64
@@ -100,20 +100,20 @@ func ExamplePathName() {
 func ExampleEnvfmt() {
 	os.Setenv("VAR", "/go")
 	// successful patterns
-	fmt.Println(wpk.Envfmt("$VAR/bin/", nil))
-	fmt.Println(wpk.Envfmt("${VAR}/bin/", nil))
-	fmt.Println(wpk.Envfmt("%VAR%/bin/", nil))
-	fmt.Println(wpk.Envfmt("/home$VAR", nil))
-	fmt.Println(wpk.Envfmt("/home%VAR%", map[string]string{"VAR": "/any/path"}))
-	fmt.Println(wpk.Envfmt("$VAR%VAR%${VAR}", nil))
+	fmt.Println(util.Envfmt("$VAR/bin/", nil))
+	fmt.Println(util.Envfmt("${VAR}/bin/", nil))
+	fmt.Println(util.Envfmt("%VAR%/bin/", nil))
+	fmt.Println(util.Envfmt("/home$VAR", nil))
+	fmt.Println(util.Envfmt("/home%VAR%", map[string]string{"VAR": "/any/path"}))
+	fmt.Println(util.Envfmt("$VAR%VAR%${VAR}", nil))
 	// patterns with unknown variable
-	fmt.Println(wpk.Envfmt("$VYR/bin/", nil))
-	fmt.Println(wpk.Envfmt("${VAR}/${_foo_}", nil))
+	fmt.Println(util.Envfmt("$VYR/bin/", nil))
+	fmt.Println(util.Envfmt("${VAR}/${_foo_}", nil))
 	// patterns with errors
-	fmt.Println(wpk.Envfmt("$VAR$/bin/", nil))
-	fmt.Println(wpk.Envfmt("${VAR/bin/", nil))
-	fmt.Println(wpk.Envfmt("%VAR/bin/", nil))
-	fmt.Println(wpk.Envfmt("/home${VAR", nil))
+	fmt.Println(util.Envfmt("$VAR$/bin/", nil))
+	fmt.Println(util.Envfmt("${VAR/bin/", nil))
+	fmt.Println(util.Envfmt("%VAR/bin/", nil))
+	fmt.Println(util.Envfmt("/home${VAR", nil))
 	// Output:
 	// /go/bin/
 	// /go/bin/

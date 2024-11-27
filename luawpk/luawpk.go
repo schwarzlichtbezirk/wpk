@@ -8,8 +8,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/schwarzlichtbezirk/wpk"
 	lua "github.com/yuin/gopher-lua"
+
+	"github.com/schwarzlichtbezirk/wpk"
 )
 
 // Package writer errors.
